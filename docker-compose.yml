@@ -28,6 +28,9 @@ services:
     restart: unless-stopped
     # --import-realm : crée le realm « griot » au premier démarrage (ignoré ensuite)
     command: ["start", "--import-realm"]
+    # Mémoire plafonnée (ordinateur de démo à 16 Go) : la JVM de Keycloak règle son tas
+    # à 70 % de cette limite. 1 Go suffit pour quelques dizaines de comptes.
+    mem_limit: 1g
     environment:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak

@@ -17,6 +17,19 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 5. Sur le téléphone de démo, installer **FreeOTP** ou **Aegis** (applications libres) pour le code TOTP.
 6. Ouvrir trois onglets : https://guichet.griot.test (agent), une fenêtre privée sur https://guichet.griot.test
    (second agent), https://usager.griot.test (téléphone de l'usager).
+7. Enrôler une fois le TOTP des comptes de démo (QR code à la première connexion) : `moussa.kone` (passeport),
+   `issa.sawadogo`, `awa.ouedraogo`, `agent.curieux`, `controle.cil`.
+
+## 0 bis. Juste avant CHAQUE répétition et avant la démo
+
+1. Comptes de test désactivés : dans `.env`, `OUTILS_TEST=0` (sinon : le mettre à 0 puis `python scripts\outils_test.py`).
+2. Journal neuf (l'ancien est **archivé**, jamais effacé) :
+   ```powershell
+   cd C:\Users\USER\Desktop\HACKATON_2026
+   python scripts\remise_a_zero.py --oui
+   ```
+   Attendu à la fin : « Journal intègre : 1 lignes » puis « Archive … conservée et vérifiable ».
+3. `python scripts\panne.py` → `normal` trois fois. Page Contrôle (`controle.cil`) : « comptes de test actifs : non ».
 
 ## Comptes de démonstration
 
@@ -70,7 +83,20 @@ autorisation parentale pour un mineur). Ici, c'est **lui qui demande** que les p
    - `BF-0008` → « interdiction de sortie du territoire : oui » ; « au moins une condition n'est pas remplie ».
    - Au téléphone, `2` (Refuser) → au guichet « refusé par l'usager : rien n'a été transmis ».
 
-## Scène 1 ter (secondaire) : le concours direct, base légale et panne partielle
+## Scène 1 bis : la preuve que rien ne fuit
+
+`python scripts/preuve_minimisation.py BF-0008` (le jury peut choisir un autre citoyen)
+
+Attendu :
+1. Données témoins lues DANS les registres : nom, date et lieu de naissance, parents, détail du casier (« vol… »).
+2. Une vraie demande « Concours direct » de bout en bout.
+3. Chaque témoin est cherché hors des registres (base SQLite du médiateur, historique de l'usager, page du guichet,
+   réponses reçues, logs du médiateur, du guichet, de l'USSD et de Caddy) : **« introuvable ✅ » partout**.
+4. Les réponses signées reçues par le guichet, décodées en entier : `{"age_equal_or_over": {"18": true, "38": true},
+   "date_reference": "2026-12-31", …}` (47 ans : trop âgé), `"casier_judiciaire_vierge": false`. Rien d'autre.
+Au guichet, chaque résultat a aussi un bouton « réponse signée reçue (contenu complet, décodé) ».
+
+## Scène 1 ter (secondaire) : le concours direct, base légale et panne partielle sur 3 registres
 
 Pas d'accord à demander : la consultation est prévue par le communiqué du concours (base légale), mais elle
 apparaît dans l'historique de l'usager avec le texte cité.
@@ -90,19 +116,6 @@ apparaît dans l'historique de l'usager avec le texte cité.
 5. Variantes : `BF-0008` → « casier judiciaire vierge : non » et « au moins une condition n'est pas remplie » ;
    `BF-0018` → « nationalité burkinabè : non » ; `BF-0003` (mineure) → « âge … : non ».
 6. **Vérifier la majorité** (au cas où un juré la demande), `BF-0001` → « majeur (18 ans accomplis) : oui ».
-
-## Scène 1 bis : la preuve que rien ne fuit
-
-`python scripts/preuve_minimisation.py BF-0008` (le jury peut choisir un autre citoyen)
-
-Attendu :
-1. Données témoins lues DANS les registres : nom, date et lieu de naissance, parents, détail du casier (« vol… »).
-2. Une vraie demande « Concours direct » de bout en bout.
-3. Chaque témoin est cherché hors des registres (base SQLite du médiateur, historique de l'usager, page du guichet,
-   réponses reçues, logs du médiateur, du guichet, de l'USSD et de Caddy) : **« introuvable ✅ » partout**.
-4. Les réponses signées reçues par le guichet, décodées en entier : `{"age_equal_or_over": {"18": true, "38": true},
-   "date_reference": "2026-12-31", …}` (47 ans : trop âgé), `"casier_judiciaire_vierge": false`. Rien d'autre.
-Au guichet, chaque résultat a aussi un bouton « réponse signée reçue (contenu complet, décodé) ».
 
 ## Scène 2 : « Vous voyez avant » (consentement par USSD)
 
@@ -232,6 +245,13 @@ ne peut pas y toucher. Sur le vrai journal :
 Couper le wifi (et débrancher le câble), puis rejouer la scène 1 ou 2 : tout fonctionne. Aucun service n'a
 besoin d'Internet (réseaux Docker internes, certificats locaux, aucune ressource externe).
 **À répéter une fois en vrai avant la présentation** (pas encore testé physiquement).
+
+## Scène 10 : les données du jury (format inconnu, configuration seulement)
+
+Procédure complète : `docs/JOUR_J_DONNEES_JURY.md`. À montrer : `inspecter_donnees.py … --proposer-yaml` sur un
+fichier du jury, puis `tester_adaptateur.py etat-civil <identifiant>` (réponse ou motif de refus, sans rien signer).
+Preuve déjà faite sur 3 jeux fictifs (Excel en français jj/mm/aaaa, JSON imbriqué, CSV Windows-1252) :
+`.venv\Scripts\python -m pytest tests\test_formats.py -v`.
 
 ## Demande en ligne de commande (vrai agent)
 

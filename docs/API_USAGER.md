@@ -17,11 +17,14 @@ composer l'écran dans une autre langue (mooré).
 `GET /usagers/{sujet_ref}/en-attente` → `200`, liste (vide si rien en attente) :
 
 ```json
-[{"id_demande": "8c1f…", "service": "Le service des bourses", "demarche": "Demande de bourse",
+[{"id_demande": "8c1f…", "service": "Le service des bourses", "code_service": "service-bourses",
+  "code_attribut": "majeur", "demarche": "Demande de bourse",
   "finalite": "attribution de bourse", "attribut": "majeur", "valeur": "oui", "expire_le": 1794838200,
   "apercu": "Le service des bourses recevra : majeur = oui. Rien d'autre."}]
 ```
 
+- `code_service`, `code_attribut` : codes stables (ajoutés le 16/11, compatibles) pour composer l'écran
+  dans une autre langue ; les textes `service`, `attribut`, `apercu` restent en français.
 - `valeur` : `"oui"` ou `"non"`, exactement ce qui partira si l'usager confirme.
 - `expire_le` : horodatage Unix (UTC) ; après, la demande disparaît (expirée, rien n'est remis).
 
@@ -46,7 +49,7 @@ composer l'écran dans une autre langue (mooré).
 
 ```json
 [{"n": 36, "ts": "2026-11-16T11:54:30Z", "agent": "issa.sawadogo",
-  "service": "La direction des concours de la fonction publique",
+  "service": "La direction des concours de la fonction publique", "code_service": "direction-concours",
   "demarche": "Inscription à un concours de la fonction publique",
   "finalite": "vérification de l'âge minimal pour concourir", "base": "base-legale",
   "texte_base": "Règlement des concours … (texte fictif pour la démonstration)",

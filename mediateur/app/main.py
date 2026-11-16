@@ -236,7 +236,8 @@ def apercu(demande: dict) -> dict:
     service = REGLES["services"].get(demande["demandeur"], {}).get("nom", demande["demandeur"])
     libelle = REGLES["attributs"][demande["attribut"]]["libelle"]
     valeur = "oui" if demande["valeur"] else "non"
-    return {"id_demande": demande["id_demande"], "service": service,
+    return {"id_demande": demande["id_demande"], "service": service, "code_service": demande["demandeur"],
+            "code_attribut": demande["attribut"],
             "demarche": REGLES["demarches"][demande["demarche"]]["libelle"], "finalite": demande["finalite"],
             "attribut": libelle, "valeur": valeur, "expire_le": int(demande["expire_le"]),
             "apercu": f"{service} recevra : {libelle} = {valeur}. Rien d'autre."}
@@ -285,6 +286,7 @@ def historique(sujet_ref: str):
         lignes.append({
             "n": l["n"], "ts": l["ts"], "agent": l["agent"],
             "service": REGLES["services"].get(l["demandeur"], {}).get("nom", l["demandeur"]),
+            "code_service": l["demandeur"],
             "demarche": demarche.get("libelle", l["demarche"]), "finalite": l["finalite"], "base": l["base"],
             "texte_base": demarche.get("texte", "") if l["base"] == "base-legale" else "",
             "attribut": l["attribut"], "evenement": l["evenement"], "resultat": l["resultat"],

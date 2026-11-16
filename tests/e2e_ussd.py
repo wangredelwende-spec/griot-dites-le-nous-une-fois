@@ -54,17 +54,22 @@ def main():
     with httpx.Client(verify=ca, follow_redirects=True, timeout=20) as guichet, \
          httpx.Client(verify=ca, follow_redirects=True, timeout=20) as telephone:
         csrf = connecter(guichet, AGENT)
-        adresse = demander(guichet, csrf)
-        resultats.append(verifier("demande de bourse en attente de l'usager", True))
-
         tel = Telephone(telephone, "70000012")
         tel.taper("*226#")
         tel.taper("1234")
+        # Nettoyage : refuse les demandes laissées en attente par un passage précédent interrompu
+        while "recevra" in tel.taper("1"):
+            tel.taper("2")
+            tel.taper("0")
+        tel.taper("0")       # « Aucune demande en attente. 0. Menu » -> retour au menu
+
+        adresse = demander(guichet, csrf)
+        resultats.append(verifier("demande de bourse en attente de l'usager", True))
         apercu = tel.taper("1")
         resultats.append(verifier("aperçu exact sur le téléphone",
                                   "Le service des bourses recevra : majeur = oui. Rien d'autre." in apercu, apercu))
         confirmation = tel.taper("1")
-        recu = re.search(r"Reçu : ([0-9a-f]{8})", confirmation)
+        recu = re.search(r"Reçu : ((?:[0-9a-f]{4} ){3}[0-9a-f]{4})", confirmation)
         resultats.append(verifier(f"confirmation avec reçu ({recu[1] if recu else '?'})", bool(recu), confirmation))
 
         page = texte(guichet.get(adresse).text)
@@ -74,10 +79,16 @@ def main():
         tel.taper("0")
         historique = tel.taper("2")
         resultats.append(verifier("historique : la consultation apparaît, sans la valeur",
-                                  "Bourses majeur transmis" in historique and "oui" not in historique, historique))
+                                  "Bourses majeur transmis" in historique and "Bourses majeur accordé" in historique
+                                  and "oui" not in historique, historique))
+        detail = tel.taper("2")        # ligne 1 : « transmis » ; ligne 2 : « accordé », celle du reçu
+        resultats.append(verifier("détail : finalité, base et le même reçu",
+                                  "Pour : attribution de bourse" in detail and bool(recu) and recu[1] in detail
+                                  and "Avec votre accord" in detail, detail))
+        tel.taper("0")       # détail -> liste
+        tel.taper("0")       # liste -> menu
 
         adresse = demander(guichet, csrf)
-        tel.taper("0")
         tel.taper("1")
         refus = tel.taper("2")
         page = texte(guichet.get(adresse).text)

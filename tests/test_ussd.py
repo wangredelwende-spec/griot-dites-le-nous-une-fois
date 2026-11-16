@@ -64,7 +64,7 @@ def test_apercu_puis_confirmation_avec_recu():
     apercu = tel.taper("1")
     assert apercu.startswith("Le service des bourses recevra : majeur = oui. Rien d'autre.")
     assert "1. Confirmer 2. Refuser" in apercu
-    assert tel.taper("1") == "Confirmé. Reçu : 3f9a1c0b\n0. Menu"
+    assert tel.taper("1") == "Confirmé. Reçu : 3f9a 1c0b 0000 0000\n0. Menu"
     assert confirmer.calls[0].request.headers["X-Cle-Canal"] == "secret-de-test-canal"
     assert b'"sujet_ref":"BF-0012"' in confirmer.calls[0].request.content.replace(b" ", b"")
 
@@ -86,20 +86,46 @@ def test_historique_pagine_par_3_sans_la_valeur():
     tel = Telephone()
     tel.connecter()
     page1 = tel.taper("2")
-    assert page1.splitlines()[0] == "16/11 11h54 Concours majeur transmis 00000007"
+    assert page1.splitlines()[0] == "1. 16/11 11h54 Concours majeur transmis"
     assert len(page1.splitlines()) == 4 and page1.endswith("9.Suite 0.Retour")
     assert len(tel.taper("9").splitlines()) == 4
-    assert tel.taper("9").splitlines() == ["16/11 11h54 Concours majeur transmis 00000001", "0. Retour"]
+    assert tel.taper("9").splitlines() == ["1. 16/11 11h54 Concours majeur transmis", "0. Retour"]
     assert "oui" not in page1
 
 
 @respx.mock
-def test_pire_ecran_d_historique_tient_en_160():
-    lignes = [ligne(n, "refus-usager", "service-bourses") for n in range(10)]
+def test_detail_avec_finalite_base_et_recu_de_16_caracteres():
+    respx.get(f"{M}/usagers/BF-0012/historique").mock(return_value=httpx.Response(200, json=[ligne(7)]))
+    tel = Telephone()
+    tel.connecter()
+    tel.taper("2")
+    detail = tel.taper("1")
+    assert detail.splitlines() == ["La direction des concours : majeur transmis", "Pour : …", "Base légale",
+                                   "Reçu : 0000 0007 aaaa aaaa", "0. Retour"]
+    assert tel.taper("0").startswith("1. 16/11")          # retour à la liste
+
+
+@respx.mock
+def test_pires_ecrans_tiennent_en_160_sans_couper_le_recu():
+    longue = {"finalite": "vérification de l'âge minimal pour concourir " * 5, "base": "consentement"}
+    lignes = [ligne(n, "refus-usager", "direction-concours") | longue for n in range(10)]
     respx.get(f"{M}/usagers/BF-0012/historique").mock(return_value=httpx.Response(200, json=lignes))
     tel = Telephone()
     tel.connecter()
     assert not tel.taper("2").endswith("…")
+    detail = tel.taper("3")
+    assert len(detail) <= 160 and "Reçu : 0000 0002 aaaa aaaa" in detail and detail.endswith("0. Retour")
+
+
+@respx.mock
+def test_confirmation_recu_16_caracteres_en_4_groupes():
+    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=EN_ATTENTE))
+    respx.post(f"{M}/demandes/d-1/confirmer").mock(return_value=httpx.Response(
+        200, json={"id_demande": "d-1", "statut": "confirmee", "empreinte": "903547b31c2e9f04" + "0" * 48}))
+    tel = Telephone()
+    tel.connecter()
+    tel.taper("1")
+    assert tel.taper("1") == "Confirmé. Reçu : 9035 47b3 1c2e 9f04\n0. Menu"
 
 
 def test_pin_faux_trois_fois_bloque():

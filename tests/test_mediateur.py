@@ -719,3 +719,30 @@ def test_passeport_reserve_a_la_police(client):
     client.agent["nom"] = "awa.ouedraogo"       # service des bourses
     r = client.post("/demandes", json=demande(demarche="passeport-ordinaire", sujet="BF-0001")).json()
     assert r["statut"] == "refuse" and r["motif"] == "démarche non autorisée pour ce service"
+
+
+# --- Format de l'identifiant réglable (annuaire.yaml) : clé composée des données du jury ---
+
+def test_identifiant_au_mauvais_format_refuse(client):
+    r = client.post("/demandes", json=demande(sujet="BF 0001 ; DROP"))
+    assert r.status_code == 422 and "mauvais format" in r.json()["detail"]
+    assert client.get("/usagers/BF%200001/en-attente", headers=CANAL).status_code == 422
+
+
+@respx.mock
+def test_cle_composee_de_bout_en_bout(client, monkeypatch):
+    import re as re_
+    monkeypatch.setattr(mediateur, "FORMAT_IDENTIFIANT", re_.compile(r"^[^|/]{1,60}\|[^|/]{1,80}\|\d{4}-\d{2}-\d{2}$"))
+    cle = "KABORÉ|Aminata Rosine|2001-03-14"
+    client.agent["nom"] = "awa.ouedraogo"
+    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    d = demande(demarche="bourse-nationale", sujet=cle)
+    assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
+    # La clé passe dans l'adresse (« | », espace, accent encodés), comme le fait l'USSD
+    from urllib.parse import quote
+    attente = client.get(f"/usagers/{quote(cle, safe='')}/en-attente", headers=CANAL).json()
+    assert [a["id_demande"] for a in attente] == [d["id_demande"]]
+    client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": cle}, headers=CANAL)
+    assert client.get(f"/demandes/{d['id_demande']}").json()["statut"] == "remise"
+    historique = client.get(f"/usagers/{quote(cle, safe='')}/historique", headers=CANAL).json()
+    assert historique and cle not in json.dumps(historique)        # jamais l'identifiant en clair

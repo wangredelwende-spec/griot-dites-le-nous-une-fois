@@ -5,6 +5,7 @@ ou rôle controleur (page /controle, LECTURE SEULE). Le service de l'agent vient
 Le guichet ne reçoit que la réponse minimale SIGNÉE par le registre, et revérifie lui-même la signature.
 """
 import hashlib
+import re
 import secrets
 import uuid
 from datetime import date, datetime, timezone
@@ -29,6 +30,8 @@ SECRET_OIDC = lire_secret("guichet_oidc")
 # et attributs déclarés par chaque registre (adaptateurs/<registre>.yaml).
 ANNUAIRE = yaml.safe_load((CATALOGUE / "annuaire.yaml").read_text(encoding="utf-8"))
 DEMARCHES = yaml.safe_load((CATALOGUE / "demarches.yaml").read_text(encoding="utf-8"))["demarches"]
+# Format de l'identifiant de l'usager (réglable pour les données du jury), le même que celui du médiateur
+IDENTIFIANT = ANNUAIRE.get("identifiant_usager") or {"format": r"^[A-Za-z0-9-]{1,64}$", "exemple": "BF-0001"}
 ATTRIBUTS = {}
 for _registre in ANNUAIRE["registres"]:
     _conf = yaml.safe_load((ADAPTATEURS / f"{_registre}.yaml").read_text(encoding="utf-8"))
@@ -254,7 +257,7 @@ def lire_valeur(infos: dict, attribut: dict, parametres: dict) -> bool:
 
 @app.get("/")
 async def accueil(request: Request, session: dict = Depends(exiger_agent)):
-    return page(request, "accueil.html", demarches=demarches_du_service(session["service"]))
+    return page(request, "accueil.html", demarches=demarches_du_service(session["service"]), identifiant=IDENTIFIANT)
 
 
 @app.post("/demandes")
@@ -263,8 +266,11 @@ async def envoyer(request: Request, csrf: str = Form(...), demarche: str = Form(
     verifier_csrf(request, csrf)
     demarches = demarches_du_service(session["service"])
     if demarche not in demarches or not sujet_ref.strip():
-        return page(request, "accueil.html", 400, demarches=demarches, erreur="Choisissez une démarche et "
-                    "indiquez l'identifiant de l'usager.")
+        return page(request, "accueil.html", 400, demarches=demarches, identifiant=IDENTIFIANT,
+                    erreur="Choisissez une démarche et indiquez l'identifiant de l'usager.")
+    if not re.fullmatch(IDENTIFIANT["format"], sujet_ref.strip()):
+        return page(request, "accueil.html", 400, demarches=demarches, identifiant=IDENTIFIANT,
+                    erreur=f"Identifiant au mauvais format. Exemple : {IDENTIFIANT['exemple']}")
     id_demande = str(uuid.uuid4())
     # Ni attribut ni question libre : c'est le catalogue qui fixe ce que la démarche peut demander
     corps = {"id_demande": id_demande, "demarche": demarche, "sujet_ref": sujet_ref.strip(),

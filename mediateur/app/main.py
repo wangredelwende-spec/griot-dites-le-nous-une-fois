@@ -16,6 +16,7 @@ import hashlib
 import hmac
 import importlib.util
 import json
+import re
 import sqlite3
 import threading
 import time
@@ -39,6 +40,15 @@ except catalogue.CatalogueInvalide as e:
     raise SystemExit(f"CATALOGUE INVALIDE : le médiateur ne démarre pas.\n{e}")
 for avertissement in CAT["avertissements"]:
     print(f"Attention, {avertissement}", flush=True)
+
+# Format de l'identifiant de l'usager (annuaire.yaml, réglable pour les données du jury)
+FORMAT_IDENTIFIANT = re.compile(CAT["identifiant"]["format"])
+
+
+def controler_identifiant(sujet_ref: str):
+    if not FORMAT_IDENTIFIANT.fullmatch(sujet_ref):
+        raise HTTPException(422, f"identifiant d'usager au mauvais format (exemple : {CAT['identifiant']['exemple']})")
+
 
 SECRET_PSEUDONYME = lire_secret("sujet_hmac").encode()
 SECRET_CANAL = lire_secret("canal_usager").encode()
@@ -341,7 +351,7 @@ class Demande(BaseModel):
     model_config = ConfigDict(extra="forbid")       # aucun champ libre : on ne peut rien demander « en plus »
     id_demande: str = Field(pattern=UUID4)
     demarche: str = Field(max_length=64)
-    sujet_ref: str = Field(pattern=r"^[A-Za-z0-9-]{1,64}$")
+    sujet_ref: str = Field(min_length=1, max_length=200)     # format : annuaire.yaml (controler_identifiant)
     finalite: str = Field(max_length=200)
     # Facultatif : si le demandeur précise des attributs, ce doit être EXACTEMENT ceux du catalogue
     attributs: list[str] | None = Field(default=None, max_length=10)
@@ -354,6 +364,7 @@ def sante():
 
 @app.post("/demandes")
 async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
+    controler_identifiant(d.sujet_ref)
     demandeur = service_de(agent) or "inconnu"
     demarche = CAT["demarches"].get(d.demarche)
     prevus = [a["attribut"] for a in demarche["attributs"]] if demarche else []
@@ -435,7 +446,7 @@ def canal_usager(x_cle_canal: str = Header("")):
 
 
 class Usager(BaseModel):
-    sujet_ref: str = Field(pattern=r"^[A-Za-z0-9-]{1,64}$")
+    sujet_ref: str = Field(min_length=1, max_length=200)     # format : annuaire.yaml (controler_identifiant)
 
 
 def libelles(code_demarche: str) -> dict:
@@ -461,6 +472,7 @@ def apercu(demande: dict) -> dict:
 
 @app.get("/usagers/{sujet_ref}/en-attente", dependencies=[Depends(canal_usager)])
 def en_attente(sujet_ref: str):
+    controler_identifiant(sujet_ref)
     with VERROU:
         ids = base.execute("SELECT id_demande FROM demandes WHERE sujet = ? AND statut = 'en_attente'",
                            (pseudonyme(sujet_ref),)).fetchall()
@@ -469,6 +481,7 @@ def en_attente(sujet_ref: str):
 
 
 def demande_de_l_usager(id_demande: str, usager: Usager) -> dict:
+    controler_identifiant(usager.sujet_ref)
     demande = lire(id_demande)
     if demande is None or not hmac.compare_digest(demande["sujet"], pseudonyme(usager.sujet_ref)):
         raise HTTPException(404, "demande introuvable")
@@ -496,6 +509,7 @@ def refuser_par_usager(id_demande: str, usager: Usager):
 
 @app.get("/usagers/{sujet_ref}/accords", dependencies=[Depends(canal_usager)])
 def accords(sujet_ref: str):
+    controler_identifiant(sujet_ref)
     """Accords donnés par l'usager, qu'il peut retirer : pas encore remis (« en cours ») ou déjà remis."""
     with VERROU:
         ids = base.execute("SELECT id_demande FROM demandes WHERE sujet = ? AND base = 'consentement' "
@@ -544,6 +558,7 @@ def retirer(id_demande: str, usager: Usager):
 
 @app.get("/usagers/{sujet_ref}/historique", dependencies=[Depends(canal_usager)])
 def historique(sujet_ref: str):
+    controler_identifiant(sujet_ref)
     """Qui a consulté, quand, pourquoi, sur quelle base. Jamais la valeur (le journal ne la contient pas)."""
     lignes = []
     for l in journal.lignes_du_sujet(pseudonyme(sujet_ref)):

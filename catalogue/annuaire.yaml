@@ -2,6 +2,14 @@
 # Lu par le médiateur et, en lecture seule, par le guichet. Les démarches sont dans demarches.yaml ;
 # les attributs sont déclarés par chaque registre dans adaptateurs/<registre>.yaml.
 
+# Format de l'identifiant de l'usager (tapé au guichet, lié à un numéro dans l'annuaire USSD), RÉGLABLE pour
+# les données du jury. Expression régulière vérifiée par le médiateur et le guichet. Pas de « / » (il passe
+# dans les adresses de l'API). Clé composée (registres sans identifiant commun), par exemple :
+#   format: '^[^|/]{1,60}\|[^|/]{1,80}\|\d{4}-\d{2}-\d{2}$'   exemple: KABORE|Aminata|2001-03-14
+identifiant_usager:
+  format: '^[A-Za-z0-9-]{1,64}$'
+  exemple: BF-0001
+
 # Services demandeurs. « groupe » = nom du groupe Keycloak de l'agent (le service vient du jeton,
 # jamais d'un formulaire). « nom » = texte montré à l'usager.
 services:

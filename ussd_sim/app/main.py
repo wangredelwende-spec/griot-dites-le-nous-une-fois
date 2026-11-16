@@ -11,6 +11,7 @@ import secrets
 import time
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import quote
 
 import httpx
 import yaml
@@ -22,7 +23,7 @@ from starlette.middleware.sessions import SessionMiddleware
 
 ICI = Path(__file__).parent
 MEDIATEUR = os.environ.get("MEDIATEUR", "http://mediateur:8000")
-FICHIER_ABONNES = Path(os.environ.get("ABONNES", "/app/abonnes.yaml"))
+FICHIER_ABONNES = Path(os.environ.get("ABONNES", "/app/abonnes.yaml"))   # annuaire USSD : numéro -> identifiant + PIN (fichier choisi dans .env)
 FICHIER_TEXTES = Path(os.environ.get("TEXTES", "/app/phrases-ussd.csv"))
 SECRETS = Path(os.environ.get("GRIOT_SECRETS", "/run/secrets"))
 
@@ -208,17 +209,17 @@ async def traiter(s: dict, reponse: str) -> str:
     if etape == "menu":
         try:
             if reponse == "1":
-                r = await mediateur("GET", f"/usagers/{s['sujet_ref']}/en-attente")
+                r = await mediateur("GET", f"/usagers/{quote(s['sujet_ref'], safe='')}/en-attente")
                 r.raise_for_status()
                 s.update(etape="attente", liste=r.json(), index=0)
                 return ecran_attente(s)
             if reponse == "3":
-                r = await mediateur("GET", f"/usagers/{s['sujet_ref']}/accords")
+                r = await mediateur("GET", f"/usagers/{quote(s['sujet_ref'], safe='')}/accords")
                 r.raise_for_status()
                 s["liste"] = r.json()
                 return ecran_accords(s)
             if reponse == "2":
-                r = await mediateur("GET", f"/usagers/{s['sujet_ref']}/historique")
+                r = await mediateur("GET", f"/usagers/{quote(s['sujet_ref'], safe='')}/historique")
                 r.raise_for_status()
                 lignes = [l for l in r.json() if l["evenement"] in EVENEMENTS
                           or (l["evenement"] == "demande" and l["resultat"] == "refuse")]

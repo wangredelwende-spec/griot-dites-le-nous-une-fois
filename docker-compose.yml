@@ -216,7 +216,8 @@ services:
     restart: unless-stopped
     secrets: [canal_usager]
     volumes:
-      - ./ussd_sim/abonnes.yaml:/app/abonnes.yaml:ro
+      # Annuaire USSD (numéro -> identifiant, PIN), séparé des registres : le jour J, ABONNES_USSD=./donnees_jury/abonnes.yaml
+      - ${ABONNES_USSD:-./ussd_sim/abonnes.yaml}:/app/abonnes.yaml:ro
       - ./traduction-moore/phrases-ussd.csv:/app/phrases-ussd.csv:ro
     networks: [interne]
     healthcheck:

@@ -133,7 +133,7 @@ class DemandeAttribut(BaseModel):
     id_demande: str = Field(max_length=64)
     attribut: str = Field(max_length=64)
     parametres: dict[str, int | str | None] = {}    # ex. {"min": 18, "max": 37, "date_reference": "2026-12-31"}
-    sujet_ref: str = Field(max_length=64)
+    sujet_ref: str = Field(max_length=200)     # identifiant, ou clé composée « NOM|Prénoms|2001-03-14 »
     destinataire: str = Field(max_length=64)    # service demandeur : devient « aud » du jeton
 
 

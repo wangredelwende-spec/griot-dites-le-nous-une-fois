@@ -29,8 +29,9 @@ Et aussi, pour tous les formats : `identite:` (colonne qui identifie la personne
 .venv\Scripts\python scripts\inspecter_donnees.py donnees_jury\<fichier1> donnees_jury\<fichier2> donnees_jury\<fichier3>
 ```
 Lire : colonnes, formats de date, cases vides, valeurs distinctes (nationalité), identifiant probable, doublons,
-homonymes, **identifiant commun entre les fichiers**. S'il n'y a pas d'identifiant commun : **STOP**, en parler à
-Esther avant tout (rapprochement à décider, voir `A_TRANCHER_DONNEES_JURY.md`).
+homonymes, **identifiant commun entre les fichiers**, et la **clé d'identité proposée** (voir « Identité » plus bas).
+S'il n'y a pas d'identifiant commun : la clé composée est proposée ; **en parler à Esther avant de la mettre en
+service** (voir `A_TRANCHER_DONNEES_JURY.md`).
 
 **3. Générer les brouillons d'adaptateur** :
 ```powershell
@@ -38,7 +39,9 @@ Esther avant tout (rapprochement à décider, voir `A_TRANCHER_DONNEES_JURY.md`)
 ```
 → `donnees_jury\brouillons\<registre>-<fichier>.yaml`. Les relire : chercher « À VÉRIFIER », vérifier
 `identite`, `champs`, `format_date` et **chaque valeur** de `correspondances` (oui / non). Les groupes, attributs
-et la double clé sont repris de l'adaptateur actuel : ne pas y toucher.
+et la double clé sont repris de l'adaptateur actuel : ne pas y toucher. Aussi produits :
+`identifiant_usager.yaml` (format de l'identifiant, à recopier dans `cataloguennuaire.yaml`) et `abonnes.yaml`
+(annuaire USSD de démo : numéros et PIN **inventés**, liés à quelques personnes du jury).
 
 **3 bis. PDF scanné seulement** (le conteneur OCR n'a aucun réseau) :
 ```powershell
@@ -57,10 +60,15 @@ vierge. Chaque refus affiche son motif précis (qui, en vrai, ne sort jamais du 
 
 **5. Mettre en service** :
 - copier chaque brouillon validé dans `adaptateurs\<registre>.yaml` ;
-- dans `.env` : `DONNEES_REGISTRES=./donnees_jury` (et `API_JURY_SECRET=…` si le jury donne une API) ;
-- redémarrer **seulement les registres** (prévenir l'équipe) :
+- si l'identifiant du jury n'est pas de la forme `BF-0001` : recopier `identifiant_usager.yaml` dans
+  `cataloguennuaire.yaml` (bloc `identifiant_usager`) ;
+- copier `donnees_juryrouillonsbonnes.yaml` dans `donnees_jurybonnes.yaml` ;
+- dans `.env` : `DONNEES_REGISTRES=./donnees_jury`, `ABONNES_USSD=./donnees_jury/abonnes.yaml`
+  (et `API_JURY_SECRET=…` si le jury donne une API) ;
+- redémarrer **seulement les registres, le médiateur, le guichet et l'USSD** (jamais Keycloak ni PostgreSQL ;
+  prévenir l'équipe) :
 ```powershell
-docker compose up -d --force-recreate --wait registre-etat-civil registre-nationalite registre-casier
+docker compose up -d --force-recreate --no-deps --wait registre-etat-civil registre-nationalite registre-casier mediateur guichet ussd_sim
 docker compose logs registre-etat-civil registre-nationalite registre-casier | Select-String "source"
 ```
 Chaque registre écrit : format, nombre de lignes et **empreinte SHA-256** du fichier lu. Un YAML ou un fichier
@@ -70,8 +78,29 @@ illisible : le registre refuse de démarrer, avec le motif (`docker compose logs
 (`docs/test-manuel.md`, « Banc de pannes automatique ») → 18/18 attendu, puis une démarche Passeport au guichet
 sur une personne du jury.
 
-**Revenir aux données fictives** : `DONNEES_REGISTRES=./registres_sim/donnees_fictives` dans `.env`,
-`git checkout adaptateurs\`, puis l'étape 5.
+**Revenir aux données fictives** : `DONNEES_REGISTRES=./registres_sim/donnees_fictives` et
+`ABONNES_USSD=./ussd_sim/abonnes.yaml` dans `.env`, `git checkout adaptateurs\ cataloguennuaire.yaml`, puis la
+commande de l'étape 5.
+
+## Identité : retrouver la bonne personne dans chaque registre
+
+Trois réglages, tous en configuration :
+
+1. **Clé d'identité du registre** (`identite:` dans `adaptateurs\<registre>.yaml`) :
+   - identifiant commun aux registres s'il existe : `identite: nip` (comparé tel quel) ;
+   - sinon **clé composée** : `identite: {colonnes: [Nom, Prénoms, Date de naissance], separateur: "|"}`
+     (ajouter `Lieu de naissance` si l'inspection montre qu'il départage des homonymes). L'identifiant de l'usager
+     devient `KABORE|Aminata|2001-03-14`. Chaque morceau est comparé sans accents, majuscules ni espaces en trop, et
+     les dates sont ramenées à `2001-03-14` (jj/mm/aaaa accepté). **Comparaison exacte** : une lettre ou un jour de
+     différence = « introuvable » ; plusieurs fiches pour la même clé = refus « identité ambiguë : homonymes ».
+     Une date incomplète (« vers 1990 ») ne correspond jamais.
+   - Les **trois** registres doivent utiliser la **même** clé (mêmes morceaux, même ordre).
+2. **Format de l'identifiant** (`identifiant_usager:` dans `cataloguennuaire.yaml`) : expression régulière +
+   exemple. Le guichet l'affiche en exemple grisé et refuse un identifiant mal formé ; le médiateur le revérifie.
+   Pas de « / » (il passe dans les adresses de l'API).
+3. **Annuaire USSD** (`ABONNES_USSD` dans `.env`) : numéro de téléphone → identifiant + PIN, dans un fichier séparé
+   des registres (les données du jury n'ont ni téléphone ni PIN). Numéros et PIN **fictifs** ; en production, le
+   numéro vient de l'opérateur et le PIN du fournisseur d'identité.
 
 ## Repli : le casier du jury n'a pas de colonne « peines complémentaires »
 

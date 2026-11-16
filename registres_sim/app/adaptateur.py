@@ -77,7 +77,16 @@ class Adaptateur:
         conf = yaml.safe_load(chemin.read_text(encoding="utf-8"))
         self.registre = conf["registre"]
         self.emetteur = conf["emetteur"]
-        self.identite = conf["identite"]
+        # Clé d'identité : UNE colonne (« identite: nip », comparée telle quelle), ou une CLÉ COMPOSÉE quand les
+        # registres n'ont pas d'identifiant commun :
+        #   identite: {colonnes: [nom, prenoms, date_naissance], separateur: "|"}
+        # L'identifiant de l'usager est alors « KABORE|Aminata|2001-03-14 » : chaque morceau est comparé à la
+        # colonne correspondante, sans accents, majuscules ni espaces en trop, dates ramenées à 2001-03-14.
+        # Comparaison EXACTE : jamais de rapprochement approximatif. Plusieurs fiches -> refus « homonymes ».
+        identite = conf["identite"]
+        self.cle_composee = isinstance(identite, dict)
+        self.identite = identite["colonnes"] if self.cle_composee else identite
+        self.separateur_cle = identite.get("separateur", "|") if self.cle_composee else None
         self.champs = conf.get("champs", {})
         self.refuser_si_decede = conf.get("refuser_si_decede", False)
         # Seul motif de refus envoyé hors du registre (signé) : il ne révèle rien de la fiche
@@ -104,18 +113,40 @@ class Adaptateur:
     def valeur(self, ligne: dict, nom: str) -> str:
         return (ligne.get(self.champs[nom]) or "").strip()
 
+    def morceau_de_cle(self, valeur: str) -> str:
+        """Forme comparable d'un morceau de clé composée : date -> 2001-03-14, sinon texte sans accents ni
+        majuscules. Une date incomplète (« vers 1990 ») reste du texte : elle ne correspond à aucune date tapée."""
+        try:
+            debut, fin = bornes_de_naissance(valeur, self.format_date)
+            if debut == fin:
+                return debut.isoformat()
+        except Refus:
+            pass
+        return normaliser_texte(valeur)
+
+    def cle_de_la_fiche(self, ligne: dict) -> list[str] | None:
+        morceaux = [(ligne.get(c) or "").strip() for c in self.identite]
+        return None if not all(morceaux) else [self.morceau_de_cle(m) for m in morceaux]   # case vide : jamais
+
     def fiches(self, sujet_ref: str) -> list[dict]:
         # API : peut lever SourceIndisponible (registre indisponible, rien n'est deviné ni signé)
         lignes = interroger_api(self.source, sujet_ref) if self.lignes is None else self.lignes
-        # Même avec une API, on ne garde que les fiches dont l'identifiant est EXACTEMENT celui demandé
-        return [l for l in lignes if (l.get(self.identite) or "").strip() == sujet_ref]
+        if not self.cle_composee:
+            # Même avec une API, on ne garde que les fiches dont l'identifiant est EXACTEMENT celui demandé
+            return [l for l in lignes if (l.get(self.identite) or "").strip() == sujet_ref]
+        morceaux = [m.strip() for m in sujet_ref.split(self.separateur_cle)]
+        if len(morceaux) != len(self.identite) or not all(morceaux):
+            return []                                       # identifiant mal formé : introuvable
+        cle = [self.morceau_de_cle(m) for m in morceaux]
+        return [l for l in lignes if self.cle_de_la_fiche(l) == cle]
 
     def trouver(self, sujet_ref: str) -> dict:
         fiches = self.fiches(sujet_ref)
         if not fiches:
             raise Refus("introuvable")
         if len(fiches) > 1:
-            raise Refus("identité ambiguë : plusieurs fiches pour cet identifiant")
+            raise Refus("identité ambiguë : homonymes (plusieurs fiches pour la même clé)" if self.cle_composee
+                        else "identité ambiguë : plusieurs fiches pour cet identifiant")
         return fiches[0]
 
     def autorise(self, attribut: str, service: str) -> bool:

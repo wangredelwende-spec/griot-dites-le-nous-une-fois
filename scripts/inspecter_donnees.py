@@ -5,15 +5,19 @@
     .venv\\Scripts\\python scripts\\inspecter_donnees.py "http://api-jury/personnes" --entete "Authorization: Bearer …"
 
 Pour chaque fichier : format, colonnes, nombre de lignes, 3 exemples, cases vides, formats de date, valeurs
-distinctes (quand il y en a peu), identifiant probable, doublons, homonymes. Avec plusieurs fichiers : colonnes
-qui partagent les mêmes valeurs (identifiant commun possible). Avec --proposer-yaml : un brouillon d'adaptateur
-par fichier dans donnees_jury/brouillons/ (À RELIRE : les lignes « À VÉRIFIER » sont des suppositions).
+distinctes (quand il y en a peu), identifiant probable, doublons, homonymes, CLÉ D'IDENTITÉ proposée (colonne
+commune, sinon clé composée nom + prénoms + date de naissance [+ lieu], avec le nombre d'homonymes exacts qui
+seraient refusés). Avec plusieurs fichiers : colonnes qui partagent les mêmes valeurs (identifiant commun).
+Avec --proposer-yaml, dans donnees_jury/brouillons/ (À RELIRE : « À VÉRIFIER » = suppositions) : un brouillon
+d'adaptateur par fichier, le format d'identifiant à mettre dans catalogue/annuaire.yaml, et un brouillon
+d'annuaire USSD (numéros et PIN FICTIFS liés à quelques identifiants).
 Lit les fichiers avec le MÊME code que les registres (registres_sim/app/sources.py). Ne modifie rien.
 """
 import argparse
 import importlib.util
 import json
 import re
+from datetime import datetime
 import sqlite3
 import sys
 import urllib.request
@@ -114,6 +118,46 @@ def lire(adresse: str, entetes: dict, table: str | None) -> tuple[dict, list[dic
     return source, sources.lire_source(lecture)
 
 
+def date_iso(valeur: str) -> str:
+    """« 14/03/2001 » -> « 2001-03-14 » (même normalisation que le registre) ; sinon texte simplifié."""
+    for _motif, _nom, fmt in DATES:
+        if fmt:
+            try:
+                return datetime.strptime(valeur.strip(), fmt).date().isoformat()
+            except ValueError:
+                pass
+    return valeur.strip() if re.fullmatch(r"\d{4}-\d{2}-\d{2}", valeur.strip()) else " ".join(simple(valeur).split())
+
+
+def forme_identifiant(valeurs: list[str]) -> str:
+    """Format commun à toutes les valeurs (« BF-0001 » -> ^[A-Z]{2}-\d{4}$), sinon un format large."""
+    def forme(v):
+        morceaux = re.findall(r"\d+|[A-Z]+|[a-z]+|.", v)
+        return "".join(r"\d{%d}" % len(m) if m.isdigit() else "[A-Z]{%d}" % len(m) if m.isupper()
+                       else "[a-z]{%d}" % len(m) if m.islower() else re.escape(m) for m in morceaux)
+    formes = {forme(v) for v in valeurs if v}
+    return f"^{formes.pop()}$" if len(formes) == 1 else r"^[A-Za-z0-9-]{1,64}$"
+
+
+def cle_composee_possible(colonnes: list[str], lignes: list[dict]) -> tuple[list[str], int] | None:
+    """Nom + prénoms + date de naissance (+ lieu s'il réduit les homonymes). Renvoie (colonnes, nombre de groupes
+    d'homonymes EXACTS, qui seraient refusés) ou None si ces colonnes manquent."""
+    nom = next((c for c in colonnes if simple(c).split(".")[-1] in ("nom", "nom de famille", "noms")), None)
+    prenoms = next((c for c in colonnes if simple(c).split(".")[-1].startswith("prenom")), None)
+    naissance = next((c for c in colonnes if "naiss" in simple(c) and "lieu" not in simple(c)), None)
+    lieu = next((c for c in colonnes if "lieu" in simple(c)), None)
+    if not (nom and prenoms and naissance):
+        return None
+
+    def homonymes(cols):
+        cles = Counter(tuple(date_iso(l.get(c, "")) for c in cols) for l in lignes if all(l.get(c) for c in cols))
+        return sum(1 for n in cles.values() if n > 1)
+    cols = [nom, prenoms, naissance]
+    if lieu and homonymes(cols + [lieu]) < homonymes(cols):
+        cols.append(lieu)
+    return cols, homonymes(cols)
+
+
 def formats_de_date(valeurs: list[str]) -> Counter:
     formes = Counter()
     for v in valeurs:
@@ -132,6 +176,12 @@ def identifiant_probable(colonnes: list[str], lignes: list[dict]) -> str | None:
             continue
         unicite = len(set(valeurs)) / len(lignes)
         nom = simple(c).split(".")[-1]          # « identite.nip » : on regarde « nip »
+        # Un nom, un prénom, un lieu ou une date n'est JAMAIS un identifiant, même si toutes les valeurs diffèrent
+        if nom.startswith(("nom", "prenom", "lieu", "date", "sexe")) or "naiss" in nom:
+            continue
+        if not re.search(r"nip|ident|^id\b|cnib|numero|matricule|^nin$|uid|^n d", nom) and \
+                not all(re.search(r"\d", v) for v in valeurs):
+            continue                            # ni nom d'identifiant, ni valeurs avec des chiffres
         bonus = 1 if (re.search(r"nip|ident|^id\b|cnib|numero|matricule|^nin$|uid|^n d", nom)
                       and not nom.startswith(("nom", "prenom"))) else 0
         meilleures.append((bonus, unicite, c))
@@ -182,12 +232,18 @@ def inspecter(adresse: str, entetes: dict, table: str | None) -> dict:
                 l.get(identite) if identite else id(l))
         homonymes = [f"{n.upper()} {p.title()}" for (n, p), ids in par_personne.items() if len(ids) > 1 and n]
         print(f"  homonymes (même nom et prénoms, identifiants différents) : {len(homonymes)} {homonymes[:5]}")
+    composee = cle_composee_possible(colonnes, lignes)
+    if composee:
+        print(f"  clé composée possible : {' + '.join(composee[0])} ; homonymes EXACTS (même clé, refusés) : "
+              f"{composee[1]}")
     return {"adresse": adresse, "source": source, "colonnes": colonnes, "lignes": lignes, "identite": identite,
-            "formats": formats_trouves}
+            "formats": formats_trouves, "composee": composee[0] if composee else None}
 
 
-def identifiants_communs(fichiers: list[dict]):
+def identifiants_communs(fichiers: list[dict]) -> bool:
+    """Affiche les colonnes communes ; renvoie True si CHAQUE paire de fichiers partage un identifiant."""
     print("\n=== Identifiant commun possible entre les fichiers")
+    tous = True
     for i, a in enumerate(fichiers):
         for b in fichiers[i + 1:]:
             meilleur = None
@@ -203,17 +259,39 @@ def identifiants_communs(fichiers: list[dict]):
             if meilleur:
                 print(f"  {nom_a}.« {meilleur[1]} » = {nom_b}.« {meilleur[2]} » ({meilleur[0]:.0%} des valeurs en commun)")
             else:
+                tous = False
                 print(f"  {nom_a} / {nom_b} : AUCUNE colonne commune : rapprochement à proposer AVANT d'implémenter")
+    return tous
 
 
-def proposer_yaml(f: dict) -> Path:
+def cle_retenue(f: dict, commun: bool):
+    """Identifiant commun s'il existe ; sinon la clé composée (jamais de rapprochement approximatif)."""
+    if f["identite"] and commun:
+        return f["identite"]
+    if f["composee"]:
+        return {"colonnes": f["composee"], "separateur": "|"}
+    return f["identite"] or "À VÉRIFIER : ni identifiant commun, ni nom + prénoms + date de naissance"
+
+
+def identifiant_usager(f: dict, cle) -> tuple[dict, list[str]]:
+    """Format d'identifiant pour catalogue/annuaire.yaml, et quelques identifiants d'exemple."""
+    if isinstance(cle, dict):
+        exemples = ["|".join(date_iso(l[c]) if "naiss" in simple(c) else l[c] for c in cle["colonnes"])
+                    for l in f["lignes"] if all(l.get(c) for c in cle["colonnes"])][:5]
+        morceaux = [r"\d{4}-\d{2}-\d{2}" if "naiss" in simple(c) else r"[^|/]{1,80}" for c in cle["colonnes"]]
+        return {"format": "^" + r"\|".join(morceaux) + "$", "exemple": exemples[0] if exemples else ""}, exemples
+    valeurs = [l[cle] for l in f["lignes"] if l.get(cle)] if cle in f["colonnes"] else []
+    return {"format": forme_identifiant(valeurs), "exemple": valeurs[0] if valeurs else ""}, valeurs[:5]
+
+
+def proposer_yaml(f: dict, commun: bool = True) -> Path:
     """Brouillon : on part de l'adaptateur actuel du registre (groupes, attributs, double clé) et on remplace
     seulement la description des données (source, identité, colonnes, format des dates)."""
     nom = simple(Path(f["adresse"]).stem)
     registre = next((r for mot, r in REGISTRES if mot in nom), "etat-civil")
     conf = yaml.safe_load((RACINE / f"adaptateurs/{registre}.yaml").read_text(encoding="utf-8"))
     conf["source"] = f["source"]
-    conf["identite"] = f["identite"] or "À VÉRIFIER : aucune colonne identifiante trouvée"
+    conf["identite"] = cle_retenue(f, commun)
     champs = {}
     for c in f["colonnes"]:
         devine = next((code for mot, code in DEVINETTES if mot in simple(c)), None)
@@ -254,12 +332,27 @@ def main():
     args = parser.parse_args()
     entetes = dict(e.split(":", 1) for e in args.entete)
     fichiers = [inspecter(a, {k.strip(): v.strip() for k, v in entetes.items()}, args.table) for a in args.adresses]
-    if len(fichiers) > 1:
-        identifiants_communs(fichiers)
+    commun = identifiants_communs(fichiers) if len(fichiers) > 1 else True
+    cle = cle_retenue(fichiers[0], commun)
+    format_id, exemples = identifiant_usager(fichiers[0], cle)
+    print("\n=== Clé d'identité proposée")
+    print("  " + ("identifiant commun : " + cle if isinstance(cle, str) else "clé composée : " + " + ".join(cle["colonnes"])))
+    print(f"  format pour catalogue/annuaire.yaml : {format_id}")
     if args.proposer_yaml:
-        print("\n=== Brouillons d'adaptateur (À RELIRE)")
+        print("\n=== Brouillons (À RELIRE)")
         for f in fichiers:
-            print(f"  {proposer_yaml(f).relative_to(RACINE)}")
+            print(f"  {proposer_yaml(f, commun).relative_to(RACINE)}")
+        dossier = RACINE / "donnees_jury/brouillons"
+        (dossier / "identifiant_usager.yaml").write_text(
+            "# À copier dans catalogue/annuaire.yaml (remplace le bloc identifiant_usager) : À RELIRE\n"
+            + yaml.safe_dump({"identifiant_usager": format_id}, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        abonnes = {f"700001{i:02d}": {"sujet_ref": e, "pin": "1234"} for i, e in enumerate(exemples, start=1)}
+        (dossier / "abonnes.yaml").write_text(
+            "# Annuaire USSD FICTIF pour la démo avec les données du jury (numéros et PIN inventés).\n"
+            "# Copier dans donnees_jury/abonnes.yaml, puis ABONNES_USSD=./donnees_jury/abonnes.yaml dans .env.\n"
+            + yaml.safe_dump(abonnes, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        for nom in ("identifiant_usager.yaml", "abonnes.yaml"):
+            print(f"  {(dossier / nom).relative_to(RACINE)}")
 
 
 if __name__ == "__main__":

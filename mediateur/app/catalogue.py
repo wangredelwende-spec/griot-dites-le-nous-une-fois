@@ -7,6 +7,7 @@ Trois sources, toutes en lecture seule :
 Un catalogue incomplet arrête le médiateur avec un message clair : on ne devine pas une règle manquante.
 """
 import hashlib
+import re
 from datetime import date, datetime, timezone
 
 import yaml
@@ -102,7 +103,13 @@ def charger() -> dict:
         if conf.get("absence") == "vierge":
             absence_vierge.add(registre)
 
+    identifiant = annuaire.get("identifiant_usager") or {"format": r"^[A-Za-z0-9-]{1,64}$", "exemple": "BF-0001"}
     erreurs = valider(demarches, annuaire["services"], attributs)
+    try:
+        if not re.fullmatch(identifiant["format"], str(identifiant["exemple"])):
+            erreurs.append("annuaire : l'exemple d'identifiant ne respecte pas son propre format")
+    except (re.error, KeyError, TypeError) as e:
+        erreurs.append(f"annuaire : format d'identifiant illisible ({e})")
     if erreurs:
         raise CatalogueInvalide("\n".join(f"  - {e}" for e in erreurs))
 
@@ -124,6 +131,7 @@ def charger() -> dict:
                                           f"paramètres pour {service} : il refusera")
     return {"services": annuaire["services"], "registres": annuaire["registres"], "attributs": attributs,
             "demarches": demarches, "absence_vierge": absence_vierge, "avertissements": avertissements,
+            "identifiant": identifiant,
             "empreinte": hashlib.sha256(brut).hexdigest()}
 
 

@@ -158,3 +158,34 @@ def test_api_lente_ou_mauvais_secret_indisponible(api):
             registre.calculer("age_entre", "BF-0001", MAJEUR)
     finally:
         (TMP / "secrets/api_jury").write_text("jeton-jury-de-test")
+
+
+# --- Clé d'identité COMPOSÉE (pas d'identifiant commun entre les registres du jury) ---
+
+CLE_COMPOSEE = '''identite:
+  colonnes: [Nom, "Prénom(s)", "Date de naissance"]
+  separateur: "|"'''
+
+
+def test_cle_composee_normalisee_mais_exacte():
+    registre = charger("etat-civil-xlsx.yaml", **{'identite: "N° d\'identification"': CLE_COMPOSEE})
+    # « KABORÉ / Aminata / 14/03/2001 » : accents, majuscules, espaces et format de date ne comptent pas
+    for cle in ("KABORE|Aminata|2001-03-14", "kaboré | AMINATA | 14/03/2001", "Kabore|aminata|2001-03-14"):
+        assert majeur(registre, cle) is True, cle
+    # Jamais de rapprochement approximatif : une lettre ou un jour de différence -> introuvable
+    for cle in ("KABORE|Aminat|2001-03-14", "KABORE|Aminata|2001-03-15", "KABORE|Aminata", "|Aminata|2001-03-14"):
+        assert majeur(registre, cle) == "refus : introuvable", cle
+    # « vers 1990 » ne correspond à aucune date tapée
+    assert majeur(registre, "ZONGO|Issouf|1990-01-01") == "refus : introuvable"
+
+
+def test_cle_composee_homonymes_refuses(tmp_path):
+    (tmp_path / "ec.csv").write_text("Nom;Prénom(s);Date de naissance;Date de décès\n"
+                                     "SANOU;Jean;05/05/1991;\nSanou;JEAN;1991-05-05;\nSANOU;Jean;15/05/1991;\n",
+                                     encoding="utf-8")
+    registre = charger("etat-civil-xlsx.yaml", **{
+        'identite: "N° d\'identification"': CLE_COMPOSEE,
+        "type: xlsx                        # Excel : première ligne = noms des colonnes": "type: csv",
+        DONNEES.as_posix() + "/etat_civil.xlsx": (tmp_path / "ec.csv").as_posix(), "feuille: Etat civil": ""})
+    assert majeur(registre, "SANOU|Jean|1991-05-05").startswith("refus : identité ambiguë : homonymes")
+    assert majeur(registre, "SANOU|Jean|1991-05-15") is True      # même nom, autre date : une seule fiche

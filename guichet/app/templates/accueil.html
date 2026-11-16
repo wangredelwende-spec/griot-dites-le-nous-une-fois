@@ -20,7 +20,7 @@ L'usager n'apporte aucune pièce : chaque registre répond seulement aux questio
     {% endfor %}
   </fieldset>
   <p><label for="sujet_ref">Identifiant de l'usager</label><br>
-     <input id="sujet_ref" name="sujet_ref" value="" required maxlength="64" placeholder="exemple : BF-0001" autocomplete="off"></p>
+     <input id="sujet_ref" name="sujet_ref" value="" required maxlength="200" placeholder="exemple : {{ identifiant.exemple }}" autocomplete="off"></p>
   <p><button>Envoyer la demande</button></p>
 </form>
 {% endblock %}

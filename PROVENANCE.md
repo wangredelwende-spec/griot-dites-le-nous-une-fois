@@ -32,10 +32,11 @@ dans l'historique git (`git log --follow <fichier>`).
 | `console/app/__init__.py` | `guichet/app/__init__.py` |
 | `console/app/config.py` | `guichet/app/config.py` |
 | `console/app/main.py` (connexion OIDC + CSRF) | `guichet/app/main.py` |
-| `console/app/audit.py` (journal SQLite en ajout seul) | `guichet/app/audit.py` |
 | `console/app/static/style.css` | `guichet/app/static/style.css` |
 | `console/app/templates/base.html` | `guichet/app/templates/base.html` |
 | `console/app/templates/erreur.html` | `guichet/app/templates/erreur.html` |
+
+`console/app/audit.py` (journal SQLite en ajout seul) a été importé puis retiré du guichet : son principe (déclencheurs SQLite qui refusent UPDATE et DELETE) est repris dans `mediateur/app/journal.py`, complété par le chaînage par hachage.
 
 Importés puis supprimés (propres à la messagerie) : `console/app/keycloak.py` et les modèles
 `accueil`, `agent`, `canaux`, `confirmer`, `enrole`, `enroler`, `journal`, `resultat` (`.html`).

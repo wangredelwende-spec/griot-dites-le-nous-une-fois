@@ -2,11 +2,11 @@
 
 Utilisation (le journal est dans le volume du médiateur) :
     docker compose exec mediateur python /journal/verifier.py
-    docker compose exec mediateur python /journal/verifier.py --recu 3f9a1c0b
+    docker compose exec mediateur python /journal/verifier.py --recu "9035 47b3 1c2e 9f04"
 
 Pour chaque ligne, dans l'ordre : recalcule hash = SHA-256(prev_hash + JSON canonique de la ligne
 sans « hash ») et vérifie que prev_hash est bien l'empreinte de la ligne précédente.
-Un reçu (empreinte remise à l'usager, ou ses 8 premiers caractères) doit se retrouver dans le journal :
+Un reçu (les 16 premiers caractères de l'empreinte, avec ou sans espaces) doit se retrouver dans le journal :
 si un administrateur avait recalculé toute la chaîne, les reçus déjà remis ne correspondraient plus.
 """
 import argparse
@@ -44,15 +44,16 @@ def verifier(chemin: str) -> tuple[bool, str, list[dict]]:
 def main():
     parser = argparse.ArgumentParser(description="Vérifie le journal chaîné du médiateur.")
     parser.add_argument("chemin", nargs="?", default="/donnees/mediateur.sqlite3")
-    parser.add_argument("--recu", help="empreinte d'un reçu (au moins 8 caractères)")
+    parser.add_argument("--recu", help="reçu : 16 caractères hexadécimaux, avec ou sans espaces")
     args = parser.parse_args()
 
     integre, message, lignes = verifier(args.chemin)
     print(("OK  " if integre else "ERREUR  ") + message)
     if args.recu:
-        recu = args.recu.strip().lower()
-        if len(recu) < 8:
-            sys.exit("Un reçu compte au moins 8 caractères.")
+        recu = args.recu.replace(" ", "").lower()
+        # 16 caractères = 64 bits : impossible en pratique de fabriquer une ligne dont l'empreinte commence pareil
+        if len(recu) < 16 or any(c not in "0123456789abcdef" for c in recu):
+            sys.exit("Un reçu compte 16 caractères hexadécimaux (par exemple « 9035 47b3 1c2e 9f04 »).")
         trouvees = [l for l in lignes if l["hash"].startswith(recu)]
         if trouvees:
             l = trouvees[0]

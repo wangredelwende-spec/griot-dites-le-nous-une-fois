@@ -33,8 +33,9 @@ DUREE_SESSION = 180     # une session USSD se ferme après 3 minutes sans répon
 ESSAIS_PIN = 3
 BLOCAGE = 300           # 5 minutes de blocage après 3 PIN faux
 # Événements montrés dans « Qui a consulté mes données » (les étapes internes sont omises)
-EVENEMENTS = {"remise": "etat_remise", "refus-usager": "etat_refuse", "expiration": "etat_expiration",
-              "alerte": "etat_alerte"}
+# « confirmation » y figure : c'est la ligne dont l'usager a reçu le reçu au moment de confirmer.
+EVENEMENTS = {"confirmation": "etat_confirmation", "remise": "etat_remise", "refus-usager": "etat_refuse",
+              "expiration": "etat_expiration", "alerte": "etat_alerte"}
 
 
 def charger_textes(chemin: Path) -> dict[str, dict[str, str]]:
@@ -98,23 +99,46 @@ def ecran_attente(s: dict) -> str:
                  t(s, "confirmer_refuser"), suivante + t(s, "retour"))
 
 
-def ligne_historique(s: dict, l: dict) -> str:
-    """« 16/11 11h54 Concours majeur transmis 038672c3 » : date, qui, quoi, résultat, reçu (8 caractères)."""
+def format_recu(empreinte: str) -> str:
+    """Reçu = 16 premiers caractères de l'empreinte (64 bits), en 4 groupes : « 9035 47b3 1c2e 9f04 ».
+    Fabriquer une autre ligne dont l'empreinte commence pareil demanderait environ 2^64 essais."""
+    return " ".join(empreinte[i:i + 4] for i in range(0, 16, 4))
+
+
+def ligne_historique(s: dict, numero: int, l: dict) -> str:
+    """« 1. 16/11 11h54 Concours majeur transmis » : date, qui, quoi, résultat."""
     date = datetime.strptime(l["ts"], "%Y-%m-%dT%H:%M:%SZ").strftime("%d/%m %Hh%M")
     service = TEXTES[s["langue"]].get(f"service_court_{l['code_service']}", l["code_service"][:8])
     attribut = TEXTES[s["langue"]].get(f"attribut_{l['attribut']}", l["attribut"][:8])
     etat = t(s, EVENEMENTS.get(l["evenement"], "etat_refuse"))
-    return f"{date} {service} {attribut} {etat} {l['empreinte'][:8]}"
+    return f"{numero}. {date} {service} {attribut} {etat}"
 
 
 def ecran_historique(s: dict) -> str:
     if not s["liste"]:
         s["etape"] = "info"
         return ecran(t(s, "historique_vide"), t(s, "retour_menu"))
+    s["etape"] = "historique"
     debut = s["page"] * PAR_ECRAN
-    lignes = [ligne_historique(s, l) for l in s["liste"][debut:debut + PAR_ECRAN]]
+    lignes = [ligne_historique(s, i, l) for i, l in enumerate(s["liste"][debut:debut + PAR_ECRAN], start=1)]
     pied = t(s, "suite") if debut + PAR_ECRAN < len(s["liste"]) else t(s, "retour")
     return ecran(*lignes, pied)
+
+
+def ecran_detail(s: dict, l: dict) -> str:
+    """Détail d'une consultation : qui, quoi, résultat, pourquoi, sur quelle base, reçu."""
+    s["etape"] = "detail"
+    service = TEXTES[s["langue"]].get(f"service_long_{l['code_service']}", l["service"])
+    attribut = TEXTES[s["langue"]].get(f"attribut_{l['attribut']}", l["attribut"])
+    etat = t(s, EVENEMENTS.get(l["evenement"], "etat_refuse"))
+    base = t(s, "base_legale" if l["base"] == "base-legale" else "base_consentement")
+    lignes = [f"{service} : {attribut} {etat}", t(s, "pour", finalite=l["finalite"]), base,
+              t(s, "recu", recu=format_recu(l["empreinte"])), t(s, "retour")]
+    # Si l'écran déborde, on raccourcit la finalité : le reçu n'est JAMAIS coupé
+    place = LIMITE - len("\n".join(lignes[:1] + lignes[2:])) - 1
+    if len(lignes[1]) > place:
+        lignes[1] = lignes[1][:place - 1] + "…"
+    return ecran(*lignes)
 
 
 async def traiter(s: dict, reponse: str) -> str:
@@ -154,7 +178,7 @@ async def traiter(s: dict, reponse: str) -> str:
                 r.raise_for_status()
                 lignes = [l for l in r.json() if l["evenement"] in EVENEMENTS
                           or (l["evenement"] == "demande" and l["resultat"] == "refuse")]
-                s.update(etape="historique", liste=lignes, page=0)
+                s.update(liste=lignes, page=0)
                 return ecran_historique(s)
         except httpx.HTTPError:
             s["etape"] = "info"
@@ -186,7 +210,7 @@ async def traiter(s: dict, reponse: str) -> str:
             if r.status_code != 200:
                 return ecran(t(s, "deja_traitee"), t(s, "retour_menu"))
             if action == "confirmer":
-                return ecran(t(s, "confirme", recu=r.json()["empreinte"][:8]), t(s, "retour_menu"))
+                return ecran(t(s, "confirme", recu=format_recu(r.json()["empreinte"])), t(s, "retour_menu"))
             return ecran(t(s, "refuse"), t(s, "retour_menu"))
         return ecran(t(s, "choix_invalide"), ecran_attente(s))
 
@@ -194,7 +218,12 @@ async def traiter(s: dict, reponse: str) -> str:
         if reponse == "9" and (s["page"] + 1) * PAR_ECRAN < len(s["liste"]):
             s["page"] += 1
             return ecran_historique(s)
+        if reponse in ("1", "2", "3") and s["page"] * PAR_ECRAN + int(reponse) <= len(s["liste"]):
+            return ecran_detail(s, s["liste"][s["page"] * PAR_ECRAN + int(reponse) - 1])
         return menu(s) if reponse == "0" else ecran_historique(s)
+
+    if etape == "detail":
+        return ecran_historique(s)          # « 0. Retour » : on revient à la même page
 
     if etape == "langue":
         codes = list(TEXTES)

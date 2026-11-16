@@ -38,7 +38,7 @@ composer l'écran dans une autre langue (mooré).
 
 | Réponse | Sens |
 |---|---|
-| `200 {"id_demande": "…", "statut": "confirmee", "empreinte": "<64 hex>"}` | confirmé ; `empreinte` = reçu de la confirmation (USSD : afficher les 8 premiers caractères) |
+| `200 {"id_demande": "…", "statut": "confirmee", "empreinte": "<64 hex>"}` | confirmé ; `empreinte` = reçu de la confirmation (USSD : 16 premiers caractères, en 4 groupes de 4) |
 | `200 {"id_demande": "…", "statut": "refuse"}` | refusé : rien ne sera transmis |
 | `404` | demande inconnue **ou** appartenant à un autre usager (on ne distingue pas) |
 | `409 {"detail": "demande déjà traitée (statut : …)"}` | déjà confirmée, refusée ou expirée |
@@ -61,8 +61,8 @@ composer l'écran dans une autre langue (mooré).
 - `base` : `consentement` ou `base-legale` (alors `texte_base` donne le texte qui l'autorise).
 - `evenement` : `demande` | `reponse-registre` | `confirmation` | `refus-usager` | `remise` | `expiration` | `alerte`.
 - `resultat` : `ok` | `refuse` | `indisponible`. `motif` explique un refus.
-- **Reçu** = `empreinte` (USSD : 8 premiers caractères). Il se vérifie avec
-  `docker compose exec mediateur python /journal/verifier.py --recu <8 caractères ou plus>`.
+- **Reçu** = 16 premiers caractères de `empreinte` (64 bits), affichés « 9035 47b3 1c2e 9f04 ». Il se vérifie avec
+  `docker compose exec mediateur python /journal/verifier.py --recu "9035 47b3 1c2e 9f04"`.
 - Pour un écran court, ne garder que les lignes `remise`, `refus-usager`, `expiration` et `alerte`.
 
 ## Essayer à la main

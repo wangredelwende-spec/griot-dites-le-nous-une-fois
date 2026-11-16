@@ -77,8 +77,7 @@ def main():
     executer("docker", "compose", "up", "-d", "--wait", "--no-deps", "mediateur", *[f"registre-{r}" for r in REGISTRES], *ECRANS)
 
     # 5. Contrôle : l'archive reste vérifiable (chaîne + double trace), le nouveau journal est intègre
-    print("
-Vérification de l'archive (chaîne + double trace) :", flush=True)
+    print("\nVérification de l'archive (chaîne + double trace) :", flush=True)
     archive = executer_verifier(f"/donnees/mediateur-archive-{date}.sqlite3", "--registres")
     print("Vérification du nouveau journal :", flush=True)
     neuf = executer_verifier()
@@ -89,8 +88,7 @@ Vérification de l'archive (chaîne + double trace) :", flush=True)
         # un médiateur compromis : la double trace doit les voir. Ce sont des faits, on les garde dans l'archive.
         print("NOTE : les écarts « ABSENTE du journal » ci-dessus sont les appels directs du banc de pannes "
               "(scénario A, médiateur compromis) : la double trace les a bien détectés.")
-    print(f"
-Données de démonstration remises à zéro. Archive {date} conservée et vérifiable.")
+    print(f"\nDonnées de démonstration remises à zéro. Archive {date} conservée et vérifiable.")
     env = [l.strip() for l in (RACINE / ".env").read_text(encoding="utf-8").splitlines()]
     if "OUTILS_TEST=1" in env:
         print("ATTENTION : OUTILS_TEST=1 (comptes de test actifs). Avant la démonstration : OUTILS_TEST=0 dans .env, "

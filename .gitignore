@@ -30,3 +30,6 @@ donnees_jury/
 
 # Secrets locaux des tests de bout en bout (TOTP du compte de test, CA de Caddy)
 tests/.secrets/
+
+# Sauvegarde hors ligne des images Docker (scripts/sauvegarder_hors_ligne.py) : plusieurs centaines de Mo
+hors_ligne/

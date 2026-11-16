@@ -20,6 +20,11 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 7. Enrôler une fois le TOTP des comptes de démo (QR code à la première connexion) : `moussa.kone` (passeport),
    `issa.sawadogo`, `awa.ouedraogo`, `agent.curieux`, `controle.cil`.
 
+8. Sauvegarde hors ligne des images (après chaque reconstruction, tant qu'on a le réseau) :
+   `python scripts\sauvegarder_hors_ligne.py` → `hors_ligne\griot-images-<date>.tar` (environ 560 Mo, 8 images
+   dont l'OCR). Sans réseau, ou sur une autre machine : `python scripts\charger_hors_ligne.py hors_ligne\griot-images-<date>.tar`
+   (vérifie l'empreinte SHA-256, `docker load`, puis démarre sans rien construire ni télécharger, environ 2 minutes).
+
 ## 0 bis. Juste avant CHAQUE répétition et avant la démo
 
 1. Comptes de test désactivés : dans `.env`, `OUTILS_TEST=0` (sinon : le mettre à 0 puis `python scripts\outils_test.py`).

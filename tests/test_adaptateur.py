@@ -144,6 +144,7 @@ def test_double_cle_declaree_par_le_registre():
     assert REGISTRE.autorise("age_entre", "mairie")
     assert not REGISTRE.autorise("personne_connue", "mairie")
     assert CASIER.autorise("casier_judiciaire_vierge", "direction-concours")
+    assert CASIER.autorise("casier_judiciaire_vierge", "service-passeport")   # repli du jour J (sans peine complémentaire)
     assert not CASIER.autorise("casier_judiciaire_vierge", "service-bourses")
 
 

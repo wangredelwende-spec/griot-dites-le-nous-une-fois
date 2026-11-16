@@ -40,9 +40,10 @@ demarches:
         si_non: "mineur : autorisation parentale requise"
       - attribut: nationalite_burkinabe
         libelle: burkinabè
-      - attribut: interdiction_sortie_territoire
-        libelle: interdiction de sortie du territoire
-        attendu: false
+      # Casier du passeport, sur UNE ligne : si le casier du jury n'a PAS de colonne « peines complémentaires »,
+      # remplacer la ligne ci-dessous par la ligne « repli » du commentaire (JOUR_J_DONNEES_JURY.md), sans code.
+      - {attribut: interdiction_sortie_territoire, libelle: interdiction de sortie du territoire, attendu: false}
+      #   repli « casier vierge » : - {attribut: casier_judiciaire_vierge, libelle: casier judiciaire vierge, si_non: "casier non vierge : dossier à instruire"}
 
   concours-adjoints:
     libelle: Concours direct adjoints administratifs

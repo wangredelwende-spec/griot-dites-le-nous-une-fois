@@ -34,7 +34,11 @@ attributs:
     regle: nombre_nul               # « 0 » -> true ; « 2 » -> false ; vide ou illisible -> refus
     champ: nombre_condamnations
     claim: casier_judiciaire_vierge # réponse : {"casier_judiciaire_vierge": true}
-    services: [direction-concours]                    # double clé : seul ce service interroge le casier
+    services: [direction-concours, service-passeport]
+    # Double clé : ces deux services seulement peuvent interroger le casier. service-passeport : uniquement
+    # pour le REPLI du jour J (casier du jury sans colonne « peines complémentaires » → la démarche passeport
+    # bascule sur « casier vierge » en changeant UNE ligne du catalogue : JOUR_J_DONNEES_JURY.md). Hors repli,
+    # la démarche passeport ne demande que l'interdiction de sortie : le service ne reçoit jamais « vierge ».
   # Passeport : la Police n'a pas besoin de savoir si le casier est vierge, seulement s'il existe une
   # INTERDICTION DE SORTIE DU TERRITOIRE (peine complémentaire). Plus minimal que « casier vierge » :
   # une condamnation pour vol, sans interdiction, ne regarde pas le service des passeports.

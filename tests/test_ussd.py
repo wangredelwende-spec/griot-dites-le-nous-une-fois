@@ -240,3 +240,29 @@ def test_alerte_montre_son_motif():
     assert "ALERTE" in tel.taper("2")
     detail = tel.taper("1")
     assert "agent bloqué" in detail and "Reçu : 0000 0004" in detail
+
+
+# --- Passeport : l'écran USSD complet (aperçu + choix) tient en 160 caractères, avec ou sans le repli casier ---
+
+def apercu_passeport(dernier: dict) -> list[dict]:
+    attributs = [{"code": "age_entre", "libelle": "majeur", "parametres": {}, "valeur": "oui"},
+                 {"code": "nationalite_burkinabe", "libelle": "burkinabè", "parametres": {}, "valeur": "oui"}, dernier]
+    return [{"id_demande": "d-p", "service": "…", "code_service": "service-passeport", "demarche": "Passeport ordinaire",
+             "finalite": "établissement d'un passeport ordinaire", "attributs": attributs, "expire_le": 1794838200,
+             "apercu": "…"}]
+
+
+@pytest.mark.parametrize("dernier, attendu", [
+    ({"code": "interdiction_sortie_territoire", "libelle": "interdiction de sortie du territoire", "parametres": {},
+      "valeur": "non"}, "interdiction de sortie du territoire = non"),
+    ({"code": "casier_judiciaire_vierge", "libelle": "casier judiciaire vierge", "parametres": {}, "valeur": "oui"},
+     "casier judiciaire vierge = oui"),                                       # repli du jour J
+])
+@respx.mock
+def test_ecran_passeport_tient_en_160_caracteres(dernier, attendu):
+    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=apercu_passeport(dernier)))
+    tel = Telephone()
+    tel.connecter()
+    ecran = tel.taper("1")              # taper() vérifie déjà ≤ 160 caractères
+    assert "(passeports) recevra : majeur = oui ; burkinabè = oui ; " + attendu + ". Rien d'autre." in ecran
+    assert "1. Confirmer 2. Refuser" in ecran

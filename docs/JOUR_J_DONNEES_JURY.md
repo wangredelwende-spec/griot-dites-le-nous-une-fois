@@ -73,6 +73,38 @@ sur une personne du jury.
 **Revenir aux données fictives** : `DONNEES_REGISTRES=./registres_sim/donnees_fictives` dans `.env`,
 `git checkout adaptateurs\`, puis l'étape 5.
 
+## Repli : le casier du jury n'a pas de colonne « peines complémentaires »
+
+La démarche Passeport demande normalement l'attribut `interdiction_sortie_territoire` (le plus minimal : le
+service des passeports n'a pas à savoir si le casier est vierge). Si le casier du jury n'a **pas** de colonne
+« peines complémentaires », cet attribut ne peut plus être calculé : on bascule la démarche sur
+« casier judiciaire vierge » en changeant **UNE SEULE LIGNE** du catalogue, sans toucher au code.
+
+Dans `catalogue\demarches.yaml`, démarche `passeport-ordinaire`, remplacer la ligne :
+
+```yaml
+      - {attribut: interdiction_sortie_territoire, libelle: interdiction de sortie du territoire, attendu: false}
+```
+
+par la ligne « repli » donnée en commentaire juste en dessous :
+
+```yaml
+      - {attribut: casier_judiciaire_vierge, libelle: casier judiciaire vierge, si_non: "casier non vierge : dossier à instruire"}
+```
+
+Puis `docker compose restart mediateur guichet`. Rien d'autre :
+
+- le registre casier **autorise déjà** le service passeport sur « casier vierge » (double clé déclarée dans
+  `adaptateurs\casier.yaml` — c'est le seul autre service autorisé avec la Direction des concours) ;
+- l'aperçu USSD suit tout seul : il est fabriqué depuis le catalogue (« … recevra : casier judiciaire
+  vierge = oui/non. Rien d'autre. », moins de 160 caractères), jamais en dur ;
+- si l'adaptateur casier du jury ne déclare plus `interdiction_sortie_territoire` (colonne absente), la ligne
+  d'origine ferait refuser le démarrage du médiateur (« attribut inconnu ») : la bascule est obligatoire.
+
+**Plus large, donc à ne faire que si la colonne manque** : avec le repli, le service des passeports apprend
+qu'une personne a été condamnée (casier non vierge) même sans interdiction de sortie. Revenir à l'attribut
+normal dès que la colonne existe. Testé : les deux réglages passent la suite (`tests\test_catalogue.py`).
+
 ## API du jury : réseau
 
 Les registres sont sur des réseaux Docker **sans Internet**. Si l'API du jury est sur le réseau local, le registre

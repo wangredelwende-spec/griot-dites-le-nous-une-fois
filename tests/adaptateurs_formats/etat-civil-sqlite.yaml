@@ -1,0 +1,23 @@
+# Jeu d'essai : état civil au format sqlite (tests/donnees_formats). Aucune ligne de code changée : seulement ce fichier.
+registre: etat-civil
+emetteur: registre-etat-civil
+source:
+  type: sqlite
+  chemin: /donnees/etat_civil.db
+  table: personnes
+identite: "nip"
+champs:
+  date_naissance: "date_naissance"
+  date_deces: "date_deces"
+format_date: "%d/%m/%Y"             # 14/03/2001 ; « 2004 » (année seule) reste accepté ; « vers 1990 » : refus
+refuser_si_decede: true
+motif_refus_public: "réponse impossible, s'adresser à l'état civil"
+groupes: {Mairie: mairie}
+attributs:
+  age_entre:
+    regle: age_entre
+    champ: date_naissance
+    claim: age_equal_or_over
+    services:
+      mairie:
+        - {min: 18, date_reference: aujourd'hui}

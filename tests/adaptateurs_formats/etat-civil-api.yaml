@@ -1,0 +1,26 @@
+# Jeu d'essai : état civil interrogé par l'API HTTP du jury, à chaque demande.
+registre: etat-civil
+emetteur: registre-etat-civil
+source:
+  type: api
+  url: "http://127.0.0.1:{port}/personnes?nip={sujet_ref}"
+  liste: resultats                   # où sont les fiches dans la réponse JSON
+  delai: 1                           # secondes, sous le délai du médiateur (3 s) : sinon « indisponible »
+  entetes:
+    Authorization: "Bearer {secret:api_jury}"   # valeur dans .env (API_JURY_SECRET), jamais dans ce fichier
+identite: nip
+champs:
+  date_naissance: naissance.date
+  date_deces: deces.date
+format_date: "%d/%m/%Y"
+refuser_si_decede: true
+motif_refus_public: "réponse impossible, s'adresser à l'état civil"
+groupes: {Mairie: mairie}
+attributs:
+  age_entre:
+    regle: age_entre
+    champ: date_naissance
+    claim: age_equal_or_over
+    services:
+      mairie:
+        - {min: 18, date_reference: aujourd'hui}

@@ -79,11 +79,13 @@ services:
     volumes:
       # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
       - ./adaptateurs/etat-civil.yaml:/adaptateurs/etat-civil.yaml:ro
-      - ./registres_sim/donnees_fictives:/donnees:ro
+      # Données : fictives par défaut ; le jour J, DONNEES_REGISTRES=./donnees_jury dans .env (aucun code changé)
+      - ${DONNEES_REGISTRES:-./registres_sim/donnees_fictives}:/donnees:ro
       - cle_privee_etat_civil:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_etat_civil:/publique  # sa clé publique : seul ce registre peut l'écrire
       - trace_etat_civil:/trace                 # double trace : ses réponses signées (jamais la valeur)
     # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
+    secrets: [api_jury]                  # jeton de l'API du jury (« {secret:api_jury} » dans l'adaptateur)
     networks: [registres, cles-agents]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
@@ -101,11 +103,13 @@ services:
     volumes:
       # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
       - ./adaptateurs/nationalite.yaml:/adaptateurs/nationalite.yaml:ro
-      - ./registres_sim/donnees_fictives:/donnees:ro
+      # Données : fictives par défaut ; le jour J, DONNEES_REGISTRES=./donnees_jury dans .env (aucun code changé)
+      - ${DONNEES_REGISTRES:-./registres_sim/donnees_fictives}:/donnees:ro
       - cle_privee_nationalite:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_nationalite:/publique  # sa clé publique : seul ce registre peut l'écrire
       - trace_nationalite:/trace                 # double trace : ses réponses signées (jamais la valeur)
     # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
+    secrets: [api_jury]                  # jeton de l'API du jury (« {secret:api_jury} » dans l'adaptateur)
     networks: [registres, cles-agents]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
@@ -123,11 +127,13 @@ services:
     volumes:
       # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
       - ./adaptateurs/casier.yaml:/adaptateurs/casier.yaml:ro
-      - ./registres_sim/donnees_fictives:/donnees:ro
+      # Données : fictives par défaut ; le jour J, DONNEES_REGISTRES=./donnees_jury dans .env (aucun code changé)
+      - ${DONNEES_REGISTRES:-./registres_sim/donnees_fictives}:/donnees:ro
       - cle_privee_casier:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_casier:/publique  # sa clé publique : seul ce registre peut l'écrire
       - trace_casier:/trace                 # double trace : ses réponses signées (jamais la valeur)
     # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
+    secrets: [api_jury]                  # jeton de l'API du jury (« {secret:api_jury} » dans l'adaptateur)
     networks: [registres, cles-agents]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
@@ -232,7 +238,19 @@ services:
     networks: [interne, externe]
 
 # Secrets montés en fichiers dans /run/secrets/, lus depuis le fichier .env
+  # Conversion UNE SEULE FOIS d'un PDF scanné en CSV (Tesseract). Jamais lancé avec la pile :
+  #   docker compose --profile ocr run --rm ocr /donnees/<fichier>.pdf
+  ocr:
+    build: ./ocr
+    image: griot-ocr:local
+    profiles: [ocr]
+    network_mode: none                 # aucun réseau : les données du jury ne sortent pas
+    volumes:
+      - ./donnees_jury:/donnees        # le CSV et sa provenance sont écrits à côté du PDF
+
 secrets:
+  api_jury:
+    environment: API_JURY_SECRET       # vide tant que le jury ne fournit pas d'API
   guichet_oidc:
     environment: GUICHET_OIDC_SECRET
   sujet_hmac:

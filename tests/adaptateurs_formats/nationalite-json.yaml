@@ -1,0 +1,23 @@
+# Jeu d'essai : nationalité en JSON IMBRIQUÉ. Les champs imbriqués se désignent par un chemin « a.b ».
+registre: nationalite
+emetteur: registre-nationalite
+source:
+  type: json
+  chemin: /donnees/nationalite.json
+  liste: registre.personnes          # où se trouve la liste des personnes dans le fichier
+identite: identite.nip
+champs:
+  nationalite: nationalite.libelle
+refuser_si_decede: false
+motif_refus_public: "réponse impossible, s'adresser au service de la nationalité"
+groupes: {Mairie: mairie}
+attributs:
+  nationalite_burkinabe:
+    regle: egal
+    champ: nationalite
+    # Valeurs reconnues (sans accents ni majuscules). Toute autre valeur : refus « valeur non reconnue ».
+    correspondances:
+      oui: [burkinabe, BF, BFA, Burkina Faso]
+      non: [ivoirienne, malienne, ghaneenne, togolaise, nigerienne, beninoise]
+    claim: nationalite_burkinabe
+    services: [mairie]

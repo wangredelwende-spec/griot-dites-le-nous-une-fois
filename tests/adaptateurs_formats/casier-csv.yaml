@@ -1,0 +1,28 @@
+# Jeu d'essai : casier en CSV Windows-1252 séparé par « ; » (séparateur et encodage détectés).
+registre: casier
+emetteur: registre-casier
+source:
+  type: csv
+  chemin: /donnees/casier.csv
+  separateur: auto                   # ; ou , (détecté sur la ligne d'en-tête)
+  encodage: auto                     # UTF-8, sinon Windows-1252
+identite: NIP
+champs:
+  nombre_condamnations: Nb condamnations
+  peines_complementaires: Peines complémentaires
+refuser_si_decede: false
+absence: refus
+motif_refus_public: "réponse impossible, s'adresser au greffe"
+groupes: {Mairie: mairie}
+attributs:
+  casier_judiciaire_vierge:
+    regle: nombre_nul
+    champ: nombre_condamnations
+    claim: casier_judiciaire_vierge
+    services: [mairie]
+  interdiction_sortie_territoire:
+    regle: contient
+    champ: peines_complementaires
+    mention: interdiction de sortie du territoire
+    claim: interdiction_sortie_territoire
+    services: [mairie]

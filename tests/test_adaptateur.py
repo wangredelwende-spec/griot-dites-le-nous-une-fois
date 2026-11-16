@@ -6,9 +6,7 @@ import pytest
 
 from conftest import ADAPTATEUR_TEST, RACINE
 
-spec = importlib.util.spec_from_file_location("adaptateur", RACINE / "registres_sim/app/adaptateur.py")
-adaptateur = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(adaptateur)
+adaptateur = importlib.import_module("registre_app.adaptateur")     # paquet enregistré par conftest.py
 
 REGISTRE = adaptateur.Adaptateur(ADAPTATEUR_TEST)
 FINALE = date(2026, 11, 16)

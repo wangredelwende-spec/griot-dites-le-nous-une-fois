@@ -1,0 +1,87 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Length 1834 >>
+stream
+0.5 w
+55 760 m 560 760 l S
+55 738 m 560 738 l S
+55 716 m 560 716 l S
+55 694 m 560 694 l S
+55 672 m 560 672 l S
+55 650 m 560 650 l S
+55 628 m 560 628 l S
+55 606 m 560 606 l S
+55 584 m 560 584 l S
+55 760 m 55 584 l S
+145 760 m 145 584 l S
+255 760 m 255 584 l S
+355 760 m 355 584 l S
+465 760 m 465 584 l S
+560 760 m 560 584 l S
+BT /F1 9 Tf 60 745 Td (nip) Tj ET
+BT /F1 9 Tf 150 745 Td (nom) Tj ET
+BT /F1 9 Tf 260 745 Td (prenoms) Tj ET
+BT /F1 9 Tf 360 745 Td (date_naissance) Tj ET
+BT /F1 9 Tf 470 745 Td (date_deces) Tj ET
+BT /F1 9 Tf 60 723 Td (BF-0001) Tj ET
+BT /F1 9 Tf 150 723 Td (KABORÉ) Tj ET
+BT /F1 9 Tf 260 723 Td (Aminata) Tj ET
+BT /F1 9 Tf 360 723 Td (14/03/2001) Tj ET
+BT /F1 9 Tf 470 723 Td () Tj ET
+BT /F1 9 Tf 60 701 Td (BF-0003) Tj ET
+BT /F1 9 Tf 150 701 Td (SAWADOGO) Tj ET
+BT /F1 9 Tf 260 701 Td (Fatimata) Tj ET
+BT /F1 9 Tf 360 701 Td (21/05/2010) Tj ET
+BT /F1 9 Tf 470 701 Td () Tj ET
+BT /F1 9 Tf 60 679 Td (BF-0004) Tj ET
+BT /F1 9 Tf 150 679 Td (ZONGO) Tj ET
+BT /F1 9 Tf 260 679 Td (Issouf) Tj ET
+BT /F1 9 Tf 360 679 Td (vers 1990) Tj ET
+BT /F1 9 Tf 470 679 Td () Tj ET
+BT /F1 9 Tf 60 657 Td (BF-0007) Tj ET
+BT /F1 9 Tf 150 657 Td (TRAORÉ) Tj ET
+BT /F1 9 Tf 260 657 Td (Mariam) Tj ET
+BT /F1 9 Tf 360 657 Td (10/01/1950) Tj ET
+BT /F1 9 Tf 470 657 Td (01/06/2024) Tj ET
+BT /F1 9 Tf 60 635 Td (BF-0011) Tj ET
+BT /F1 9 Tf 150 635 Td (KONATÉ) Tj ET
+BT /F1 9 Tf 260 635 Td (Awa) Tj ET
+BT /F1 9 Tf 360 635 Td (2004) Tj ET
+BT /F1 9 Tf 470 635 Td () Tj ET
+BT /F1 9 Tf 60 613 Td (BF-0019) Tj ET
+BT /F1 9 Tf 150 613 Td (SANOU) Tj ET
+BT /F1 9 Tf 260 613 Td (Jean) Tj ET
+BT /F1 9 Tf 360 613 Td (05/05/1991) Tj ET
+BT /F1 9 Tf 470 613 Td () Tj ET
+BT /F1 9 Tf 60 591 Td (BF-0019) Tj ET
+BT /F1 9 Tf 150 591 Td (SANOU) Tj ET
+BT /F1 9 Tf 260 591 Td (Jean) Tj ET
+BT /F1 9 Tf 360 591 Td (15/05/1991) Tj ET
+BT /F1 9 Tf 470 591 Td () Tj ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000241 00000 n 
+0000000338 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+2224
+%%EOF

@@ -40,6 +40,13 @@ URL_CASIER = "http://registre-casier:8000/attributs"
 CANAL = {"X-Cle-Canal": "secret-de-test-canal"}
 CHEMIN_JOURNAL = TMP / "donnees/mediateur.sqlite3"
 
+# Le registre est enregistré sous le nom de paquet « registre_app » (le médiateur occupe déjà le nom « app »)
+import importlib.util  # noqa: E402
+_spec = importlib.util.spec_from_file_location("registre_app", RACINE / "registres_sim/app/__init__.py",
+                                               submodule_search_locations=[str(RACINE / "registres_sim/app")])
+sys.modules["registre_app"] = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(sys.modules["registre_app"])
+
 sys.path.insert(0, str(RACINE / "mediateur"))
 from app import main as mediateur  # noqa: E402
 from app.agents import agent_connecte  # noqa: E402

@@ -19,11 +19,7 @@ for dossier in ("cles", "publique", "trace"):
     (TMP / dossier).mkdir(exist_ok=True)
 os.environ.update(ADAPTATEUR=str(ADAPTATEUR_TEST), CLES=str(TMP / "cles"), PUBLIQUE=str(TMP / "publique"),
                   TRACE=str(TMP / "trace"))
-spec = importlib.util.spec_from_file_location("registre_app", RACINE / "registres_sim/app/__init__.py",
-                                              submodule_search_locations=[str(RACINE / "registres_sim/app")])
-sys.modules["registre_app"] = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(sys.modules["registre_app"])
-from registre_app import main as registre  # noqa: E402
+from registre_app import main as registre  # noqa: E402  (paquet enregistré par conftest.py)
 
 client = TestClient(registre.app)
 CLE_PUBLIQUE = (TMP / "publique/cle.pem").read_bytes()
@@ -177,3 +173,17 @@ def test_compte_de_test_refuse_si_outils_desactives(monkeypatch):
     assert infos["statut"] == "refus" and "outils de test désactivés" in infos["motif"]
     monkeypatch.setattr(registre, "OUTILS_TEST", True)
     assert demander("BF-0001", service="direction-concours", jeton=jeton)["statut"] == "ok"
+
+
+def test_source_indisponible_503_non_signe(monkeypatch):
+    """API du jury injoignable : le registre répond 503 SANS rien signer ni tracer (« indisponible »),
+    le médiateur affiche « registre indisponible, rien n'a été deviné »."""
+    def panne(*_a, **_k):
+        raise registre.SourceIndisponible("API du registre injoignable ou trop lente")
+    avant = registre.TRACE_BASE.execute("SELECT COUNT(*) FROM reponses").fetchone()[0]
+    monkeypatch.setattr(registre.ADAPTATEUR, "calculer", panne)
+    r = client.post("/attributs", headers={"Authorization": f"Bearer {jeton_agent()}"},
+                    json={"id_demande": "d-api", "attribut": "age_entre", "sujet_ref": "BF-0001",
+                          "destinataire": "service-bourses", "parametres": MAJORITE})
+    assert r.status_code == 503 and "jeton" not in r.json()
+    assert registre.TRACE_BASE.execute("SELECT COUNT(*) FROM reponses").fetchone()[0] == avant

@@ -20,10 +20,10 @@ import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi import FastAPI, Header
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
-from .adaptateur import Adaptateur, Refus
+from .adaptateur import Adaptateur, Refus, SourceIndisponible
 
 ADAPTATEUR = Adaptateur(Path(os.environ["ADAPTATEUR"]))
 DUREE_VALIDITE = 600          # une réponse signée vaut 10 minutes
@@ -93,6 +93,9 @@ def service_de_l_agent(authorization: str) -> str:
 
 
 CLE = charger_cle()
+print(f"Registre {ADAPTATEUR.registre} : source {ADAPTATEUR.source['type']}"
+      + (f", {len(ADAPTATEUR.lignes)} lignes, sha256 {ADAPTATEUR.empreinte_source}" if ADAPTATEUR.lignes is not None
+         else " (interrogée à chaque demande)"), flush=True)
 
 # --- Double trace : le registre garde SA liste des réponses signées (jamais la valeur, jamais le citoyen) ---
 # Volume de CE registre seulement : le médiateur ne peut ni la lire en écriture ni la modifier.
@@ -165,6 +168,11 @@ def attribut(d: DemandeAttribut, authorization: str = Header("")):
         # Trace locale sans identifiant du citoyen, pour le service du registre.
         print(f"demande {d.id_demande} : refus ({motif})", flush=True)
         charge |= {"statut": "refus", "motif": ADAPTATEUR.motif_refus_public}
+    except SourceIndisponible as motif:
+        # API du jury injoignable : « indisponible » n'est PAS signé (ce n'est pas une réponse du registre).
+        # Le médiateur affichera « registre indisponible, rien n'a été deviné ».
+        print(f"demande {d.id_demande} : source indisponible ({motif})", flush=True)
+        return JSONResponse({"detail": "source du registre indisponible"}, status_code=503)
     jeton = jwt.encode(charge, CLE, algorithm="EdDSA")
     tracer_reponse(charge, d.attribut)
 

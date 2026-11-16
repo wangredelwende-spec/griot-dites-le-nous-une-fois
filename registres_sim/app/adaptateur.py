@@ -4,37 +4,41 @@ On branche un nouveau registre en écrivant un fichier YAML, sans changer ce cod
 Règle d'or : si la donnée ne permet pas de conclure, on REFUSE avec un motif ; on ne devine jamais.
 """
 import calendar
-import csv
-import json
 import re
-from datetime import date
+import unicodedata
+from datetime import date, datetime
 from pathlib import Path
 
 import yaml
+
+from .sources import (SourceIndisponible, empreinte_fichier, interroger_api,  # noqa: F401 (SourceIndisponible : main.py)
+                      lire_source)
+
+
+def normaliser_texte(valeur: str) -> str:
+    """Pour comparer des valeurs écrites différemment : « Burkinabè » = « BURKINABE » = « burkinabe »."""
+    sans_accents = unicodedata.normalize("NFKD", valeur).encode("ascii", "ignore").decode()
+    return " ".join(sans_accents.casefold().split())
 
 
 class Refus(Exception):
     """Le registre ne peut pas répondre : le motif est renvoyé tel quel au médiateur."""
 
 
-def lire_source(source: dict) -> list[dict]:
-    chemin = Path(source["chemin"])
-    # « utf-8-sig » : accepte le marqueur BOM qu'ajoute Excel
-    with open(chemin, encoding="utf-8-sig", newline="") as fichier:
-        if source["type"] == "csv":
-            return list(csv.DictReader(fichier, delimiter=source.get("separateur", ";")))
-        if source["type"] == "json":
-            return json.load(fichier)
-    raise ValueError(f"type de source inconnu : {source['type']}")
-
-
-def bornes_de_naissance(texte: str) -> tuple[date, date]:
+def bornes_de_naissance(texte: str, format_date: str | list | None = None) -> tuple[date, date]:
     """Date de naissance -> (date la plus ancienne possible, date la plus récente possible).
 
     « 2001-03-14 » : date exacte.  « 2008-11 » : du 1er au 30 novembre 2008.  « 2004 » : du 1er janvier
-    au 31 décembre 2004.  « vers 1990 » ou illisible : refus (on ne connaît pas l'écart).
+    au 31 décembre 2004.  Avec « format_date: "%d/%m/%Y" » dans l'adaptateur : « 14/03/2001 » aussi.
+    « vers 1990 », vide ou illisible : refus (on ne connaît pas l'écart).
     """
     t = texte.strip()
+    for forme in ([format_date] if isinstance(format_date, str) else format_date or []):
+        try:
+            exacte = datetime.strptime(t, forme).date()
+            return exacte, exacte
+        except ValueError:
+            pass        # autre format, ou date partielle (« 2004 ») : on essaie les formes suivantes
     if re.fullmatch(r"\d{4}-\d{2}-\d{2}", t):
         exacte = date.fromisoformat(t)
         return exacte, exacte
@@ -51,8 +55,8 @@ def age_le(naissance: date, jour: date) -> int:
     return jour.year - naissance.year - ((jour.month, jour.day) < (naissance.month, naissance.day))
 
 
-def age_minimum_atteint(texte_naissance: str, age: int, jour: date) -> bool:
-    plus_ancienne, plus_recente = bornes_de_naissance(texte_naissance)
+def age_minimum_atteint(texte_naissance: str, age: int, jour: date, format_date=None) -> bool:
+    plus_ancienne, plus_recente = bornes_de_naissance(texte_naissance, format_date)
     if age_le(plus_recente, jour) >= age:     # même né le plus tard possible, il a l'âge
         return True
     if age_le(plus_ancienne, jour) < age:     # même né le plus tôt possible, il n'a pas l'âge
@@ -88,13 +92,23 @@ class Adaptateur:
             raise ValueError(f"{chemin.name} : absence doit valoir « refus » ou « vierge »")
         if self.absence == "vierge" and any(r["regle"] not in ("nombre_nul", "contient") for r in self.attributs.values()):
             raise ValueError(f"{chemin.name} : « absence: vierge » n'a de sens que pour les règles nombre_nul et contient")
-        self.lignes = lire_source(conf["source"])
+        # Format(s) des dates du registre (ex. "%d/%m/%Y" ou une liste) ; absent : ISO (2001-03-14, 2008-11, 2004)
+        self.format_date = conf.get("format_date")
+        # Fichier : lu une fois au démarrage (illisible -> le registre refuse de démarrer).
+        # API du jury : interrogée à chaque demande (voir fiches()).
+        self.source = conf["source"]
+        self.lignes = None if self.source["type"] == "api" else lire_source(self.source)
+        # Empreinte du fichier lu (écrite dans les logs au démarrage) : on sait quelle version des données a servi
+        self.empreinte_source = "" if self.lignes is None else empreinte_fichier(self.source["chemin"])
 
     def valeur(self, ligne: dict, nom: str) -> str:
         return (ligne.get(self.champs[nom]) or "").strip()
 
     def fiches(self, sujet_ref: str) -> list[dict]:
-        return [l for l in self.lignes if (l.get(self.identite) or "").strip() == sujet_ref]
+        # API : peut lever SourceIndisponible (registre indisponible, rien n'est deviné ni signé)
+        lignes = interroger_api(self.source, sujet_ref) if self.lignes is None else self.lignes
+        # Même avec une API, on ne garde que les fiches dont l'identifiant est EXACTEMENT celui demandé
+        return [l for l in lignes if (l.get(self.identite) or "").strip() == sujet_ref]
 
     def trouver(self, sujet_ref: str) -> dict:
         fiches = self.fiches(sujet_ref)
@@ -139,8 +153,7 @@ class Adaptateur:
         if not valeur:
             raise Refus("donnée insuffisante : champ vide")       # vide n'est ni « oui » ni « non »
         if regle["regle"] == "egal":
-            # ex. nationalité : « burkinabe » -> true ; toute autre nationalité renseignée -> false
-            return {regle["claim"]: valeur.lower() == str(regle["valeur"]).lower()}
+            return {regle["claim"]: self.egal(valeur, regle)}
         if regle["regle"] == "contient":
             # ex. peines complémentaires : « interdiction de sortie du territoire (5 ans) » -> true ;
             # « aucune » ou une autre peine -> false ; vide -> refus (plus haut)
@@ -151,6 +164,25 @@ class Adaptateur:
                 raise Refus("donnée insuffisante : nombre illisible")
             return {regle["claim"]: int(valeur) == 0}
         raise Refus("règle inconnue dans l'adaptateur")
+
+    @staticmethod
+    def egal(valeur: str, regle: dict) -> bool:
+        """Nationalité, par exemple. Sans accents ni majuscules. Plusieurs valeurs « a ; b » (double nationalité) :
+        oui si l'une d'elles convient.
+        - sans « correspondances » : égal à « valeur » -> oui ; toute autre valeur renseignée -> non ;
+        - avec « correspondances: {oui: [...], non: [...]} » : une valeur qui n'est dans AUCUNE des deux listes
+          -> refus (on ne devine pas ce que veut dire « BF » si personne ne l'a écrit)."""
+        morceaux = [normaliser_texte(m) for m in valeur.split(";") if m.strip()]
+        correspondances = regle.get("correspondances")
+        if not correspondances:
+            return normaliser_texte(str(regle["valeur"])) in morceaux
+        oui = {normaliser_texte(str(v)) for v in correspondances.get("oui", [])}
+        non = {normaliser_texte(str(v)) for v in correspondances.get("non", [])}
+        if any(m in oui for m in morceaux):
+            return True
+        if all(m in non for m in morceaux):
+            return False
+        raise Refus("donnée insuffisante : valeur non reconnue (à ajouter dans « correspondances »)")
 
     def age_entre(self, fiche: dict, regle: dict, parametres: dict) -> dict:
         """Âge entre « min » et « max » ans (max facultatif) à la date « date_reference ».
@@ -167,7 +199,7 @@ class Adaptateur:
         if not 0 <= mini <= 150 or (maxi is not None and not mini <= maxi <= 150):
             raise Refus("paramètres invalides (âges hors limites)")
         naissance = self.valeur(fiche, regle["champ"])
-        ages = {str(mini): age_minimum_atteint(naissance, mini, reference)}
+        ages = {str(mini): age_minimum_atteint(naissance, mini, reference, self.format_date)}
         if maxi is not None:
-            ages[str(maxi + 1)] = age_minimum_atteint(naissance, maxi + 1, reference)
+            ages[str(maxi + 1)] = age_minimum_atteint(naissance, maxi + 1, reference, self.format_date)
         return {regle["claim"]: ages, "date_reference": reference.isoformat()}

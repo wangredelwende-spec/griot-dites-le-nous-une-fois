@@ -1,0 +1,73 @@
+{
+  "registre": {
+    "version": 1,
+    "personnes": [
+      {
+        "identite": {
+          "nip": "BF-0001",
+          "nom": "KABORÉ"
+        },
+        "nationalite": {
+          "libelle": "Burkinabè"
+        }
+      },
+      {
+        "identite": {
+          "nip": "BF-0002",
+          "nom": "OUÉDRAOGO"
+        },
+        "nationalite": {
+          "libelle": "BF"
+        }
+      },
+      {
+        "identite": {
+          "nip": "BF-0006",
+          "nom": "COMPAORÉ"
+        },
+        "nationalite": {
+          "libelle": "burkinabe"
+        }
+      },
+      {
+        "identite": {
+          "nip": "BF-0018",
+          "nom": "OUATTARA"
+        },
+        "nationalite": {
+          "libelle": "Ivoirienne"
+        }
+      },
+      {
+        "identite": {
+          "nip": "BF-0020",
+          "nom": "ZOUNGRANA"
+        },
+        "nationalite": {
+          "libelle": [
+            "Ivoirienne",
+            "Burkinabè"
+          ]
+        }
+      },
+      {
+        "identite": {
+          "nip": "BF-0013",
+          "nom": "SOMÉ"
+        },
+        "nationalite": {
+          "libelle": ""
+        }
+      },
+      {
+        "identite": {
+          "nip": "BF-0014",
+          "nom": "BAMOGO"
+        },
+        "nationalite": {
+          "libelle": "XX"
+        }
+      }
+    ]
+  }
+}

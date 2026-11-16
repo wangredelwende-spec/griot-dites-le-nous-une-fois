@@ -1,0 +1,10 @@
+BEGIN TRANSACTION;
+CREATE TABLE personnes (nip TEXT, nom TEXT, date_naissance TEXT, date_deces TEXT);
+INSERT INTO "personnes" VALUES('BF-0001','KABORÉ','14/03/2001','');
+INSERT INTO "personnes" VALUES('BF-0003','SAWADOGO','21/05/2010','');
+INSERT INTO "personnes" VALUES('BF-0004','ZONGO','vers 1990','');
+INSERT INTO "personnes" VALUES('BF-0007','TRAORÉ','10/01/1950','01/06/2024');
+INSERT INTO "personnes" VALUES('BF-0011','KONATÉ','2004','');
+INSERT INTO "personnes" VALUES('BF-0019','SANOU','05/05/1991','');
+INSERT INTO "personnes" VALUES('BF-0019','SANOU','15/05/1991','');
+COMMIT;

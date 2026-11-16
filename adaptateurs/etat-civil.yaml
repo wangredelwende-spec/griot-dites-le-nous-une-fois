@@ -1,0 +1,29 @@
+# Adaptateur du registre d'état civil (données fictives).
+# Il décrit comment lire ce registre SANS changer le code : voir docs/BRANCHER_UN_REGISTRE.md.
+registre: etat-civil
+emetteur: registre-etat-civil       # « iss » des réponses signées
+
+source:
+  type: csv                         # csv | json
+  chemin: /donnees/etat_civil.csv
+  separateur: ";"
+
+# Colonne qui identifie un citoyen dans ce registre (comparée au sujet_ref de la demande).
+# Aucune fiche : « introuvable » ; plusieurs fiches : « identité ambiguë ».
+identite: nip
+
+# Nom utilisé par le code -> nom de la colonne dans le fichier
+champs:
+  date_naissance: date_naissance
+  date_deces: date_deces
+
+# Une fiche dont « date_deces » est remplie est refusée
+refuser_si_decede: true
+
+# Attributs calculables. Seul le résultat est renvoyé, jamais la fiche.
+attributs:
+  majeur:
+    regle: age_minimum              # âge >= age à la date du jour
+    champ: date_naissance
+    age: 18
+    claim: age_equal_or_over        # réponse : {"age_equal_or_over": {"18": true}}

@@ -1,0 +1,4 @@
+# Outils de test (en plus des dépendances du médiateur et du registre)
+pytest==9.2.0
+respx==0.23.1
+pyotp==2.12.0

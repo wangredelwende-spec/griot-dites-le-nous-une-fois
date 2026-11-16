@@ -1,0 +1,66 @@
+"""Journal chaîné par hachage (SQLite), en ajout seul.
+
+Chaque ligne contient l'empreinte de la précédente :
+    hash = SHA-256(prev_hash + JSON canonique de la ligne sans « hash »)
+Modifier une ligne casse la chaîne à cet endroit (journal/verifier.py l'indique).
+Le journal consigne le FAIT, jamais le CONTENU : « le service des bourses a consulté l'attribut
+majeur », jamais « majeur = oui ». Le citoyen y est pseudonymisé (HMAC de son identifiant).
+"""
+import hashlib
+import json
+import sqlite3
+import threading
+from datetime import datetime, timezone
+
+ZEROS = "0" * 64
+CHAMPS = ("agent", "demandeur", "demarche", "finalite", "base", "attribut", "registre", "sujet",
+          "evenement", "resultat", "motif")
+
+
+def empreinte(ligne: dict) -> str:
+    """Même calcul que journal/verifier.py (clés triées, séparateurs compacts, UTF-8)."""
+    sans_hash = {k: v for k, v in ligne.items() if k != "hash"}
+    canonique = json.dumps(sans_hash, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256((ligne["prev_hash"] + canonique).encode("utf-8")).hexdigest()
+
+
+class Journal:
+    def __init__(self, base: sqlite3.Connection, verrou: threading.RLock):
+        self._base = base
+        self._verrou = verrou
+        colonnes = ", ".join(f"{c} TEXT NOT NULL" for c in ("ts",) + CHAMPS + ("prev_hash", "hash"))
+        with verrou:
+            base.executescript(f"""
+                CREATE TABLE IF NOT EXISTS journal (n INTEGER PRIMARY KEY, {colonnes});
+                CREATE TRIGGER IF NOT EXISTS journal_sans_modification BEFORE UPDATE ON journal
+                    BEGIN SELECT RAISE(ABORT, 'journal en ajout seul'); END;
+                CREATE TRIGGER IF NOT EXISTS journal_sans_suppression BEFORE DELETE ON journal
+                    BEGIN SELECT RAISE(ABORT, 'journal en ajout seul'); END;
+            """)
+
+    def ecrire(self, **champs) -> dict:
+        inconnus = set(champs) - set(CHAMPS)
+        if inconnus:
+            raise ValueError(f"champs inconnus dans le journal : {inconnus}")
+        with self._verrou:
+            self._base.execute("BEGIN IMMEDIATE")
+            try:
+                derniere = self._base.execute("SELECT n, hash FROM journal ORDER BY n DESC LIMIT 1").fetchone()
+                ligne = {"n": derniere["n"] + 1 if derniere else 1,
+                         "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                         **{c: str(champs.get(c, "")) for c in CHAMPS},
+                         "prev_hash": derniere["hash"] if derniere else ZEROS}
+                ligne["hash"] = empreinte(ligne)
+                self._base.execute(f"INSERT INTO journal ({', '.join(ligne)}) VALUES ({', '.join('?' * len(ligne))})",
+                                   list(ligne.values()))
+                self._base.execute("COMMIT")
+            except Exception:
+                self._base.execute("ROLLBACK")
+                raise
+        return ligne
+
+    def lignes_du_sujet(self, sujet: str, limite: int = 100) -> list[dict]:
+        with self._verrou:
+            lignes = self._base.execute("SELECT * FROM journal WHERE sujet = ? ORDER BY n DESC LIMIT ?",
+                                        (sujet, limite)).fetchall()
+        return [dict(l) for l in lignes]

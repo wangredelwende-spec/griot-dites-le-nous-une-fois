@@ -1,0 +1,56 @@
+# Règles du médiateur : qui peut demander quoi, pourquoi, et sur quelle base.
+# Lues aussi (en lecture seule) par le guichet, pour proposer les démarches de chaque service.
+
+# Services demandeurs. « groupe » = nom du groupe Keycloak de l'agent (le service vient du jeton,
+# jamais d'un formulaire). « nom » = texte montré à l'usager.
+services:
+  service-bourses:
+    groupe: Service des bourses
+    nom: Le service des bourses
+  direction-concours:
+    groupe: Direction des concours de la fonction publique
+    nom: La direction des concours de la fonction publique
+  mairie:
+    groupe: Mairie
+    nom: La mairie
+
+# Registres joignables par le médiateur (réseau Docker « registres » uniquement).
+# La clé publique de chaque registre est lue dans /publiques/<registre>.pem.
+registres:
+  etat-civil:
+    url: http://registre-etat-civil:8000
+    emetteur: registre-etat-civil       # « iss » attendu dans les réponses signées
+    nom: registre d'état civil
+
+# Attributs : registre qui les calcule et forme exacte de la réponse signée.
+# claim + cle : {"age_equal_or_over": {"18": true}} ; claim seul : {"nationalite_burkinabe": true}
+attributs:
+  majeur:
+    registre: etat-civil
+    claim: age_equal_or_over
+    cle: "18"
+    libelle: majeur
+
+# Démarches. base : « consentement » (l'usager voit l'aperçu et confirme avant l'envoi)
+# ou « base-legale » (pas de confirmation, mais la consultation apparaît dans son historique avec le texte).
+demarches:
+  bourse:
+    libelle: Demande de bourse
+    service: service-bourses
+    attribut: majeur
+    finalite: attribution de bourse
+    base: consentement
+  concours:
+    libelle: Inscription à un concours de la fonction publique
+    service: direction-concours
+    attribut: majeur
+    finalite: vérification de l'âge minimal pour concourir
+    base: base-legale
+    texte: Règlement des concours de la fonction publique, article sur l'âge minimal (texte fictif pour la démonstration)
+  mariage:
+    libelle: Publication des bans de mariage
+    service: mairie
+    attribut: majeur
+    finalite: vérification de l'âge légal pour le mariage
+    base: base-legale
+    texte: Code des personnes et de la famille, article sur l'âge du mariage (texte fictif pour la démonstration)

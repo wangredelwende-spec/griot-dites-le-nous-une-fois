@@ -134,7 +134,26 @@ Puis `docker compose restart mediateur guichet`. Rien d'autre :
 qu'une personne a été condamnée (casier non vierge) même sans interdiction de sortie. Revenir à l'attribut
 normal dès que la colonne existe. Testé : les deux réglages passent la suite (`tests\test_catalogue.py`).
 
-## API du jury : réseau
+## API du jury
 
-Les registres sont sur des réseaux Docker **sans Internet**. Si l'API du jury est sur le réseau local, le registre
-ne peut pas la joindre tel quel : voir `A_TRANCHER_DONNEES_JURY.md` (décision d'Esther avant de l'ouvrir).
+**Par défaut : un export unique**, puis un fichier comme les autres (les registres restent sans réseau) :
+```powershell
+.venv\Scripts\python scripts\exporter_api_jury.py "<adresse de l'API>" etat_civil
+```
+→ `donnees_jury\etat_civil.json` + `etat_civil.provenance.json` (adresse sans identifiant, date, empreinte
+SHA-256). Le jeton éventuel est pris dans `.env` (`API_JURY_SECRET`) et n'est écrit nulle part. Puis étapes 2 à 6
+(source `type: json`).
+
+**Seulement si le jury impose l'API en direct** : profil `api-jury`. Un **relais** est le seul conteneur relié au
+réseau extérieur ; il ne transmet qu'à l'adresse `API_JURY_URL` de `.env`, en lecture (GET), avec un délai de 2 s
+(sous les 3 s du médiateur), et ajoute lui-même le jeton (`API_JURY_SECRET`). Les registres le joignent par un
+réseau interne sans sortie : ils ne connaissent ni l'adresse de l'API ni son jeton.
+1. `.env` : `API_JURY_URL=http://<adresse>:<port>` (sans chemin) et `API_JURY_SECRET=…`.
+2. Adaptateur : `source: {type: api, url: "http://relais-api-jury:8080/<chemin>?<param>={sujet_ref}", liste: …,
+   delai: 2}` (pas d'`entetes` : le relais ajoute le jeton).
+3. Lancer le relais (prévenir l'équipe ; jamais Keycloak ni PostgreSQL) :
+```powershell
+docker compose --profile api-jury up -d --build --no-deps --wait relais-api-jury
+docker compose up -d --force-recreate --no-deps --wait registre-etat-civil registre-nationalite registre-casier
+```
+API coupée ou trop lente : le relais répond 504, le registre « indisponible », le guichet « rien n'a été deviné ».

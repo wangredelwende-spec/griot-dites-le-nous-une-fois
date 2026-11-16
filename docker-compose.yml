@@ -86,7 +86,8 @@ services:
       - trace_etat_civil:/trace                 # double trace : ses réponses signées (jamais la valeur)
     # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
     secrets: [api_jury]                  # jeton de l'API du jury (« {secret:api_jury} » dans l'adaptateur)
-    networks: [registres, cles-agents]
+    # « relais-jury » : sans sortie ; ne sert que si le profil api-jury est lancé (API du jury en direct)
+    networks: [registres, cles-agents, relais-jury]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
       interval: 10s
@@ -110,7 +111,8 @@ services:
       - trace_nationalite:/trace                 # double trace : ses réponses signées (jamais la valeur)
     # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
     secrets: [api_jury]                  # jeton de l'API du jury (« {secret:api_jury} » dans l'adaptateur)
-    networks: [registres, cles-agents]
+    # « relais-jury » : sans sortie ; ne sert que si le profil api-jury est lancé (API du jury en direct)
+    networks: [registres, cles-agents, relais-jury]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
       interval: 10s
@@ -134,7 +136,8 @@ services:
       - trace_casier:/trace                 # double trace : ses réponses signées (jamais la valeur)
     # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
     secrets: [api_jury]                  # jeton de l'API du jury (« {secret:api_jury} » dans l'adaptateur)
-    networks: [registres, cles-agents]
+    # « relais-jury » : sans sortie ; ne sert que si le profil api-jury est lancé (API du jury en direct)
+    networks: [registres, cles-agents, relais-jury]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
       interval: 10s
@@ -249,6 +252,25 @@ services:
     volumes:
       - ./donnees_jury:/donnees        # le CSV et sa provenance sont écrits à côté du PDF
 
+  # API du jury EN DIRECT (seulement si le jury l'impose ; par défaut on importe un export : exporter_api_jury.py).
+  # SEUL conteneur qui touche le réseau extérieur ; ne transmet qu'à API_JURY_URL (.env), en GET, avec délai.
+  #   docker compose --profile api-jury up -d --no-deps relais-api-jury
+  relais-api-jury:
+    build: ./relais_api_jury
+    image: griot-relais-api-jury:local
+    profiles: [api-jury]
+    restart: unless-stopped
+    environment:
+      API_JURY_URL: ${API_JURY_URL:-http://api-jury-non-configuree.invalid}
+      DELAI_API_JURY: "2"                # secondes : sous les 3 s du médiateur
+    secrets: [api_jury]                  # jeton de l'API : connu du relais seul, jamais des registres
+    networks: [relais-jury, sortie-jury]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/__sante')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
 secrets:
   api_jury:
     environment: API_JURY_SECRET       # vide tant que le jury ne fournit pas d'API
@@ -287,3 +309,8 @@ networks:
     internal: true
   # Réseau ordinaire, utilisé uniquement par Caddy pour publier les ports 80 et 443
   externe: {}
+  # Registres <-> relais de l'API du jury, SANS sortie : un registre ne peut joindre que le relais
+  relais-jury:
+    internal: true
+  # Sortie du relais vers l'API du jury (profil api-jury seulement) : aucun autre conteneur n'y est relié
+  sortie-jury: {}

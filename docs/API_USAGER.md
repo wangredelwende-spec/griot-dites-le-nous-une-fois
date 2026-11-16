@@ -71,7 +71,7 @@ composer l'écran dans une autre langue (mooré).
 
 ```json
 [{"n": 36, "ts": "2026-11-16T11:54:30Z", "agent": "issa.sawadogo",
-  "service": "La direction des concours de la fonction publique", "code_service": "direction-concours",
+  "service": "La Direction des concours – ministère des Serviteurs du peuple", "code_service": "direction-concours",
   "demarche": "Concours direct adjoints administratifs",
   "finalite": "vérification des conditions d'inscription au concours direct des adjoints administratifs",
   "base": "base_legale", "texte_base": "Loi n°081-2015/CNT …",

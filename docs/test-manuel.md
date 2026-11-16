@@ -23,7 +23,7 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 | Compte (guichet) | Mot de passe | Service | Démarches proposées (catalogue) |
 |---|---|---|---|
 | `moussa.kone` | `Agent-Demo-2026!` | Division de la Migration – Police nationale | **Passeport ordinaire** (majeur + nationalité + interdiction de sortie du territoire, **avec l'accord de l'usager**) : scène 1 |
-| `issa.sawadogo` | `Agent-Demo-2026!` | Direction des concours | **Concours direct adjoints administratifs** (âge 18–37 ans au 31/12/2026 + nationalité + casier, base légale), Vérifier la majorité |
+| `issa.sawadogo` | `Agent-Demo-2026!` | Direction des concours – ministère des Serviteurs du peuple | **Concours direct adjoints administratifs** (âge 18–37 ans au 31/12/2026 + nationalité + casier, base légale), Vérifier la majorité |
 | `awa.ouedraogo` | `Agent-Demo-2026!` | Service des bourses | **Bourse nationale** (nationalité, **avec l'accord de l'usager**), Vérifier la majorité |
 | `mariam.kabore` | `Agent-Demo-2026!` | Mairie | Vérifier la majorité (base légale : loi n°012-2025/ALT) |
 | `agent.curieux` | `Agent-Demo-2026!` | Service des bourses | Vérifier la majorité : **démo de la limite de débit** (scène 2 bis) |

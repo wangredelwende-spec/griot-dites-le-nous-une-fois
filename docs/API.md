@@ -25,6 +25,47 @@ audience `mediateur`, expiration, rôle `agent-guichet`, **un seul groupe de ser
 jamais du corps de la demande). Le jeton est ensuite transmis tel quel à chaque registre, qui le **revérifie
 lui-même** (double clé).
 
+## Exemple d'intégration : e-concours (econcours.gov.bf)
+
+**Aujourd'hui** : les candidats s'inscrivent en ligne sur e-concours, mais déposent encore un **dossier physique**
+(acte de naissance, certificat de nationalité, extrait de casier…) après l'inscription ou l'admissibilité.
+
+**Avec le médiateur** : au moment où un agent de la Direction des concours – ministère des Serviteurs du peuple
+examine une inscription, e-concours demande au médiateur la démarche `concours-adjoints` pour ce candidat. Les trois
+registres répondent en parallèle, chacun signe sa réponse : « âge de 18 à 37 ans au 31/12/2026 : oui »,
+« nationalité burkinabè : oui », « casier judiciaire vierge : oui ». Aucune pièce à déposer, et e-concours ne reçoit
+ni date de naissance, ni filiation, ni détail du casier.
+
+1. e-concours est déclaré dans Keycloak comme client OIDC (comme le guichet) ; l'agent s'y connecte avec mot de
+   passe + TOTP. Le service (Direction des concours) vient du groupe de l'agent, jamais d'e-concours.
+2. Pour chaque dossier examiné : `POST /demandes` avec `demarche: concours-adjoints` et l'identifiant du candidat
+   (section 1). Base légale (communiqué du concours) : pas d'accord à demander, mais la consultation apparaît dans
+   l'historique du candidat (USSD, « Qui a consulté mes données ») avec le texte cité.
+3. e-concours vérifie les trois signatures (section 3) et garde **la réponse signée** comme preuve dans le dossier,
+   au lieu des copies légalisées. Un registre en panne : « indisponible, rien n'a été deviné » pour lui seul ; le
+   dossier reste incomplet, jamais « oui » par défaut.
+4. Limites de débit : un agent qui examine des centaines de dossiers dépasse la limite de démonstration
+   (5 citoyens par heure). En production, une limite propre à la campagne de concours se règle dans la
+   configuration (`LIMITE_SUJETS`), et les alertes restent visibles sur la page Contrôle.
+
+```powershell
+# e-concours, pour le candidat BF-0001 (jeton de l'agent connecté à e-concours dans $jeton)
+$corps = @{ id_demande = [guid]::NewGuid().ToString(); demarche = "concours-adjoints"; sujet_ref = "BF-0001"
+            finalite = "vérification des conditions d'inscription au concours direct des adjoints administratifs" } | ConvertTo-Json
+$r = Invoke-RestMethod -Method Post -Uri "$MEDIATEUR/demandes" -Headers @{ Authorization = "Bearer $jeton" } `
+       -ContentType "application/json; charset=utf-8" -Body ([Text.Encoding]::UTF8.GetBytes($corps))
+$r.volets | Select-Object attribut, registre, statut    # 3 réponses signées à vérifier, puis à garder au dossier
+```
+
+## En production : seuls les systèmes autorisés, avec TLS mutuel
+
+Dans la démonstration, le médiateur n'est joignable que par le réseau Docker interne. En production, il serait
+ouvert **aux seuls systèmes autorisés** (guichets, e-concours, logiciel des passeports…), avec **TLS mutuel** :
+chaque système présente un certificat client délivré par l'autorité de certification de l'administration, et le
+médiateur refuse toute connexion sans certificat reconnu. Cela s'ajoute au jeton de l'agent (qui demande ?) :
+le certificat dit **quel système** appelle, le jeton dit **quel agent**. (C'est le principe des serveurs de sécurité
+de X-Road : voir la feuille de route.)
+
 ## 1. Faire une demande
 
 `POST /demandes`

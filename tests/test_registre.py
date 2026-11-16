@@ -28,7 +28,7 @@ MAJORITE = {"min": 18, "date_reference": AUJOURDHUI}
 
 # Faux Keycloak : une clé RSA de test. Le registre vérifie le jeton de l'agent avec SA clé publique.
 CLE_KEYCLOAK = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-GROUPES = {"service-bourses": "Service des bourses", "direction-concours": "Direction des concours de la fonction publique",
+GROUPES = {"service-bourses": "Service des bourses", "direction-concours": "Direction des concours – ministère des Serviteurs du peuple",
            "mairie": "Mairie"}
 
 

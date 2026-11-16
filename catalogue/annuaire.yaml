@@ -8,9 +8,9 @@ services:
   service-bourses:
     groupe: Service des bourses
     nom: Le service des bourses
-  direction-concours:
-    groupe: Direction des concours de la fonction publique
-    nom: La direction des concours de la fonction publique
+  direction-concours:                # nouveau nom depuis le remaniement de janvier 2026 ; code inchangé
+    groupe: Direction des concours – ministère des Serviteurs du peuple
+    nom: La Direction des concours – ministère des Serviteurs du peuple
   mairie:
     groupe: Mairie
     nom: La mairie

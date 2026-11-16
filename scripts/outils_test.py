@@ -4,7 +4,7 @@
     python scripts/outils_test.py etat     # affiche seulement l'état
 
 Trois comptes de service Keycloak (secret client, pas d'humain, pas de TOTP), chacun membre d'un service :
-    outil-test-concours  -> Direction des concours de la fonction publique
+    outil-test-concours  -> Direction des concours – ministère des Serviteurs du peuple
     outil-test-bourses   -> Service des bourses
     outil-test-curieux   -> Service des bourses (sert à déclencher la limite « agent curieux »)
 Ils suivent EXACTEMENT les mêmes règles que les agents (catalogue, double clé, limites de débit : aucune exemption).
@@ -20,7 +20,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[1]
 COMPTES = {
-    "outil-test-concours": "Direction des concours de la fonction publique",
+    "outil-test-concours": "Direction des concours – ministère des Serviteurs du peuple",
     "outil-test-bourses": "Service des bourses",
     "outil-test-curieux": "Service des bourses",
 }

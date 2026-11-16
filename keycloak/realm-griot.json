@@ -58,7 +58,7 @@
       }
     },
     {
-      "name": "Direction des concours de la fonction publique",
+      "name": "Direction des concours – ministère des Serviteurs du peuple",
       "attributes": {
         "code": [
           "direction-concours"
@@ -263,7 +263,7 @@
         "agent-guichet"
       ],
       "groups": [
-        "/Direction des concours de la fonction publique"
+        "/Direction des concours – ministère des Serviteurs du peuple"
       ]
     },
     {
@@ -371,7 +371,7 @@
         "agent-guichet"
       ],
       "groups": [
-        "/Direction des concours de la fonction publique"
+        "/Direction des concours – ministère des Serviteurs du peuple"
       ]
     },
     {

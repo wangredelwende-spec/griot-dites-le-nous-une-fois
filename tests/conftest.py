@@ -97,7 +97,7 @@ ADAPTATEUR_TEST.write_text((RACINE / "adaptateurs/etat-civil.yaml").read_text(en
 JETON_AGENT = "jeton-keycloak-de-test"     # transmis tel quel aux registres (qui le vérifient eux-mêmes)
 AGENTS = {
     "awa.ouedraogo": ["Service des bourses"],
-    "issa.sawadogo": ["Direction des concours de la fonction publique"],
+    "issa.sawadogo": ["Direction des concours – ministère des Serviteurs du peuple"],
     "agent.curieux": ["Service des bourses"],
     "moussa.kone": ["Division de la Migration – Police nationale"],
 }

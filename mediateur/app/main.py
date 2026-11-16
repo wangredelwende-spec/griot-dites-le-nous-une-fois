@@ -24,7 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from . import catalogue, registres
 from .agents import agent_connecte
 from .config import (CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FENETRE_LIMITE,
-                     LIMITE_EXEMPTES, LIMITE_PAR_CITOYEN, LIMITE_SUJETS, lire_secret)
+                     LIMITE_EXEMPTES, LIMITE_PAR_CITOYEN, LIMITE_SUJETS, OUTILS_TEST, lire_secret)
 from .journal import Journal
 
 # Catalogue validé au démarrage : s'il est incomplet, le médiateur ne démarre pas (on ne devine pas une règle)
@@ -275,11 +275,16 @@ async def traiter_volet(demande: dict, demande_attribut: dict, sujet_ref: str, j
 
 # --- Limites de débit ---
 
+def exempte(agent: str) -> bool:
+    """Comptes des tests de bout en bout (agent.banc…) : exemptés SEULEMENT si OUTILS_TEST=1.
+    Pendant la démonstration (OUTILS_TEST=0), ils suivent les limites comme tout le monde."""
+    return OUTILS_TEST and agent in LIMITE_EXEMPTES
+
 def trop_de_demandes_sur_ce_citoyen(demande: dict) -> bool:
     """Un même service ne peut pas interroger sans fin la même personne : au-delà de LIMITE_PAR_CITOYEN
     demandes en 24 heures, la demande est bloquée (registres jamais appelés) et une ALERTE entre dans
     l'historique du citoyen (« Qui a consulté mes données »)."""
-    if demande["agent"] in LIMITE_EXEMPTES:
+    if exempte(demande["agent"]):
         return False
     with VERROU:
         nombre = base.execute(
@@ -301,7 +306,7 @@ def trop_de_citoyens(demande: dict) -> bool:
     """Au-delà de LIMITE_SUJETS citoyens distincts en FENETRE_LIMITE secondes, la demande est bloquée
     (registres jamais appelés) et une ALERTE entre dans l'historique de chaque citoyen concerné.
     Reconsulter un citoyen déjà consulté reste possible (ex. actualiser une demande)."""
-    if demande["agent"] in LIMITE_EXEMPTES:
+    if exempte(demande["agent"]):
         return False
     depuis = time.time() - FENETRE_LIMITE
     with VERROU:

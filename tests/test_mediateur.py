@@ -477,11 +477,15 @@ def test_limite_par_service_et_par_citoyen(client, monkeypatch):
 
 
 @respx.mock
-def test_comptes_de_test_exemptes(client, monkeypatch):
+def test_comptes_de_test_exemptes_seulement_si_outils_test(client, monkeypatch):
     monkeypatch.setattr(mediateur, "LIMITE_PAR_CITOYEN", 1)
     monkeypatch.setattr(mediateur, "LIMITE_EXEMPTES", {"issa.sawadogo"})
     respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    monkeypatch.setattr(mediateur, "OUTILS_TEST", True)       # mode test : exemption active
     assert [client.post("/demandes", json=demande(sujet="BF-0014")).json()["statut"] for _ in range(3)] == ["remise"] * 3
+    monkeypatch.setattr(mediateur, "OUTILS_TEST", False)      # démonstration : mêmes limites que tout le monde
+    assert client.post("/demandes", json=demande(sujet="BF-0015")).json()["statut"] == "remise"
+    assert client.post("/demandes", json=demande(sujet="BF-0015")).json()["statut"] == "bloquee"
 
 
 # --- Retrait du consentement ---

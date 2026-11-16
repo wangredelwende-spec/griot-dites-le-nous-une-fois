@@ -148,7 +148,7 @@ services:
       LIMITE_PAR_CITOYEN: "5"              # demandes d'un même service sur une même personne, par 24 h
       LIMITE_SUJETS: "5"                   # citoyens différents par agent et par heure (bas pour la démo)
       FENETRE_LIMITE: "3600"
-      LIMITE_EXEMPTES: "agent.banc,agent.banc.bourses"   # tests automatiques seulement (voir LIMITES.md)
+      LIMITE_EXEMPTES: "agent.banc,agent.banc.bourses"   # exemptés SEULEMENT si OUTILS_TEST=1 (LIMITES.md)
     secrets: [sujet_hmac, canal_usager]
     volumes:
       - ./catalogue:/catalogue:ro          # annuaire + catalogue des démarches

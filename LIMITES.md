@@ -22,8 +22,10 @@
 
 - Un même service ne peut pas faire plus de 5 demandes sur une même personne en 24 h (`LIMITE_PAR_CITOYEN`) :
   au-delà, refus + alerte dans l'historique du citoyen.
-- Les comptes des tests automatiques (`agent.banc`, `agent.banc.bourses`) en sont exemptés (`LIMITE_EXEMPTES` dans
-  `docker-compose.yml`) : ils interrogent des dizaines de fois les mêmes citoyens fictifs. **En production : aucune exemption.**
+- Les comptes des tests de bout en bout (`agent.banc`, `agent.banc.bourses`) en sont exemptés (`LIMITE_EXEMPTES` dans
+  `docker-compose.yml`) **seulement si `OUTILS_TEST=1`** (mode test) : ils interrogent des dizaines de fois les mêmes
+  citoyens fictifs. Avec `OUTILS_TEST=0` (démonstration), ils suivent les limites comme tout le monde.
+  **En production : aucune exemption.**
 
 ## Comptes de test
 

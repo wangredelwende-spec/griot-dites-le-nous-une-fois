@@ -40,7 +40,7 @@ service** (voir `A_TRANCHER_DONNEES_JURY.md`).
 → `donnees_jury\brouillons\<registre>-<fichier>.yaml`. Les relire : chercher « À VÉRIFIER », vérifier
 `identite`, `champs`, `format_date` et **chaque valeur** de `correspondances` (oui / non). Les groupes, attributs
 et la double clé sont repris de l'adaptateur actuel : ne pas y toucher. Aussi produits :
-`identifiant_usager.yaml` (format de l'identifiant, à recopier dans `cataloguennuaire.yaml`) et `abonnes.yaml`
+`identifiant_usager.yaml` (format de l'identifiant, à recopier dans `catalogue\annuaire.yaml`) et `abonnes.yaml`
 (annuaire USSD de démo : numéros et PIN **inventés**, liés à quelques personnes du jury).
 
 **3 bis. PDF scanné seulement** (le conteneur OCR n'a aucun réseau) :
@@ -61,8 +61,23 @@ vierge. Chaque refus affiche son motif précis (qui, en vrai, ne sort jamais du 
 **5. Mettre en service** :
 - copier chaque brouillon validé dans `adaptateurs\<registre>.yaml` ;
 - si l'identifiant du jury n'est pas de la forme `BF-0001` : recopier `identifiant_usager.yaml` dans
-  `cataloguennuaire.yaml` (bloc `identifiant_usager`) ;
-- copier `donnees_juryrouillonsbonnes.yaml` dans `donnees_jurybonnes.yaml` ;
+  `catalogue\annuaire.yaml` (bloc `identifiant_usager`) ;
+- **annuaire USSD de TOUS les citoyens** (le jury peut désigner n'importe qui) : une fois l'adaptateur d'état civil
+  en place, lancer
+  ```powershell
+  .venv\Scripts\python scripts\annuaire_ussd.py
+  ```
+  Il lit l'état civil avec le **même code et le même adaptateur** que le registre, donne à chaque citoyen un numéro
+  fictif (71000001, 71000002…) et le PIN de démo `1234` (`--pin 4321` pour un autre), puis imprime le tableau
+  **identifiant ; nom ; numéro**. Écrit `donnees_jury\abonnes.yaml` (lu par l'USSD) et `donnees_jury\annuaire_ussd.csv`
+  (à imprimer pour le jury). L'identifiant imprimé est **exactement** celui à taper au guichet (sinon le téléphone ne
+  retrouve pas les demandes de l'usager). Homonymes ou doublon : un seul numéro, marqué « le registre refusera ».
+  `--essai` : imprime sans rien écrire. (Remplace `donnees_jury\brouillons\abonnes.yaml`, qui ne couvrait que
+  quelques personnes.)
+  **Où sont les numéros et les PIN ?** Uniquement dans `donnees_jury\abonnes.yaml` (hors dépôt git), monté en lecture
+  seule dans le seul conteneur `ussd_sim`. Les PIN y sont **en clair, non hachés** : ce sont des PIN de démo,
+  identiques pour tous et imprimés sur le tableau. Le simulateur bloque 5 minutes après 3 PIN faux. En production,
+  ni numéro ni PIN dans un fichier : le numéro vient de l'opérateur, le PIN du fournisseur d'identité (`LIMITES.md`).
 - dans `.env` : `DONNEES_REGISTRES=./donnees_jury`, `ABONNES_USSD=./donnees_jury/abonnes.yaml`
   (et `API_JURY_SECRET=…` si le jury donne une API) ;
 - redémarrer **seulement les registres, le médiateur, le guichet et l'USSD** (jamais Keycloak ni PostgreSQL ;
@@ -75,11 +90,11 @@ Chaque registre écrit : format, nombre de lignes et **empreinte SHA-256** du fi
 illisible : le registre refuse de démarrer, avec le motif (`docker compose logs registre-…`).
 
 **6. Vérifier** : `python scripts\remise_a_zero.py --oui` (journal neuf), puis le banc de pannes en mode test
-(`docs/test-manuel.md`, « Banc de pannes automatique ») → 18/18 attendu, puis une démarche Passeport au guichet
+(`docs/test-manuel.md`, « Banc de pannes automatique ») → 21/21 attendu, puis une démarche Passeport au guichet
 sur une personne du jury.
 
 **Revenir aux données fictives** : `DONNEES_REGISTRES=./registres_sim/donnees_fictives` et
-`ABONNES_USSD=./ussd_sim/abonnes.yaml` dans `.env`, `git checkout adaptateurs\ cataloguennuaire.yaml`, puis la
+`ABONNES_USSD=./ussd_sim/abonnes.yaml` dans `.env`, `git checkout adaptateurs\ catalogue\annuaire.yaml`, puis la
 commande de l'étape 5.
 
 ## Identité : retrouver la bonne personne dans chaque registre
@@ -95,7 +110,7 @@ Trois réglages, tous en configuration :
      différence = « introuvable » ; plusieurs fiches pour la même clé = refus « identité ambiguë : homonymes ».
      Une date incomplète (« vers 1990 ») ne correspond jamais.
    - Les **trois** registres doivent utiliser la **même** clé (mêmes morceaux, même ordre).
-2. **Format de l'identifiant** (`identifiant_usager:` dans `cataloguennuaire.yaml`) : expression régulière +
+2. **Format de l'identifiant** (`identifiant_usager:` dans `catalogue\annuaire.yaml`) : expression régulière +
    exemple. Le guichet l'affiche en exemple grisé et refuse un identifiant mal formé ; le médiateur le revérifie.
    Pas de « / » (il passe dans les adresses de l'API).
 3. **Annuaire USSD** (`ABONNES_USSD` dans `.env`) : numéro de téléphone → identifiant + PIN, dans un fichier séparé

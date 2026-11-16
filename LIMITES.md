@@ -3,7 +3,7 @@
 ## Ce qui est simulé
 
 - **Registres** : `registres_sim/`, données fictives (`registres_sim/donnees_fictives/`), en attendant les données du jury.
-- **Connexion des usagers** : USSD simulé, numéro + PIN fictifs (`ussd_sim/abonnes.yaml`, PIN en clair pour la démo).
+- **Connexion des usagers** : USSD simulé, numéro + PIN fictifs (`ussd_sim/abonnes.yaml` ; jour J : `donnees_jury/abonnes.yaml` produit par `scripts/annuaire_ussd.py` pour chaque citoyen), PIN de démo en clair, non hachés.
   En production : connexion par l'identifiant unique électronique.
 - **Textes de loi** des démarches : références à faire valider (voir `catalogue/`).
 

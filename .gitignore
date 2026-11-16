@@ -33,3 +33,8 @@ tests/.secrets/
 
 # Sauvegarde hors ligne des images Docker (scripts/sauvegarder_hors_ligne.py) : plusieurs centaines de Mo
 hors_ligne/
+
+# Sorties de l'OCR (scripts de conversion PDF -> CSV) : le CSV et sa provenance s'écrivent
+# à côté du PDF source, à relire hors du dépôt (donnees_jury/ est déjà ignoré ci-dessus)
+*.provenance.json
+tests/donnees_formats/etat_civil_scanne.csv

@@ -1,0 +1,91 @@
+"""Test de bout en bout « Vous voyez avant, vous vérifiez après », contre la pile qui tourne.
+
+1. agent.banc.bourses (Service des bourses) demande « majeur » pour BF-0012 : en attente de l'usager.
+2. L'usager (téléphone 70000012) compose *226#, voit l'aperçu exact et confirme : il reçoit un reçu.
+3. Le guichet actualise : « majeur : oui », signature vérifiée.
+4. L'usager consulte « Qui a consulté mes données » : le reçu y figure, sans la valeur.
+5. Une seconde demande est refusée par l'usager : le guichet n'obtient rien.
+
+Utilisation :  .venv/Scripts/python tests/e2e_ussd.py
+"""
+import html
+import re
+import sys
+
+import httpx
+
+from e2e_jalon1 import autorite_caddy, connecter
+
+AGENT = "agent.banc.bourses"
+GUICHET, USSD = "https://guichet.griot.test", "https://usager.griot.test"
+
+
+def texte(page: str) -> str:
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", page)).split())
+
+
+def demander(guichet: httpx.Client, csrf: str) -> str:
+    r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf, "demarche": "bourse", "sujet_ref": "BF-0012"})
+    assert "En attente de l'usager" in texte(r.text), texte(r.text)[-300:]
+    return str(r.url)
+
+
+class Telephone:
+    def __init__(self, client: httpx.Client, numero: str):
+        self.client = client
+        self.csrf = re.search(r'name="csrf" value="([^"]+)"', client.get(f"{USSD}/").text)[1]
+        client.post(f"{USSD}/allumer", data={"csrf": self.csrf, "numero": numero})
+
+    def taper(self, reponse: str) -> str:
+        page = self.client.post(f"{USSD}/", data={"csrf": self.csrf, "reponse": reponse}).text
+        ecran = html.unescape(re.search(r'<div class="ecran"[^>]*>(.*?)</div>', page, re.S)[1])
+        assert len(ecran) <= 160, ecran
+        return ecran
+
+
+def verifier(nom: str, condition: bool, detail: str = "") -> bool:
+    print(f"{'OK ' if condition else 'ÉCHEC'} {nom}" + ("" if condition else f"\n      {detail}"))
+    return condition
+
+
+def main():
+    ca = autorite_caddy()
+    resultats = []
+    with httpx.Client(verify=ca, follow_redirects=True, timeout=20) as guichet, \
+         httpx.Client(verify=ca, follow_redirects=True, timeout=20) as telephone:
+        csrf = connecter(guichet, AGENT)
+        adresse = demander(guichet, csrf)
+        resultats.append(verifier("demande de bourse en attente de l'usager", True))
+
+        tel = Telephone(telephone, "70000012")
+        tel.taper("*226#")
+        tel.taper("1234")
+        apercu = tel.taper("1")
+        resultats.append(verifier("aperçu exact sur le téléphone",
+                                  "Le service des bourses recevra : majeur = oui. Rien d'autre." in apercu, apercu))
+        confirmation = tel.taper("1")
+        recu = re.search(r"Reçu : ([0-9a-f]{8})", confirmation)
+        resultats.append(verifier(f"confirmation avec reçu ({recu[1] if recu else '?'})", bool(recu), confirmation))
+
+        page = texte(guichet.get(adresse).text)
+        resultats.append(verifier("guichet : majeur : oui, signature vérifiée",
+                                  "majeur : oui Signé par le registre d'état civil, signature vérifiée" in page, page[-300:]))
+
+        tel.taper("0")
+        historique = tel.taper("2")
+        resultats.append(verifier("historique : la consultation apparaît, sans la valeur",
+                                  "Bourses majeur transmis" in historique and "oui" not in historique, historique))
+
+        adresse = demander(guichet, csrf)
+        tel.taper("0")
+        tel.taper("1")
+        refus = tel.taper("2")
+        page = texte(guichet.get(adresse).text)
+        resultats.append(verifier("refus de l'usager : le guichet n'obtient rien",
+                                  "Refusé" in page and "refusé par l'usager" in page and "majeur : oui" not in page,
+                                  refus + " | " + page[-200:]))
+    sys.exit(0 if all(resultats) else 1)
+
+
+if __name__ == "__main__":
+    main()

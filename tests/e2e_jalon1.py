@@ -46,31 +46,31 @@ def formulaire(page: str, identifiant: str) -> tuple[str, dict]:
     return action, champs
 
 
-def code_neuf(totp: pyotp.TOTP) -> str:
+def code_neuf(totp: pyotp.TOTP, agent: str = AGENT) -> str:
     """Keycloak refuse qu'un même code serve deux fois : si le dernier passage l'a déjà utilisé,
     on attend la fenêtre de 30 s suivante."""
-    dernier = SECRETS / "dernier-code"
+    dernier = SECRETS / f"dernier-code-{agent}"
     if dernier.exists() and dernier.read_text() == totp.now():
         time.sleep(30 - time.time() % 30 + 1)
     dernier.write_text(totp.now())
     return totp.now()
 
 
-def connecter(client: httpx.Client) -> str:
+def connecter(client: httpx.Client, agent: str = AGENT) -> str:
     page = client.get("https://guichet.griot.test/connexion").text
     action, _ = formulaire(page, "kc-form-login")
-    page = client.post(action, data={"username": AGENT, "password": MOT_DE_PASSE}).text
-    fichier_totp = SECRETS / f"totp-{AGENT}"
+    page = client.post(action, data={"username": agent, "password": MOT_DE_PASSE}).text
+    fichier_totp = SECRETS / f"totp-{agent}"
     if 'id="kc-totp-settings-form"' in page:            # premier passage : enrôlement du TOTP
         action, champs = formulaire(page, "kc-totp-settings-form")
         # Le champ caché contient le secret brut ; les applications TOTP utilisent sa forme base32
         secret = base64.b32encode(champs["totpSecret"].encode()).decode()
         fichier_totp.write_text(secret)
-        champs.update(totp=code_neuf(pyotp.TOTP(secret)), userLabel="banc")
+        champs.update(totp=code_neuf(pyotp.TOTP(secret), agent), userLabel="banc")
         r = client.post(action, data=champs)
     else:
         action, _ = formulaire(page, "kc-otp-login-form")
-        r = client.post(action, data={"otp": code_neuf(pyotp.TOTP(fichier_totp.read_text()))})
+        r = client.post(action, data={"otp": code_neuf(pyotp.TOTP(fichier_totp.read_text()), agent)})
     assert str(r.url) == "https://guichet.griot.test/", f"connexion échouée : {r.url}"
     return re.search(r'name="csrf" value="([^"]+)"', r.text).group(1)
 

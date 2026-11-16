@@ -50,8 +50,6 @@ attributs:
         - {min: 18, date_reference: aujourd'hui}
       mairie:
         - {min: 18, date_reference: aujourd'hui}
-      service-passeport:
-        - {min: 18, date_reference: aujourd'hui}             # passeport : majeur aujourd'hui (sinon autorisation parentale)
   personne_connue:
     regle: existe                   # une seule fiche et personne vivante -> true ; sinon refus
     claim: personne_connue          # sert au médiateur avant un casier « absence: vierge »

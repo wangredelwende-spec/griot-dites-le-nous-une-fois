@@ -232,8 +232,9 @@ resultat.update(statuts=statuts, motif=r["corps"].get("motif"),
 
 
 def passeport_casier_en_panne():
-    """Passeport (consentement, 3 registres) pendant que le CASIER est coupé, lent puis corrompu : l'usager ne
-    voit que ce qui est arrivé (signé), le guichet reçoit 2 réponses signées et un volet en échec, jamais tout."""
+    """Passeport (consentement, nationalité + casier, pas d'âge) pendant que le CASIER est coupé, lent puis
+    corrompu : l'usager ne voit que ce qui est arrivé (signé), le guichet reçoit la réponse signée de la
+    nationalité et un volet en échec, jamais tout."""
     F = FINALITES["passeport-ordinaire"]
     for mode, sujet, attendu in (("coupe", "BF-0001", "injoignable"), ("lent", "BF-0002", "délai dépassé"),
                                  ("corrompu", "BF-0006", "réponse corrompue")):
@@ -249,13 +250,14 @@ resultat.update(r=r, attente=attente, remise=suivre('outil-test-passeport', d['i
             panne("casier", "normal")
         avant, remise = x["r"]["corps"], x["remise"]
         casier = volet(remise, "interdiction_sortie_territoire")
-        signes = [volet(remise, a).get("jeton") for a in ("age_entre", "nationalite_burkinabe")]
+        signes = [volet(remise, "nationalite_burkinabe").get("jeton")]
         apercu = x["attente"][0]["apercu"] if x["attente"] else ""
         ok = (avant["statut"] == "en_attente" and "interdiction" not in apercu and "Rien d'autre" in apercu
+              and "majeur" not in apercu and not volet(remise, "age_entre")
               and remise.get("statut") == "remise" and all(signes) and not casier.get("jeton")
               and casier.get("statut") in ("indisponible", "refuse") and attendu in casier.get("motif", ""))
         noter(f"10. Passeport, casier {mode}", ok,
-              f"aperçu sans le casier, 2 réponses signées remises, casier « {casier.get('motif')} » : "
+              f"aperçu sans le casier ni l'âge, nationalité signée remise, casier « {casier.get('motif')} » : "
               "résultat partiel, jamais de « oui » global", json.dumps(x, ensure_ascii=False))
 
 

@@ -62,6 +62,6 @@
 ## Mineurs
 
 - **Le consentement d'un mineur par son représentant légal n'est pas traité.** Dans la démo, l'usager mineur
-  confirme lui-même sur son téléphone. Pour le passeport, « majeur = non » est une réponse signée : le guichet
-  affiche « mineur : autorisation parentale requise » et le dossier continue hors du système. La loi n°001-2021
+  confirme lui-même sur son téléphone. Le passeport ne demande pas l'âge (l'ONI le connaît déjà par
+  l'enrôlement de la CNIB) : l'autorisation parentale d'un mineur reste traitée hors du système. La loi n°001-2021
   confie ce consentement au représentant légal : voir `FEUILLE_DE_ROUTE.md`.

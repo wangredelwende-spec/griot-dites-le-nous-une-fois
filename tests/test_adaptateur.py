@@ -142,6 +142,8 @@ def test_age_entre_parametres_invalides(parametres):
 
 def test_double_cle_declaree_par_le_registre():
     assert REGISTRE.autorise("age_entre", "mairie")
+    # L'ONI connaît déjà l'âge par l'enrôlement de la CNIB : l'état civil refuse de le lui donner
+    assert not REGISTRE.autorise("age_entre", "service-passeport")
     assert not REGISTRE.autorise("personne_connue", "mairie")
     assert CASIER.autorise("casier_judiciaire_vierge", "direction-concours")
     assert CASIER.autorise("casier_judiciaire_vierge", "service-passeport")   # repli du jour J (sans peine complémentaire)

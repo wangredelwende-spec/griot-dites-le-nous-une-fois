@@ -245,8 +245,7 @@ def test_alerte_montre_son_motif():
 # --- Passeport : l'écran USSD complet (aperçu + choix) tient en 160 caractères, avec ou sans le repli casier ---
 
 def apercu_passeport(dernier: dict) -> list[dict]:
-    attributs = [{"code": "age_entre", "libelle": "majeur", "parametres": {}, "valeur": "oui"},
-                 {"code": "nationalite_burkinabe", "libelle": "burkinabè", "parametres": {}, "valeur": "oui"}, dernier]
+    attributs = [{"code": "nationalite_burkinabe", "libelle": "burkinabè", "parametres": {}, "valeur": "oui"}, dernier]
     return [{"id_demande": "d-p", "service": "…", "code_service": "service-passeport", "demarche": "Passeport ordinaire",
              "finalite": "établissement d'un passeport ordinaire", "attributs": attributs, "expire_le": 1794838200,
              "apercu": "…"}]
@@ -264,5 +263,5 @@ def test_ecran_passeport_tient_en_160_caracteres(dernier, attendu):
     tel = Telephone()
     tel.connecter()
     ecran = tel.taper("1")              # taper() vérifie déjà ≤ 160 caractères
-    assert "(passeports) recevra : majeur = oui ; burkinabè = oui ; " + attendu + ". Rien d'autre." in ecran
+    assert "(passeports) recevra : burkinabè = oui ; " + attendu + ". Rien d'autre." in ecran
     assert "1. Confirmer 2. Refuser" in ecran

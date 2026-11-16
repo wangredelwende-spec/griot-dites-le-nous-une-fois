@@ -31,13 +31,10 @@ demarches:
     services: [service-passeport]
     finalite: établissement d'un passeport ordinaire
     base: consentement
+    # PAS d'âge : l'ONI connaît déjà la date de naissance par l'enrôlement de la carte d'identité (CNIB).
+    # Redemander « majeur » ne servirait à rien : on ne transmet que l'utile. La minimisation de l'âge
+    # se montre avec le concours (18–37 ans, sans jamais la date de naissance).
     attributs:
-      - attribut: age_entre
-        parametres: {min: 18, date_reference: aujourd'hui}
-        libelle: majeur
-        # « non » n'est pas un refus : c'est une réponse signée. Le dossier continue avec l'autorisation
-        # parentale (consentement par le représentant légal : feuille de route).
-        si_non: "mineur : autorisation parentale requise"
       - attribut: nationalite_burkinabe
         libelle: burkinabè
       # Casier du passeport, sur UNE ligne : si le casier du jury n'a PAS de colonne « peines complémentaires »,

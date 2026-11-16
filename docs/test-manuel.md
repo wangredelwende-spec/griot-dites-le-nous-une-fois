@@ -40,7 +40,7 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 
 | Compte (guichet) | Mot de passe | Service | Démarches proposées (catalogue) |
 |---|---|---|---|
-| `moussa.kone` | `Agent-Demo-2026!` | Service des passeports – ONI (ministère de la Sécurité) | **Passeport ordinaire** (majeur + nationalité + interdiction de sortie du territoire, **avec l'accord de l'usager**) : scène 1 |
+| `moussa.kone` | `Agent-Demo-2026!` | Service des passeports – ONI (ministère de la Sécurité) | **Passeport ordinaire** (nationalité + interdiction de sortie du territoire, pas d'âge, **avec l'accord de l'usager**) : scène 1 |
 | `issa.sawadogo` | `Agent-Demo-2026!` | Direction des concours – ministère des Serviteurs du peuple | **Concours direct adjoints administratifs** (âge 18–37 ans au 31/12/2026 + nationalité + casier, base légale), Vérifier la majorité |
 | `awa.ouedraogo` | `Agent-Demo-2026!` | Service des bourses | **Bourse nationale** (nationalité, **avec l'accord de l'usager**), Vérifier la majorité |
 | `mariam.kabore` | `Agent-Demo-2026!` | Mairie | Vérifier la majorité (base légale : loi n°012-2025/ALT) |
@@ -68,32 +68,31 @@ Citoyens utiles au guichet : `BF-0001` (tout est « oui »), `BF-0003` (mineure,
 Aujourd'hui, pour un passeport ordinaire (passeport AES produit par l'ONI), l'usager apporte au service des
 passeports acte de naissance, certificat de nationalité, CNIB et extrait de casier, en copies légalisées (plus une
 autorisation parentale pour un mineur). Ici, c'est **lui qui demande** que les preuves soient récupérées à sa place.
+L'âge n'est **pas** demandé : l'ONI le connaît déjà par l'enrôlement de la CNIB (la minimisation de l'âge se
+montre avec le concours, scène 2).
 
 Citoyens prêts pour le passeport (téléphone de l'usager : https://usager.griot.test, puis `*226#`) :
 
 | Citoyen | Identifiant | Numéro USSD | PIN | Résultat attendu au guichet après « Confirmer » |
 |---|---|---|---|---|
-| Aminata Kaboré | `BF-0001` | `70000001` | `1234` | majeur : oui ; burkinabè : oui ; interdiction de sortie : non → **toutes les conditions sont vérifiées** |
+| Aminata Kaboré | `BF-0001` | `70000001` | `1234` | burkinabè : oui ; interdiction de sortie : non → **toutes les conditions sont vérifiées** |
 | Salif Compaoré | `BF-0005` | `70000005` | `1234` | idem, **toutes vérifiées** : condamné pour vol mais sans interdiction ; l'ONI n'apprend rien du vol |
-| Rasmata Nikiéma | `BF-0009` | `70000009` | `1234` | **« mineur : autorisation parentale requise »** (18 ans le 20/11) ; burkinabè : oui ; interdiction : non |
 | Karim Tiendrébéogo | `BF-0015` | `70000015` | `1234` | aperçu sans le casier ; interdiction : **refusé par le casier** (case vide = donnée insuffisante) → **résultat incomplet** |
 
 1. Guichet → se connecter `moussa.kone` (mot de passe + code).
 2. Démarche **Passeport ordinaire**, usager `BF-0001`, Envoyer → « **En attente de l'usager** ». Rien n'est encore
    transmis au guichet.
-3. Téléphone `70000001`, PIN `1234`, `*226#` → `1` : « L'ONI (passeports) recevra : majeur = oui ;
-   burkinabè = oui ; interdiction de sortie du territoire = non. Rien d'autre. 1. Confirmer 2. Refuser ».
+3. Téléphone `70000001`, PIN `1234`, `*226#` → `1` : « L'ONI (passeports) recevra : burkinabè = oui ;
+   interdiction de sortie du territoire = non. Rien d'autre. 1. Confirmer 2. Refuser ».
 4. `1` → « Confirmé. Reçu : xxxx xxxx xxxx xxxx » (à noter : il servira en scène 3).
-5. Guichet → **Actualiser** : majeur : oui, burkinabè : oui, interdiction de sortie du territoire : non, chacun
+5. Guichet → **Actualiser** : burkinabè : oui, interdiction de sortie du territoire : non, chacun
    signé par SON registre, signature vérifiée ; « Conclusion : toutes les conditions sont vérifiées ».
-6. À dire : l'ONI ne reçoit ni date de naissance, ni filiation, ni le casier. Elle n'apprend même pas si le
+6. À dire : l'ONI ne reçoit ni date de naissance (il la connaît déjà par la CNIB, l'état civil n'est même pas
+   interrogé), ni filiation, ni le casier. Elle n'apprend même pas si le
    casier est vierge : seulement s'il existe une **interdiction de sortie du territoire** (peine complémentaire).
    Variante `BF-0005` (Salif, condamné pour vol, sans interdiction) : « interdiction : non ». Le vol ne regarde pas
    le service des passeports.
 7. Variantes :
-   - `BF-0009` (Rasmata, 18 ans le 20/11, téléphone `70000009`) → « **mineur : autorisation parentale requise** ».
-     Ce n'est pas un refus : c'est une réponse signée « majeur = non ». (Consentement par le représentant légal :
-     feuille de route.)
    - `BF-0008` → « interdiction de sortie du territoire : oui » ; « au moins une condition n'est pas remplie ».
    - Au téléphone, `2` (Refuser) → au guichet « refusé par l'usager : rien n'a été transmis ».
 

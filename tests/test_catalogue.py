@@ -36,8 +36,8 @@ def attributs_du_passeport(chat):
 
 def test_reglage_normal(monkeypatch, tmp_path):
     chat = charger_le_catalogue(monkeypatch, tmp_path, repli=False)
-    assert attributs_du_passeport(chat) == ["age_entre", "nationalite_burkinabe",
-                                            "interdiction_sortie_territoire"]
+    # Pas d'âge : l'ONI le connaît déjà par l'enrôlement de la CNIB (option A du 16/11)
+    assert attributs_du_passeport(chat) == ["nationalite_burkinabe", "interdiction_sortie_territoire"]
     assert chat["avertissements"] == []
 
 
@@ -51,9 +51,9 @@ def test_reglage_repli_une_ligne(monkeypatch, tmp_path):
 def test_apercu_uissd_suit_tout_seul(monkeypatch, tmp_path):
     """L'aperçu est fabriqué depuis le catalogue : il change avec la ligne, sans autre modification."""
     for repli, volets, attendu in (
-        (False, [("age_entre", True), ("nationalite_burkinabe", True),
+        (False, [("nationalite_burkinabe", True),
                  ("interdiction_sortie_territoire", False)], "interdiction de sortie du territoire = non"),
-        (True, [("age_entre", True), ("nationalite_burkinabe", True),
+        (True, [("nationalite_burkinabe", True),
                 ("casier_judiciaire_vierge", True)], "casier judiciaire vierge = oui"),
     ):
         chat = charger_le_catalogue(monkeypatch, tmp_path, repli=repli)

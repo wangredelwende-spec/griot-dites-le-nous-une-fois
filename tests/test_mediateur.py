@@ -675,13 +675,12 @@ def test_controle_ne_peut_rien_demander(client):
 
 
 
-# --- Passeport (scénario principal) : consentement, trois registres, aperçu exact ---
+# --- Passeport (scénario principal) : consentement, deux registres (pas d'âge : l'ONI le connaît par la CNIB) ---
 
-def reponses_passeport(majeur=True, interdiction=False):
+def reponses_passeport(interdiction=False):
     def repondre(requete):
         corps = json.loads(requete.content)
-        valeurs = {"age_entre": {"age_equal_or_over": {"18": majeur}},
-                   "nationalite_burkinabe": {"nationalite_burkinabe": True},
+        valeurs = {"nationalite_burkinabe": {"nationalite_burkinabe": True},
                    "interdiction_sortie_territoire": {"interdiction_sortie_territoire": interdiction}}
         return httpx.Response(200, json={"jeton": jeton_registre(corps, **valeurs[corps["attribut"]])})
     return repondre
@@ -690,29 +689,28 @@ def reponses_passeport(majeur=True, interdiction=False):
 @respx.mock
 def test_passeport_apercu_puis_confirmation(client):
     client.agent["nom"] = "moussa.kone"
-    for url in (URL_REGISTRE, URL_NATIONALITE, URL_CASIER):
+    etat_civil = respx.post(URL_REGISTRE).mock(return_value=httpx.Response(500))
+    for url in (URL_NATIONALITE, URL_CASIER):
         respx.post(url).mock(side_effect=reponses_passeport())
     d = demande(demarche="passeport-ordinaire", sujet="BF-0001")
     r = client.post("/demandes", json=d).json()
     assert r["statut"] == "en_attente" and all("jeton" not in v for v in r["volets"])     # rien ne part avant
     attente = client.get("/usagers/BF-0001/en-attente", headers=CANAL).json()
-    assert attente[0]["apercu"] == ("L'ONI (passeports) recevra : majeur = oui ; burkinabè = oui ; "
+    assert attente[0]["apercu"] == ("L'ONI (passeports) recevra : burkinabè = oui ; "
                                     "interdiction de sortie du territoire = non. Rien d'autre.")
+    assert not etat_civil.called            # l'état civil n'est jamais interrogé pour un passeport
     client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": "BF-0001"}, headers=CANAL)
     remise = client.get(f"/demandes/{d['id_demande']}").json()
     assert remise["statut"] == "remise" and all(v["jeton"] for v in remise["volets"])
 
 
-@respx.mock
-def test_passeport_mineur_reponse_signee_pas_un_refus(client):
-    """« majeur = non » est une réponse signée (le dossier continue avec l'autorisation parentale)."""
+def test_passeport_ne_peut_pas_demander_l_age(client):
+    """L'ONI ne peut pas ajouter « majeur » à sa demande : le catalogue ne le prévoit pas."""
     client.agent["nom"] = "moussa.kone"
-    for url in (URL_REGISTRE, URL_NATIONALITE, URL_CASIER):
-        respx.post(url).mock(side_effect=reponses_passeport(majeur=False))
-    d = demande(demarche="passeport-ordinaire", sujet="BF-0003")
-    assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
-    attente = client.get("/usagers/BF-0003/en-attente", headers=CANAL).json()
-    assert "majeur = non" in attente[0]["apercu"]
+    d = demande(demarche="passeport-ordinaire", sujet="BF-0001") | {
+        "attributs": ["age_entre", "nationalite_burkinabe", "interdiction_sortie_territoire"]}
+    r = client.post("/demandes", json=d).json()
+    assert r["statut"] == "refuse" and r["motif"].startswith("attributs non autorisés")
 
 
 def test_passeport_reserve_a_la_police(client):

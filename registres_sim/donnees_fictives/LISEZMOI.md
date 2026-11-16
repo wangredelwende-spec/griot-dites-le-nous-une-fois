@@ -28,7 +28,7 @@ Colonne `peines_complementaires` du casier : « aucune » est écrit expliciteme
 | BF-0005 | oui | non (1 condamnation) | **non** (condamné, mais sans interdiction) |
 | BF-0006 | oui (naturalisation) | oui | non |
 | BF-0008 | oui | **non** (2 condamnations : le détail ne sort jamais du registre) | **oui** |
-| BF-0009 | oui | oui | non (mais mineure jusqu'au 19/11 : autorisation parentale) |
+| BF-0009 | oui | oui | non |
 | BF-0013 | refus : nationalité non renseignée | oui | non |
 | BF-0015 | oui | refus : nombre de condamnations vide | refus : case vide |
 | BF-0018 | **non** (ivoirienne) | oui | non |

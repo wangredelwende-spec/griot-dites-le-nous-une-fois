@@ -26,8 +26,8 @@ Ajouter un bloc à la fin de `catalogue/demarches.yaml`, par exemple :
   `age_entre` (paramètres `min`, `max` facultatif, `date_reference` : une date ou `aujourd'hui`),
   `nationalite_burkinabe`, `casier_judiciaire_vierge` et `interdiction_sortie_territoire`.
 - Facultatif, pour le guichet : `attendu: false` quand la bonne réponse est « non » (interdiction de sortie du
-  territoire), et `si_non:` pour le texte montré quand la réponse est « non » (passeport : « mineur : autorisation
-  parentale requise »). Une réponse « non » n'est jamais un refus : c'est une réponse signée.
+  territoire), et `si_non:` pour le texte montré quand la réponse est « non » (repli casier du passeport : « casier
+  non vierge : dossier à instruire »). Une réponse « non » n'est jamais un refus : c'est une réponse signée.
 - On ne peut pas demander « la date de naissance » : aucun registre ne la déclare.
 
 ## 2. Recharger (30 secondes)

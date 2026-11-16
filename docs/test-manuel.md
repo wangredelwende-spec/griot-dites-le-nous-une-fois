@@ -27,6 +27,13 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 
 ## 0 bis. Juste avant CHAQUE répétition et avant la démo
 
+> **Ordre fixe, toujours le même : banc de pannes → remise à zéro → démo.**
+> **Jamais de banc après la dernière remise à zéro.** Le banc consomme la limite de 5 demandes par service et par
+> citoyen sur 24 h et remplit les historiques : après lui, la démo pourrait tomber sur « bloqué » ou sur des lignes
+> parasites dans « Qui a consulté mes données ». Le banc n'utilise jamais les citoyens de la démo (Aïssata `BF-0012`,
+> Salif `BF-0005`, Karim `BF-0015` : vérifié par `tests\test_banc.py`), mais il utilise `BF-0001`, `BF-0002`,
+> `BF-0006`… que la démo montre aussi : seule la remise à zéro les remet à neuf.
+
 1. Comptes de test désactivés : dans `.env`, `OUTILS_TEST=0` (sinon : le mettre à 0 puis `python scripts\outils_test.py`).
 2. Journal neuf (l'ancien est **archivé**, jamais effacé) :
    ```powershell
@@ -296,8 +303,11 @@ journal) et affiche le résultat. Rien n'est enregistré. API pour les intégrat
 
 ## Banc de pannes automatique (avant la démo, PAS devant le jury)
 
-1. `OUTILS_TEST=1` dans `.env`, puis `python scripts/outils_test.py` (crée 3 comptes de service de TEST,
-   `outil-test-concours`, `outil-test-bourses`, `outil-test-curieux` : mêmes règles que les agents, aucune exemption).
+**Ordre fixe : banc → remise à zéro (étape 4 ci-dessous) → démo. Jamais de banc après la dernière remise à zéro.**
+Plusieurs bancs le même jour sans remise à zéro finissent par « bloqué » (limite 5/24 h) : remettre à zéro, puis relancer.
+
+1. `OUTILS_TEST=1` dans `.env`, puis `python scripts/outils_test.py` (crée 4 comptes de service de TEST,
+   `outil-test-concours`, `outil-test-bourses`, `outil-test-curieux`, `outil-test-passeport` : mêmes règles que les agents, aucune exemption).
 2. `python scripts/banc_de_pannes.py` → une ligne ✅ / ❌ par vérification (registre coupé, lent, corrompu, rejeu,
    mauvaise finalité, attribut en plus, appels directs au registre, seuil non déclaré, agent curieux, consentement
    refusé / retiré / expiré, journal modifié, consultation cachée, réseau, double trace), en 45 s environ.

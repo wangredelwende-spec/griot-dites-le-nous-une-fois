@@ -75,6 +75,10 @@ def registre_direct(registre, corps, entetes):
 resultat = {}
 '''
 
+# Citoyens de la DÉMO devant le jury : le banc ne les utilise JAMAIS (sinon il consommerait leur limite de 5 demandes
+# par 24 h et remplirait leur historique). Vérifié par tests/test_banc.py. Ordre fixe : banc -> remise à zéro -> démo.
+CITOYENS_DE_LA_DEMO = {"BF-0012", "BF-0005", "BF-0015"}
+
 RESULTATS: list[bool] = []
 APPELS_DIRECTS: set[str] = set()     # demandes envoyées directement aux registres (scénario A), sans le médiateur
 PREFIXE_DIRECT = "appel-direct-banc-"    # repère ces appels d'un passage du banc à l'autre (traces en ajout seul)
@@ -147,7 +151,7 @@ def registre_coupe():
 def registre_lent():
     panne("etat-civil", "lent")
     try:
-        x = dans_le_mediateur(concours("BF-0005"))
+        x = dans_le_mediateur(concours("BF-0010"))      # jamais un citoyen de la démo (CITOYENS_DE_LA_DEMO)
         age, duree = volet(x["r"]["corps"], "age_entre"), x["r"]["duree"]
         noter("2. Registre lent", age.get("statut") == "indisponible" and "délai dépassé" in age.get("motif", "")
               and 2.5 <= duree <= 6, f"refus après {duree} s : « {age.get('motif')} »", json.dumps(x))
@@ -341,6 +345,8 @@ def main():
             noter(scenario.__name__, False, "erreur pendant le scénario", repr(e))
     print(f"\n{sum(RESULTATS)}/{len(RESULTATS)} vérifications réussies en {time.monotonic() - debut:.0f} s", flush=True)
     print(subprocess.run([sys.executable, str(RACINE / "scripts/panne.py")], capture_output=True, text=True).stdout)
+    print("Ensuite, dans cet ordre : OUTILS_TEST=0 + outils_test.py, puis remise_a_zero.py --oui, puis la démo.\n"
+          "Jamais de banc après la dernière remise à zéro (il consommerait les limites et remplirait les historiques).")
     sys.exit(0 if all(RESULTATS) else 1)
 
 

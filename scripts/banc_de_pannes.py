@@ -231,6 +231,34 @@ resultat.update(statuts=statuts, motif=r["corps"].get("motif"),
           f"6e citoyen : « {x['motif']} » ; ALERTE dans l'historique des citoyens consultés", json.dumps(x))
 
 
+def passeport_casier_en_panne():
+    """Passeport (consentement, 3 registres) pendant que le CASIER est coupé, lent puis corrompu : l'usager ne
+    voit que ce qui est arrivé (signé), le guichet reçoit 2 réponses signées et un volet en échec, jamais tout."""
+    F = FINALITES["passeport-ordinaire"]
+    for mode, sujet, attendu in (("coupe", "BF-0001", "injoignable"), ("lent", "BF-0002", "délai dépassé"),
+                                 ("corrompu", "BF-0006", "réponse corrompue")):
+        panne("casier", mode)
+        try:
+            x = dans_le_mediateur(f"""
+d, r = demander('outil-test-passeport', 'passeport-ordinaire', {sujet!r}, {F!r})
+attente = usager("GET", "/usagers/{sujet}/en-attente")
+usager("POST", f"/demandes/{{d['id_demande']}}/confirmer", {{"sujet_ref": {sujet!r}}})
+resultat.update(r=r, attente=attente, remise=suivre('outil-test-passeport', d['id_demande']))
+""")
+        finally:
+            panne("casier", "normal")
+        avant, remise = x["r"]["corps"], x["remise"]
+        casier = volet(remise, "interdiction_sortie_territoire")
+        signes = [volet(remise, a).get("jeton") for a in ("age_entre", "nationalite_burkinabe")]
+        apercu = x["attente"][0]["apercu"] if x["attente"] else ""
+        ok = (avant["statut"] == "en_attente" and "interdiction" not in apercu and "Rien d'autre" in apercu
+              and remise.get("statut") == "remise" and all(signes) and not casier.get("jeton")
+              and casier.get("statut") in ("indisponible", "refuse") and attendu in casier.get("motif", ""))
+        noter(f"10. Passeport, casier {mode}", ok,
+              f"aperçu sans le casier, 2 réponses signées remises, casier « {casier.get('motif')} » : "
+              "résultat partiel, jamais de « oui » global", json.dumps(x, ensure_ascii=False))
+
+
 def consentement():
     x = dans_le_mediateur(f"""
 F = {FINALITES['bourse-nationale']!r}
@@ -302,7 +330,8 @@ def main():
                          "« python scripts/outils_test.py », puis relancez le banc.")
     debut = time.monotonic()
     print("Banc de pannes Griot : scénarios du jury contre la pile qui tourne\n", flush=True)
-    for scenario in (registre_coupe, registre_lent, reponse_corrompue, demande_rejouee, mauvaise_finalite,
+    for scenario in (registre_coupe, registre_lent, reponse_corrompue, passeport_casier_en_panne,
+                     demande_rejouee, mauvaise_finalite,
                      renforcements_registre, agent_curieux, consentement, journal_modifie, reseau_coupe, double_trace):
         try:
             scenario()

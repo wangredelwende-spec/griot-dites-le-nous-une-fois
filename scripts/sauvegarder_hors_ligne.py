@@ -1,4 +1,4 @@
-"""Sauvegarde HORS LIGNE de toutes les images du projet (y compris l'OCR) dans un seul fichier.
+"""Sauvegarde HORS LIGNE de toutes les images du projet (y compris l'OCR et le relais de l'API du jury) dans un seul fichier.
 
     python scripts\\sauvegarder_hors_ligne.py              # -> hors_ligne\\griot-images-<date>.tar + .sha256
 
@@ -34,12 +34,12 @@ def empreinte(chemin: Path) -> str:
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     # Toutes les images, y compris celles des profils (OCR)
-    images = sorted(set(executer("docker", "compose", "--profile", "ocr", "config", "--images").split()))
+    images = sorted(set(executer("docker", "compose", "--profile", "ocr", "--profile", "api-jury", "config", "--images").split()))
     presentes = set(executer("docker", "image", "ls", "--format", "{{.Repository}}:{{.Tag}}").split())
     manquantes = [i for i in images if i not in presentes]
     if manquantes:
         raise SystemExit(f"Images absentes (construire ou télécharger d'abord) : {', '.join(manquantes)}\n"
-                         "  docker compose build ; docker compose --profile ocr build ocr ; docker compose pull")
+                         "  docker compose build ; docker compose --profile ocr --profile api-jury build ocr relais-api-jury ; docker compose pull")
     dossier = RACINE / "hors_ligne"
     dossier.mkdir(exist_ok=True)
     sortie = dossier / f"griot-images-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.tar"

@@ -19,3 +19,4 @@ attributs:
     champ: nationalite
     valeur: burkinabe
     claim: nationalite_burkinabe    # réponse : {"nationalite_burkinabe": true}
+    services: [direction-concours, service-bourses]   # double clé : la mairie n'y a pas droit

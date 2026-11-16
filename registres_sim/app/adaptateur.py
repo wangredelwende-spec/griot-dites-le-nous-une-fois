@@ -51,11 +51,11 @@ def age_le(naissance: date, jour: date) -> int:
     return jour.year - naissance.year - ((jour.month, jour.day) < (naissance.month, naissance.day))
 
 
-def age_minimum_atteint(texte_naissance: str, age: int, aujourdhui: date) -> bool:
+def age_minimum_atteint(texte_naissance: str, age: int, jour: date) -> bool:
     plus_ancienne, plus_recente = bornes_de_naissance(texte_naissance)
-    if age_le(plus_recente, aujourdhui) >= age:     # même né le plus tard possible, il a l'âge
+    if age_le(plus_recente, jour) >= age:     # même né le plus tard possible, il a l'âge
         return True
-    if age_le(plus_ancienne, aujourdhui) < age:     # même né le plus tôt possible, il n'a pas l'âge
+    if age_le(plus_ancienne, jour) < age:     # même né le plus tôt possible, il n'a pas l'âge
         return False
     raise Refus("donnée insuffisante : la date de naissance ne permet pas de conclure")
 
@@ -95,8 +95,14 @@ class Adaptateur:
             raise Refus("identité ambiguë : plusieurs fiches pour cet identifiant")
         return fiches[0]
 
-    def calculer(self, attribut: str, sujet_ref: str, aujourdhui: date | None = None) -> dict:
-        """Renvoie UNIQUEMENT la réponse minimale, par exemple {"age_equal_or_over": {"18": True}}."""
+    def autorise(self, attribut: str, service: str) -> bool:
+        """Double clé : le registre décide LUI-MÊME quels services peuvent demander quel attribut
+        (liste « services » de l'attribut), même si le médiateur a laissé passer la demande."""
+        return service in self.attributs.get(attribut, {}).get("services", [])
+
+    def calculer(self, attribut: str, sujet_ref: str, parametres: dict | None = None) -> dict:
+        """Renvoie UNIQUEMENT la réponse minimale, par exemple {"nationalite_burkinabe": True}."""
+        parametres = parametres or {}
         regle = self.attributs.get(attribut)
         if regle is None:
             raise Refus("attribut non disponible dans ce registre")
@@ -107,10 +113,8 @@ class Adaptateur:
             raise Refus("personne décédée")
         if regle["regle"] == "existe":
             return {regle["claim"]: True}       # une seule fiche, personne vivante : identité confirmée
-        if regle["regle"] == "age_minimum":
-            age = int(regle["age"])
-            atteint = age_minimum_atteint(self.valeur(fiche, regle["champ"]), age, aujourdhui or date.today())
-            return {regle["claim"]: {str(age): atteint}}
+        if regle["regle"] == "age_entre":
+            return self.age_entre(fiche, regle, parametres)
         valeur = self.valeur(fiche, regle["champ"])
         if not valeur:
             raise Refus("donnée insuffisante : champ vide")       # vide n'est ni « oui » ni « non »
@@ -123,3 +127,23 @@ class Adaptateur:
                 raise Refus("donnée insuffisante : nombre illisible")
             return {regle["claim"]: int(valeur) == 0}
         raise Refus("règle inconnue dans l'adaptateur")
+
+    def age_entre(self, fiche: dict, regle: dict, parametres: dict) -> dict:
+        """Âge entre « min » et « max » ans (max facultatif) à la date « date_reference ».
+
+        Réponse : {"age_equal_or_over": {"18": true, "38": false}, "date_reference": "2026-12-31"}
+        = « a au moins 18 ans » et « n'a pas encore 38 ans » (donc 37 ans au plus). Jamais la date de naissance.
+        """
+        try:
+            mini = int(parametres["min"])
+            maxi = None if parametres.get("max") is None else int(parametres["max"])
+            reference = date.fromisoformat(str(parametres["date_reference"]))
+        except (KeyError, TypeError, ValueError):
+            raise Refus("paramètres invalides (min, max, date_reference attendus)")
+        if not 0 <= mini <= 150 or (maxi is not None and not mini <= maxi <= 150):
+            raise Refus("paramètres invalides (âges hors limites)")
+        naissance = self.valeur(fiche, regle["champ"])
+        ages = {str(mini): age_minimum_atteint(naissance, mini, reference)}
+        if maxi is not None:
+            ages[str(maxi + 1)] = age_minimum_atteint(naissance, maxi + 1, reference)
+        return {regle["claim"]: ages, "date_reference": reference.isoformat()}

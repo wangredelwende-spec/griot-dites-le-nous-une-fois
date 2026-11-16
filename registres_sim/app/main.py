@@ -55,6 +55,10 @@ def charger_cle() -> Ed25519PrivateKey:
     return cle
 
 
+class NonAutorise(Exception):
+    """Le service demandeur n'est pas dans la liste « services » de l'attribut (double clé)."""
+
+
 CLE = charger_cle()
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -62,6 +66,7 @@ app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 class DemandeAttribut(BaseModel):
     id_demande: str = Field(max_length=64)
     attribut: str = Field(max_length=64)
+    parametres: dict[str, int | str | None] = {}    # ex. {"min": 18, "max": 37, "date_reference": "2026-12-31"}
     sujet_ref: str = Field(max_length=64)
     destinataire: str = Field(max_length=64)    # service demandeur : devient « aud » du jeton
 
@@ -78,7 +83,13 @@ def attribut(d: DemandeAttribut):
     charge = {"iss": ADAPTATEUR.emetteur, "aud": d.destinataire, "sub": d.sujet_ref, "demande": d.id_demande,
               "iat": maintenant, "exp": maintenant + DUREE_VALIDITE, "jti": str(uuid.uuid4())}
     try:
-        charge |= {"statut": "ok", **ADAPTATEUR.calculer(d.attribut, d.sujet_ref)}
+        if not ADAPTATEUR.autorise(d.attribut, d.destinataire):
+            # Double clé : motif public précis, car il ne dit rien du citoyen
+            raise NonAutorise("service non autorisé par le registre à demander cet attribut")
+        charge |= {"statut": "ok", **ADAPTATEUR.calculer(d.attribut, d.sujet_ref, d.parametres)}
+    except NonAutorise as motif:
+        print(f"demande {d.id_demande} : refus ({d.destinataire} n'est pas autorisé pour {d.attribut})", flush=True)
+        charge |= {"statut": "refus", "motif": str(motif)}
     except Refus as motif:
         # Le motif précis (décédé, homonyme…) reste ici : le guichet n'apprend rien de plus que « impossible ».
         # Trace locale sans identifiant du citoyen, pour le service du registre.
@@ -91,18 +102,20 @@ def attribut(d: DemandeAttribut):
     if mode == "lent":
         time.sleep(10)          # bien au-delà du délai maximal du médiateur (3 s)
     elif mode == "corrompu":
-        jeton = falsifier(jeton, d.attribut)
+        jeton = falsifier(jeton)
     return {"jeton": jeton}
 
 
-def falsifier(jeton: str, attribut: str) -> str:
-    """Simule une réponse modifiée en chemin : on force « oui » SANS re-signer
+def falsifier(jeton: str) -> str:
+    """Simule une réponse modifiée en chemin : on change le contenu SANS re-signer
     (comme le ferait un intermédiaire malveillant). La signature ne correspond donc plus."""
     entete, contenu, signature = jeton.split(".")
     claims = json.loads(base64.urlsafe_b64decode(contenu + "=" * (-len(contenu) % 4)))
-    claims["statut"] = "ok"
-    claims.pop("motif", None)
-    regle = ADAPTATEUR.attributs.get(attribut, {"claim": "inconnu"})
-    claims[regle["claim"]] = {str(regle["age"]): True} if "age" in regle else True     # « oui » forcé
+    for nom, valeur in claims.items():
+        if valeur is False:
+            claims[nom] = True                  # « non » devient « oui »
+        elif isinstance(valeur, dict):          # seuils d'âge : {"18": false} devient {"18": true}
+            claims[nom] = {seuil: True for seuil in valeur}
+    claims["exp"] += 3600                       # et la réponse vaudrait une heure de plus
     contenu = base64.urlsafe_b64encode(json.dumps(claims).encode()).rstrip(b"=").decode()
     return f"{entete}.{contenu}.{signature}"

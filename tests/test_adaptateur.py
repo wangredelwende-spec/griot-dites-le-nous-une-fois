@@ -14,13 +14,21 @@ REGISTRE = adaptateur.Adaptateur(ADAPTATEUR_TEST)
 FINALE = date(2026, 11, 16)
 
 
-@pytest.mark.parametrize("sujet, majeur", [
+def majeur(sujet: str, jour: date = FINALE) -> dict:
+    return REGISTRE.calculer("age_entre", sujet, {"min": 18, "date_reference": jour.isoformat()})
+
+
+def reponse_majeur(oui: bool, jour: date = FINALE) -> dict:
+    return {"age_equal_or_over": {"18": oui}, "date_reference": jour.isoformat()}
+
+
+@pytest.mark.parametrize("sujet, attendu", [
     ("BF-0001", True), ("BF-0003", False), ("BF-0017", False),
     ("BF-0005", True), ("BF-0006", True),       # homonymes : le nip les distingue
     ("BF-0011", True),                          # année seule, mais conclusive
 ])
-def test_majeur(sujet, majeur):
-    assert REGISTRE.calculer("majeur", sujet, FINALE) == {"age_equal_or_over": {"18": majeur}}
+def test_majeur(sujet, attendu):
+    assert majeur(sujet) == reponse_majeur(attendu)
 
 
 @pytest.mark.parametrize("sujet, motif", [
@@ -32,22 +40,22 @@ def test_majeur(sujet, majeur):
 ])
 def test_refus(sujet, motif):
     with pytest.raises(adaptateur.Refus, match=motif):
-        REGISTRE.calculer("majeur", sujet, FINALE)
+        majeur(sujet)
 
 
 def test_anniversaire_pendant_la_finale():
-    assert REGISTRE.calculer("majeur", "BF-0009", date(2026, 11, 19)) == {"age_equal_or_over": {"18": False}}
-    assert REGISTRE.calculer("majeur", "BF-0009", date(2026, 11, 20)) == {"age_equal_or_over": {"18": True}}
+    assert majeur("BF-0009", date(2026, 11, 19)) == reponse_majeur(False, date(2026, 11, 19))
+    assert majeur("BF-0009", date(2026, 11, 20)) == reponse_majeur(True, date(2026, 11, 20))
 
 
 def test_la_reponse_ne_contient_que_l_attribut():
-    reponse = REGISTRE.calculer("majeur", "BF-0001", FINALE)
-    assert list(reponse) == ["age_equal_or_over"]      # ni nom, ni date de naissance, ni filiation
+    reponse = majeur("BF-0001")
+    assert list(reponse) == ["age_equal_or_over", "date_reference"]   # ni nom, ni date de naissance, ni filiation
 
 
 def test_attribut_inconnu_refuse():
     with pytest.raises(adaptateur.Refus, match="non disponible"):
-        REGISTRE.calculer("casier_vierge", "BF-0001", FINALE)
+        REGISTRE.calculer("casier_judiciaire_vierge", "BF-0001")
 
 
 def charger(nom: str):
@@ -70,14 +78,14 @@ def test_nationalite(sujet, burkinabe):
 
 @pytest.mark.parametrize("sujet, vierge", [("BF-0001", True), ("BF-0008", False), ("BF-0005", False), ("BF-0006", True)])
 def test_casier(sujet, vierge):
-    reponse = CASIER.calculer("casier_vierge", sujet)
+    reponse = CASIER.calculer("casier_judiciaire_vierge", sujet)
     assert reponse == {"casier_judiciaire_vierge": vierge}       # jamais le détail des condamnations
 
 
 @pytest.mark.parametrize("registre, attribut, sujet, motif", [
     ("nationalite", "nationalite_burkinabe", "BF-0013", "donnée insuffisante"),   # nationalité non renseignée
-    ("casier", "casier_vierge", "BF-0015", "donnée insuffisante"),               # nombre vide
-    ("casier", "casier_vierge", "BF-0003", "introuvable"),                       # absent : ce n'est PAS « vierge »
+    ("casier", "casier_judiciaire_vierge", "BF-0015", "donnée insuffisante"),               # nombre vide
+    ("casier", "casier_judiciaire_vierge", "BF-0003", "introuvable"),                       # absent : ce n'est PAS « vierge »
 ])
 def test_refus_nationalite_casier(registre, attribut, sujet, motif):
     with pytest.raises(adaptateur.Refus, match=motif):
@@ -85,10 +93,10 @@ def test_refus_nationalite_casier(registre, attribut, sujet, motif):
 
 
 def test_personne_connue():
-    assert REGISTRE.calculer("personne_connue", "BF-0001", FINALE) == {"personne_connue": True}
+    assert REGISTRE.calculer("personne_connue", "BF-0001") == {"personne_connue": True}
     for sujet, motif in (("BF-0099", "introuvable"), ("BF-0007", "décédée"), ("BF-0019", "ambiguë")):
         with pytest.raises(adaptateur.Refus, match=motif):
-            REGISTRE.calculer("personne_connue", sujet, FINALE)
+            REGISTRE.calculer("personne_connue", sujet)
 
 
 def test_casier_absence_vierge(tmp_path):
@@ -99,8 +107,42 @@ def test_casier_absence_vierge(tmp_path):
     chemin.write_text(texte.replace("absence: refus", "absence: vierge").replace(
         "/donnees/casier.csv", (RACINE / "registres_sim/donnees_fictives/casier.csv").as_posix()), encoding="utf-8")
     casier = adaptateur.Adaptateur(chemin)
-    assert casier.calculer("casier_vierge", "BF-0003") == {"casier_judiciaire_vierge": True}
-    assert casier.calculer("casier_vierge", "BF-0008") == {"casier_judiciaire_vierge": False}
+    assert casier.calculer("casier_judiciaire_vierge", "BF-0003") == {"casier_judiciaire_vierge": True}
+    assert casier.calculer("casier_judiciaire_vierge", "BF-0008") == {"casier_judiciaire_vierge": False}
     chemin.write_text(texte.replace("absence: refus", "absence: peut-etre"), encoding="utf-8")
     with pytest.raises(ValueError, match="absence"):
         adaptateur.Adaptateur(chemin)
+
+
+CONCOURS = {"min": 18, "max": 37, "date_reference": "2026-12-31"}
+
+
+@pytest.mark.parametrize("sujet, ages", [
+    ("BF-0001", {"18": True, "38": False}),     # née en 2001 : 25 ans au 31/12/2026
+    ("BF-0003", {"18": False, "38": False}),    # mineure
+    ("BF-0011", {"18": True, "38": False}),     # année seule (2004) : 22 ans au 31/12/2026, quel que soit le jour
+])
+def test_age_entre_18_et_37_ans(sujet, ages):
+    assert REGISTRE.calculer("age_entre", sujet, CONCOURS) == {"age_equal_or_over": ages,
+                                                                "date_reference": "2026-12-31"}
+
+
+def test_age_entre_trop_age():
+    # « vers 1990 » ne permet pas de conclure ; une date exacte, si
+    with pytest.raises(adaptateur.Refus, match="donnée insuffisante"):
+        REGISTRE.calculer("age_entre", "BF-0004", CONCOURS)
+
+
+@pytest.mark.parametrize("parametres", [{}, {"min": "dix-huit", "date_reference": "2026-12-31"},
+                                        {"min": 18, "max": 10, "date_reference": "2026-12-31"},
+                                        {"min": 18, "date_reference": "demain"}])
+def test_age_entre_parametres_invalides(parametres):
+    with pytest.raises(adaptateur.Refus, match="paramètres invalides"):
+        REGISTRE.calculer("age_entre", "BF-0001", parametres)
+
+
+def test_double_cle_declaree_par_le_registre():
+    assert REGISTRE.autorise("age_entre", "mairie")
+    assert not REGISTRE.autorise("personne_connue", "mairie")
+    assert CASIER.autorise("casier_judiciaire_vierge", "direction-concours")
+    assert not CASIER.autorise("casier_judiciaire_vierge", "service-bourses")

@@ -25,12 +25,15 @@ refuser_si_decede: true
 motif_refus_public: "réponse impossible, s'adresser à l'état civil"
 
 # Attributs calculables. Seul le résultat est renvoyé, jamais la fiche.
+# « services » = DOUBLE CLÉ : le registre refuse lui-même tout service absent de cette liste,
+# même si le médiateur a laissé passer la demande.
 attributs:
-  majeur:
-    regle: age_minimum              # âge >= age à la date du jour
+  age_entre:
+    regle: age_entre                # paramètres de la demande : min, max (facultatif), date_reference
     champ: date_naissance
-    age: 18
-    claim: age_equal_or_over        # réponse : {"age_equal_or_over": {"18": true}}
+    claim: age_equal_or_over        # réponse : {"age_equal_or_over": {"18": true, "38": false}, "date_reference": "2026-12-31"}
+    services: [direction-concours, service-bourses, mairie]
   personne_connue:
     regle: existe                   # une seule fiche et personne vivante -> true ; sinon refus
     claim: personne_connue          # sert au médiateur avant un casier « absence: vierge »
+    services: [direction-concours]

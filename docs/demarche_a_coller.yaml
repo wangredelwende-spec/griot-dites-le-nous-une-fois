@@ -1,0 +1,15 @@
+# Démarche prête à coller À LA FIN de catalogue/demarches.yaml (démo « ajouter une démarche en direct »).
+# Copier les lignes ci-dessous (avec les 2 espaces au début de « aide-transport-etudiant: »), sans cette entête.
+# Elle n'utilise que ce que les registres autorisent déjà au service des bourses (double clé) : aucun code changé.
+
+  aide-transport-etudiant:
+    libelle: Aide au transport des étudiants
+    services: [service-bourses]
+    finalite: attribution de l'aide au transport des étudiants
+    base: consentement
+    attributs:
+      - attribut: age_entre
+        parametres: {min: 18, date_reference: aujourd'hui}
+        libelle: majeur
+      - attribut: nationalite_burkinabe
+        libelle: burkinabè

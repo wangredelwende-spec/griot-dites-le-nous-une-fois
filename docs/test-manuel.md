@@ -188,13 +188,32 @@ apparaît dans l'historique de l'usager avec le texte cité.
    Attendu : « OK Journal intègre : N lignes » puis « OK Reçu retrouvé : ligne …, confirmation (service-bourses) ».
    Un faux reçu (`--recu "0000 0000 0000 0000"`) → « ERREUR Reçu introuvable ».
 
-## Scène 4 : ajouter une démarche sans toucher au code (« Adapter »)
+## Scène 4 : ajouter une démarche en direct, sans toucher au code (moins de 2 minutes)
 
-Suivre `docs/AJOUTER_UNE_DEMARCHE.md` : ajouter un bloc dans `catalogue/demarches.yaml`, puis
-`docker compose restart mediateur guichet`. La démarche apparaît au guichet. Montrer aussi :
-- un catalogue incomplet (supprimer la ligne `texte:` de « Vérifier la majorité ») : le médiateur refuse de démarrer
-  et dit pourquoi (`docker compose logs mediateur --tail 5`). **Remettre la ligne** puis relancer ;
-- l'empreinte du catalogue écrite au journal à chaque chargement (ligne « catalogue chargé : … sha256 … »).
+Préparer avant : `catalogue\demarches.yaml` et `docs\demarche_a_coller.yaml` ouverts dans l'éditeur ; guichet
+connecté en `awa.ouedraogo` (service des bourses) ; PowerShell dans le dossier du dépôt.
+
+1. (20 s) Copier les lignes de `docs\demarche_a_coller.yaml` (sans l'entête `#`) et les coller **à la fin** de
+   `catalogue\demarches.yaml`. Enregistrer. À dire : « aide au transport des étudiants : majeur + burkinabè, avec
+   l'accord de l'usager ; rien d'autre ne peut être demandé ».
+2. (15 s) Redémarrer **le seul médiateur**, qui valide le catalogue au démarrage :
+   ```powershell
+   docker compose restart mediateur
+   docker compose logs mediateur --tail 3
+   ```
+   Attendu : aucune erreur. Le journal reçoit une ligne « catalogue chargé : 5 démarches, sha256 … ».
+3. (15 s) Guichet d'Awa → **actualiser la page** : « Aide au transport des étudiants » apparaît (le guichet relit
+   le catalogue tout seul). Envoyer pour `BF-0012` → « En attente de l'usager ».
+4. (30 s) Téléphone `70000012` → `*226#` → `1234` → `1` : « Le service des bourses recevra : majeur = oui ;
+   burkinabè = oui. Rien d'autre. » → `1` (Confirmer). Guichet : Actualiser → deux réponses signées.
+5. Variante « le médiateur refuse » (30 s) : supprimer la ligne `finalite:` de la démarche collée, enregistrer,
+   `docker compose restart mediateur`, puis `docker compose logs mediateur --tail 5` : « CATALOGUE INVALIDE … démarche
+   « aide-transport-etudiant » : finalité manquante ». Remettre la ligne, relancer.
+6. **Après la démo** : retirer la démarche collée (`git checkout catalogue\demarches.yaml`) puis
+   `docker compose restart mediateur`.
+
+Pourquoi ça marche sans code : la démarche n'utilise que des attributs et des seuils que les registres autorisent
+déjà au service des bourses (double clé, `adaptateurs\*.yaml`). Testé : `tests\test_catalogue.py`.
 
 ## Scène 5 : en cas de doute, refuser (jamais deviner)
 

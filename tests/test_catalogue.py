@@ -64,3 +64,24 @@ def test_apercu_uissd_suit_tout_seul(monkeypatch, tmp_path):
         apercu = mediateur.apercu(d)["apercu"]
         assert attendu in apercu
         assert len(apercu) <= 160, f"écran USSD trop long ({len(apercu)}) : {apercu}"
+
+
+def test_demarche_a_coller_en_direct(monkeypatch, tmp_path):
+    """La démarche de docs/demarche_a_coller.yaml, collée à la fin du catalogue, est valide et sans avertissement
+    de double clé (les registres l'autorisent déjà) : la démo « ajouter une démarche » ne peut pas échouer."""
+    dossier = tmp_path / "catalogue"
+    dossier.mkdir()
+    (dossier / "annuaire.yaml").write_bytes((RACINE / "catalogue/annuaire.yaml").read_bytes())
+    a_coller = "\n".join(l for l in (RACINE / "docs/demarche_a_coller.yaml").read_text(encoding="utf-8").splitlines()
+                         if not l.startswith("#"))
+    texte = (RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8").rstrip("\n") + "\n" + a_coller + "\n"
+    (dossier / "demarches.yaml").write_text(texte, encoding="utf-8")
+    monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
+    chat = catalogue.charger()
+    assert "aide-transport-etudiant" in chat["demarches"] and chat["avertissements"] == []
+    # Erreur volontaire (démo « le médiateur refuse de démarrer ») : finalité supprimée
+    (dossier / "demarches.yaml").write_text(texte.replace("    finalite: attribution de l'aide au transport des étudiants\n", ""),
+                                            encoding="utf-8")
+    import pytest
+    with pytest.raises(catalogue.CatalogueInvalide, match="aide-transport-etudiant.*finalité manquante"):
+        catalogue.charger()

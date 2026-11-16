@@ -29,7 +29,24 @@ SECRET_OIDC = lire_secret("guichet_oidc")
 # Mêmes fichiers que le médiateur, en lecture seule : annuaire, catalogue des démarches,
 # et attributs déclarés par chaque registre (adaptateurs/<registre>.yaml).
 ANNUAIRE = yaml.safe_load((CATALOGUE / "annuaire.yaml").read_text(encoding="utf-8"))
-DEMARCHES = yaml.safe_load((CATALOGUE / "demarches.yaml").read_text(encoding="utf-8"))["demarches"]
+# Catalogue des démarches : relu dès que le fichier change (ajouter une démarche = redémarrer le seul médiateur,
+# qui la VALIDE ; le guichet suit tout seul). Fichier illisible : on garde la dernière version lue.
+_CATALOGUE_LU = {"date": None, "demarches": {}}
+
+
+def catalogue_courant() -> dict:
+    chemin = CATALOGUE / "demarches.yaml"
+    date = chemin.stat().st_mtime
+    if date != _CATALOGUE_LU["date"]:
+        try:
+            _CATALOGUE_LU["demarches"] = yaml.safe_load(chemin.read_text(encoding="utf-8"))["demarches"]
+            _CATALOGUE_LU["date"] = date
+        except (yaml.YAMLError, KeyError, TypeError) as e:
+            print(f"catalogue illisible, version précédente gardée : {type(e).__name__}", flush=True)
+    return _CATALOGUE_LU["demarches"]
+
+
+catalogue_courant()
 # Format de l'identifiant de l'usager (réglable pour les données du jury), le même que celui du médiateur
 IDENTIFIANT = ANNUAIRE.get("identifiant_usager") or {"format": r"^[A-Za-z0-9-]{1,64}$", "exemple": "BF-0001"}
 ATTRIBUTS = {}
@@ -186,7 +203,7 @@ async def deconnexion(request: Request, csrf: str = Form(...)):
 
 def demarches_du_service(service: str) -> dict:
     """Le guichet ne propose QUE les démarches du catalogue ouvertes au service de l'agent."""
-    return {code: d for code, d in DEMARCHES.items() if service in d["services"]}
+    return {code: d for code, d in catalogue_courant().items() if service in d["services"]}
 
 
 async def mediateur(methode: str, chemin: str, session: dict, **kwargs) -> dict:
@@ -281,7 +298,7 @@ async def envoyer(request: Request, csrf: str = Form(...), demarche: str = Form(
         return page(request, "erreur.html", 502, message="Médiateur injoignable ou demande invalide : "
                     "rien n'a été transmis, rien n'a été deviné.")
     RESULTATS[id_demande] = {"agent": session["nom"], "sujet_ref": corps["sujet_ref"], "demarche": demarche,
-                             "volets": {}}
+                             "definition": demarches[demarche], "volets": {}}
     # Base légale : les réponses signées arrivent tout de suite, et le médiateur ne les remet qu'une fois
     noter(RESULTATS[id_demande], etat, session, id_demande)
     return RedirectResponse(f"/demandes/{id_demande}", status_code=303)
@@ -291,7 +308,7 @@ def noter(suivi: dict, etat: dict, session: dict, id_demande: str):
     """Garde l'état reçu du médiateur. Chaque réponse signée est vérifiée ICI avant tout affichage ;
     un résultat déjà vérifié n'est jamais remplacé."""
     suivi["etat"] = etat
-    demandes = {a["attribut"]: a for a in DEMARCHES[suivi["demarche"]]["attributs"]}
+    demandes = {a["attribut"]: a for a in suivi["definition"]["attributs"]}
     for volet in etat.get("volets", []):
         code = volet["attribut"]
         if code not in demandes or suivi["volets"].get(code, {}).get("signe"):
@@ -327,7 +344,7 @@ async def suivre(request: Request, id_demande: uuid.UUID, session: dict = Depend
     suivi = RESULTATS.get(id_demande)
     if suivi is None or suivi["agent"] != session["nom"]:
         raise HTTPException(404, "Demande introuvable")
-    demarche = DEMARCHES[suivi["demarche"]]
+    demarche = suivi["definition"]       # la démarche telle qu'elle était à l'envoi (le catalogue peut changer)
     # On ne réinterroge le médiateur que tant que l'usager n'a pas répondu
     if suivi["etat"]["statut"] in ("en_attente", "confirmee"):
         try:

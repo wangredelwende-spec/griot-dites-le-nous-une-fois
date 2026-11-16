@@ -87,6 +87,42 @@ services:
       timeout: 5s
       retries: 10
 
+  registre-nationalite:
+    build: ./registres_sim
+    image: griot-registre:local
+    restart: unless-stopped
+    environment:
+      ADAPTATEUR: /adaptateurs/nationalite.yaml
+    volumes:
+      - ./adaptateurs:/adaptateurs:ro
+      - ./registres_sim/donnees_fictives:/donnees:ro
+      - cle_privee_nationalite:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
+      - cle_publique_nationalite:/publique  # sa clé publique : seul ce registre peut l'écrire
+    networks: [registres]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  registre-casier:
+    build: ./registres_sim
+    image: griot-registre:local
+    restart: unless-stopped
+    environment:
+      ADAPTATEUR: /adaptateurs/casier.yaml
+    volumes:
+      - ./adaptateurs:/adaptateurs:ro
+      - ./registres_sim/donnees_fictives:/donnees:ro
+      - cle_privee_casier:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
+      - cle_publique_casier:/publique  # sa clé publique : seul ce registre peut l'écrire
+    networks: [registres]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # Médiateur : règles, appel des registres, vérification, consentement, journal chaîné.
   # API JSON jamais publiée par Caddy.
   mediateur:
@@ -103,11 +139,14 @@ services:
       - mediateur_donnees:/donnees         # journal chaîné + demandes en attente (SQLite)
       # Clé publique de chaque registre, en LECTURE SEULE (un volume par registre)
       - cle_publique_etat_civil:/publiques/etat-civil:ro
+      - cle_publique_nationalite:/publiques/nationalite:ro
+      - cle_publique_casier:/publiques/casier:ro
     depends_on:
-      # Le registre monte son volume en premier (il en devient propriétaire et y écrit sa clé).
+      # Les registres montent leur volume en premier (ils en deviennent propriétaires et y écrivent leur clé).
       # « started » et non « healthy » : le médiateur doit tourner même si un registre est en panne.
-      registre-etat-civil:
-        condition: service_started
+      registre-etat-civil: {condition: service_started}
+      registre-nationalite: {condition: service_started}
+      registre-casier: {condition: service_started}
     networks: [interne, registres]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
@@ -130,11 +169,13 @@ services:
       # Même clé publique que le médiateur, lue directement dans le volume du registre (lecture seule) :
       # le médiateur ne peut ni la fournir ni la remplacer.
       - cle_publique_etat_civil:/publiques/etat-civil:ro
+      - cle_publique_nationalite:/publiques/nationalite:ro
+      - cle_publique_casier:/publiques/casier:ro
     depends_on:
-      keycloak:
-        condition: service_healthy
-      registre-etat-civil:
-        condition: service_started
+      keycloak: {condition: service_healthy}
+      registre-etat-civil: {condition: service_started}
+      registre-nationalite: {condition: service_started}
+      registre-casier: {condition: service_started}
     networks: [interne]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
@@ -186,6 +227,10 @@ volumes:
   mediateur_donnees:
   cle_privee_etat_civil:
   cle_publique_etat_civil:
+  cle_privee_nationalite:
+  cle_publique_nationalite:
+  cle_privee_casier:
+  cle_publique_casier:
 
 networks:
   # Réseau sans aucune sortie vers Internet : Keycloak, PostgreSQL, le guichet et le médiateur

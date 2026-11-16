@@ -1,0 +1,21 @@
+# Adaptateur du casier judiciaire (données fictives). Voir docs/BRANCHER_UN_REGISTRE.md.
+# Le détail des condamnations ne sort JAMAIS du registre : seulement « vierge : oui/non ».
+registre: casier
+emetteur: registre-casier
+
+source:
+  type: csv
+  chemin: /donnees/casier.csv
+  separateur: ";"
+
+identite: nip
+champs:
+  nombre_condamnations: nombre_condamnations
+refuser_si_decede: false
+motif_refus_public: "réponse impossible, s'adresser au greffe"
+
+attributs:
+  casier_vierge:
+    regle: nombre_nul               # « 0 » -> true ; « 2 » -> false ; vide ou illisible -> refus
+    champ: nombre_condamnations
+    claim: casier_judiciaire_vierge # réponse : {"casier_judiciaire_vierge": true}

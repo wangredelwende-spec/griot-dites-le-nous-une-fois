@@ -15,3 +15,16 @@ Personnes inventées, sans lien avec des personnes réelles. Cas pièges prévus
 | BF-0011 | année seule (2004) | oui : même né le 31/12/2004, elle a 18 ans |
 | BF-0019 | doublon (deux fiches pour le même nip) | refus : identité ambiguë |
 | BF-0099 | absent du registre | refus : introuvable |
+
+## Nationalité (`nationalite.csv`) et casier (`casier.csv`)
+
+| nip | Nationalité burkinabè | Casier vierge |
+|---|---|---|
+| BF-0001 | oui | oui |
+| BF-0003 | oui | refus : absente du casier (absent ≠ vierge) |
+| BF-0005 | oui | non (1 condamnation) |
+| BF-0006 | oui (naturalisation) | oui |
+| BF-0008 | oui | **non** (2 condamnations : le détail ne sort jamais du registre) |
+| BF-0013 | refus : nationalité non renseignée | oui |
+| BF-0015 | oui | refus : nombre de condamnations vide |
+| BF-0018 | **non** (ivoirienne) | oui |

@@ -1,0 +1,21 @@
+# Adaptateur du registre de la nationalité (données fictives). Voir docs/BRANCHER_UN_REGISTRE.md.
+registre: nationalite
+emetteur: registre-nationalite
+
+source:
+  type: csv
+  chemin: /donnees/nationalite.csv
+  separateur: ";"
+
+identite: nip
+champs:
+  nationalite: nationalite
+refuser_si_decede: false            # ce registre ne connaît pas les décès (c'est l'état civil)
+motif_refus_public: "réponse impossible, s'adresser au service de la nationalité"
+
+attributs:
+  nationalite_burkinabe:
+    regle: egal                     # champ renseigné et égal à la valeur -> true ; autre valeur -> false ; vide -> refus
+    champ: nationalite
+    valeur: burkinabe
+    claim: nationalite_burkinabe    # réponse : {"nationalite_burkinabe": true}

@@ -5,7 +5,9 @@ SIGNÉ avec la clé Ed25519 du registre (JWT EdDSA, bibliothèque PyJWT). Le mé
 donc ni lire la fiche, ni fabriquer une réponse, ni fabriquer un refus.
 Joignable uniquement par le réseau Docker « registres » (médiateur seulement).
 """
+import base64
 import hashlib
+import json
 import os
 import time
 import uuid
@@ -22,6 +24,8 @@ from .adaptateur import Adaptateur, Refus
 
 ADAPTATEUR = Adaptateur(Path(os.environ["ADAPTATEUR"]))
 DUREE_VALIDITE = 600          # une réponse signée vaut 10 minutes
+# Interrupteur de panne (banc de pannes) : scripts/panne.py écrit « lent » ou « corrompu » dans ce fichier
+PANNE = Path(os.environ.get("PANNE", "/tmp/panne"))
 CLES = Path(os.environ.get("CLES", "/cles"))                  # clé privée : volume de CE registre seulement
 PUBLIQUE = Path(os.environ.get("PUBLIQUE", "/publique"))      # clé publique : volume monté en lecture seule
                                                               # chez le médiateur et le guichet
@@ -80,4 +84,25 @@ def attribut(d: DemandeAttribut):
         # Trace locale sans identifiant du citoyen, pour le service du registre.
         print(f"demande {d.id_demande} : refus ({motif})", flush=True)
         charge |= {"statut": "refus", "motif": ADAPTATEUR.motif_refus_public}
-    return {"jeton": jwt.encode(charge, CLE, algorithm="EdDSA")}
+    jeton = jwt.encode(charge, CLE, algorithm="EdDSA")
+
+    # --- Simulation de pannes (démonstration uniquement) ---
+    mode = PANNE.read_text().strip() if PANNE.exists() else "normal"
+    if mode == "lent":
+        time.sleep(10)          # bien au-delà du délai maximal du médiateur (3 s)
+    elif mode == "corrompu":
+        jeton = falsifier(jeton, d.attribut)
+    return {"jeton": jeton}
+
+
+def falsifier(jeton: str, attribut: str) -> str:
+    """Simule une réponse modifiée en chemin : on force « oui » SANS re-signer
+    (comme le ferait un intermédiaire malveillant). La signature ne correspond donc plus."""
+    entete, contenu, signature = jeton.split(".")
+    claims = json.loads(base64.urlsafe_b64decode(contenu + "=" * (-len(contenu) % 4)))
+    claims["statut"] = "ok"
+    claims.pop("motif", None)
+    regle = ADAPTATEUR.attributs.get(attribut, {"claim": "inconnu"})
+    claims[regle["claim"]] = {str(regle["age"]): True} if "age" in regle else True     # « oui » forcé
+    contenu = base64.urlsafe_b64encode(json.dumps(claims).encode()).rstrip(b"=").decode()
+    return f"{entete}.{contenu}.{signature}"

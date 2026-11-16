@@ -109,7 +109,7 @@ def ligne_historique(s: dict, numero: int, l: dict) -> str:
     """« 1. 16/11 11h54 Concours majeur transmis » : date, qui, quoi, résultat."""
     date = datetime.strptime(l["ts"], "%Y-%m-%dT%H:%M:%SZ").strftime("%d/%m %Hh%M")
     service = TEXTES[s["langue"]].get(f"service_court_{l['code_service']}", l["code_service"][:8])
-    attribut = TEXTES[s["langue"]].get(f"attribut_{l['attribut']}", l["attribut"][:8])
+    attribut = TEXTES[s["langue"]].get(f"attribut_court_{l['attribut']}", l["attribut"][:8])
     etat = t(s, EVENEMENTS.get(l["evenement"], "etat_refuse"))
     return f"{numero}. {date} {service} {attribut} {etat}"
 

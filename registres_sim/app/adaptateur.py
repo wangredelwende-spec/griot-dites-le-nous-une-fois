@@ -96,4 +96,15 @@ class Adaptateur:
             age = int(regle["age"])
             atteint = age_minimum_atteint(self.valeur(fiche, regle["champ"]), age, aujourdhui or date.today())
             return {regle["claim"]: {str(age): atteint}}
+        valeur = self.valeur(fiche, regle["champ"])
+        if not valeur:
+            raise Refus("donnée insuffisante : champ vide")       # vide n'est ni « oui » ni « non »
+        if regle["regle"] == "egal":
+            # ex. nationalité : « burkinabe » -> true ; toute autre nationalité renseignée -> false
+            return {regle["claim"]: valeur.lower() == str(regle["valeur"]).lower()}
+        if regle["regle"] == "nombre_nul":
+            # ex. casier : nombre de condamnations « 0 » -> vierge ; « 2 » -> non vierge ; autre -> refus
+            if not valeur.isdigit():
+                raise Refus("donnée insuffisante : nombre illisible")
+            return {regle["claim"]: int(valeur) == 0}
         raise Refus("règle inconnue dans l'adaptateur")

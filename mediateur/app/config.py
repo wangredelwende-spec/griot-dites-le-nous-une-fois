@@ -23,6 +23,8 @@ LIMITE_PAR_CITOYEN = int(os.environ.get("LIMITE_PAR_CITOYEN", "5"))     # demand
 LIMITE_SUJETS = int(os.environ.get("LIMITE_SUJETS", "5"))
 FENETRE_LIMITE = int(os.environ.get("FENETRE_LIMITE", "3600"))          # 1 heure
 # Comptes des tests automatiques de bout en bout, qui consultent beaucoup de citoyens fictifs (démo seulement)
+# Comptes de TEST (clients Keycloak « outil-test-* ») : refusés sauf si OUTILS_TEST=1 (désactivés pendant la démo)
+OUTILS_TEST = os.environ.get("OUTILS_TEST", "0") == "1"
 LIMITE_EXEMPTES = {n.strip() for n in os.environ.get("LIMITE_EXEMPTES", "").split(",") if n.strip()}
 
 

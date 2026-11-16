@@ -66,6 +66,7 @@ class NonAutorise(Exception):
 KEYCLOAK_CLES = os.environ.get("KEYCLOAK_CLES", "http://keycloak:8080/realms/griot/protocol/openid-connect/certs")
 KEYCLOAK_EMETTEUR = os.environ.get("KEYCLOAK_EMETTEUR", "https://auth.griot.test/realms/griot")
 CLES_KEYCLOAK = jwt.PyJWKClient(KEYCLOAK_CLES)
+OUTILS_TEST = os.environ.get("OUTILS_TEST", "0") == "1"      # comptes de test « outil-test-* » refusés sauf si 1
 
 
 def service_de_l_agent(authorization: str) -> str:
@@ -83,6 +84,8 @@ def service_de_l_agent(authorization: str) -> str:
         raise NonAutorise("jeton d'agent invalide ou expiré")
     if "agent-guichet" not in infos.get("roles", []):
         raise NonAutorise("jeton sans le rôle agent-guichet")
+    if str(infos.get("azp", "")).startswith("outil-test-") and not OUTILS_TEST:
+        raise NonAutorise("compte de test refusé : outils de test désactivés")
     services = {ADAPTATEUR.groupes[g] for g in infos.get("groups", []) if g in ADAPTATEUR.groupes}
     if len(services) != 1:
         raise NonAutorise("service de l'agent non reconnu par ce registre")

@@ -187,6 +187,17 @@ Couper le wifi (et débrancher le câble), puis rejouer la scène 1 ou 2 : tout 
 besoin d'Internet (réseaux Docker internes, certificats locaux, aucune ressource externe).
 **À répéter une fois en vrai avant la présentation** (pas encore testé physiquement).
 
+## Banc de pannes automatique (avant la démo, PAS devant le jury)
+
+1. `OUTILS_TEST=1` dans `.env`, puis `python scripts/outils_test.py` (crée 3 comptes de service de TEST,
+   `outil-test-concours`, `outil-test-bourses`, `outil-test-curieux` : mêmes règles que les agents, aucune exemption).
+2. `python scripts/banc_de_pannes.py` → une ligne ✅ / ❌ par vérification (registre coupé, lent, corrompu, rejeu,
+   mauvaise finalité, attribut en plus, appels directs au registre, seuil non déclaré, agent curieux, consentement
+   refusé / retiré / expiré, journal modifié, consultation cachée, réseau, double trace), en 45 s environ.
+3. **Remettre `OUTILS_TEST=0`** puis `python scripts/outils_test.py` : les comptes de test sont supprimés.
+4. `python scripts/remise_a_zero.py --oui` : journal et traces neufs, pour que l'historique des citoyens de la démo
+   ne montre pas les lignes du banc.
+
 ## Après la démo
 
 `python scripts/panne.py` (tout `normal`). Pour tout arrêter sans rien perdre : `docker compose stop`.

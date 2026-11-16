@@ -25,6 +25,13 @@
 - Les comptes des tests automatiques (`agent.banc`, `agent.banc.bourses`) en sont exemptés (`LIMITE_EXEMPTES` dans
   `docker-compose.yml`) : ils interrogent des dizaines de fois les mêmes citoyens fictifs. **En production : aucune exemption.**
 
+## Comptes de test
+
+- `outil-test-concours`, `outil-test-bourses`, `outil-test-curieux` : comptes de service Keycloak (secret client, sans
+  humain ni TOTP) pour le banc de pannes et `scripts/demande.py`. Ils n'existent que si `OUTILS_TEST=1` dans `.env`
+  (`scripts/outils_test.py`) ; sinon le médiateur ET les registres refusent leurs jetons. Mêmes règles que les agents.
+  Leur nom (« service-account-outil-test-… ») les signale dans le journal. Désactivés pendant la démonstration.
+
 ## Confiance entre composants
 
 - Chaque registre vérifie lui-même le jeton Keycloak de l'agent (signature, expiration, rôle, groupe). Il fait donc

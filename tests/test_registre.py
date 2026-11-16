@@ -164,6 +164,16 @@ def test_trace_des_reponses_sans_valeur_ni_citoyen():
     assert set(derniere) == {"ts", "id_demande", "jti", "destinataire", "attribut", "statut"}
     assert derniere["destinataire"] == "direction-concours" and derniere["statut"] == "ok"
     assert "BF-0008" not in json.dumps(export) and "true" not in json.dumps(export).lower()
-    base = sqlite3.connect(TMP / "trace/trace.sqlite3")
+    base = sqlite3.connect(TMP / "trace/trace.sqlite3", isolation_level=None)
     with pytest.raises(sqlite3.DatabaseError, match="ajout seul"):
         base.execute("DELETE FROM reponses")
+    base.close()
+
+
+def test_compte_de_test_refuse_si_outils_desactives(monkeypatch):
+    jeton = jeton_agent("direction-concours", azp="outil-test-concours")
+    monkeypatch.setattr(registre, "OUTILS_TEST", False)
+    infos = demander("BF-0001", service="direction-concours", jeton=jeton)
+    assert infos["statut"] == "refus" and "outils de test désactivés" in infos["motif"]
+    monkeypatch.setattr(registre, "OUTILS_TEST", True)
+    assert demander("BF-0001", service="direction-concours", jeton=jeton)["statut"] == "ok"

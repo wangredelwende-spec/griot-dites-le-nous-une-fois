@@ -75,6 +75,7 @@ services:
     restart: unless-stopped
     environment:
       ADAPTATEUR: /adaptateurs/etat-civil.yaml
+      OUTILS_TEST: ${OUTILS_TEST:-0}       # comptes de test refusés sauf si 1
     volumes:
       # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
       - ./adaptateurs/etat-civil.yaml:/adaptateurs/etat-civil.yaml:ro
@@ -96,6 +97,7 @@ services:
     restart: unless-stopped
     environment:
       ADAPTATEUR: /adaptateurs/nationalite.yaml
+      OUTILS_TEST: ${OUTILS_TEST:-0}       # comptes de test refusés sauf si 1
     volumes:
       # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
       - ./adaptateurs/nationalite.yaml:/adaptateurs/nationalite.yaml:ro
@@ -117,6 +119,7 @@ services:
     restart: unless-stopped
     environment:
       ADAPTATEUR: /adaptateurs/casier.yaml
+      OUTILS_TEST: ${OUTILS_TEST:-0}       # comptes de test refusés sauf si 1
     volumes:
       # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
       - ./adaptateurs/casier.yaml:/adaptateurs/casier.yaml:ro
@@ -140,6 +143,7 @@ services:
     restart: unless-stopped
     environment:
       DELAI_REGISTRE: "3"                  # secondes avant de déclarer un registre indisponible
+      OUTILS_TEST: ${OUTILS_TEST:-0}       # comptes de test (outil-test-*) refusés sauf si 1
       DUREE_CONSENTEMENT: "600"            # 10 minutes pour confirmer
       LIMITE_PAR_CITOYEN: "5"              # demandes d'un même service sur une même personne, par 24 h
       LIMITE_SUJETS: "5"                   # citoyens différents par agent et par heure (bas pour la démo)

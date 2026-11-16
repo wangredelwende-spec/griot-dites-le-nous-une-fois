@@ -6,7 +6,7 @@ expiration). Le service demandeur vient du GROUPE de l'agent dans ce jeton, jama
 import jwt
 from fastapi import Header, HTTPException
 
-from .config import AUDIENCE, KEYCLOAK_CLES, KEYCLOAK_EMETTEUR, ROLE_AGENT
+from .config import AUDIENCE, KEYCLOAK_CLES, KEYCLOAK_EMETTEUR, OUTILS_TEST, ROLE_AGENT
 
 _cles_keycloak = jwt.PyJWKClient(KEYCLOAK_CLES)
 
@@ -27,5 +27,9 @@ def agent_connecte(authorization: str = Header("")) -> dict:
         raise HTTPException(401, "jeton d'agent invalide ou expiré")
     if ROLE_AGENT not in infos.get("roles", []):
         raise HTTPException(403, "rôle agent-guichet absent")
+    # Comptes de test (banc de pannes) : seulement si OUTILS_TEST=1. Leur nom (« service-account-outil-test-… »)
+    # les signale dans le journal.
+    if str(infos.get("azp", "")).startswith("outil-test-") and not OUTILS_TEST:
+        raise HTTPException(403, "comptes de test désactivés (OUTILS_TEST=0)")
     # « jeton » : transmis tel quel au registre, qui le revérifie LUI-MÊME (jamais stocké)
     return {"nom": infos.get("preferred_username", infos["sub"]), "groupes": infos.get("groups", []), "jeton": jeton}

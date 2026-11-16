@@ -560,3 +560,55 @@ def test_agent_curieux_bloque_et_citoyens_alertes(client, monkeypatch):
     assert client.post("/demandes", json=demande(sujet="CUR-5")).json()["statut"] == "bloquee"
     alertes = [l for l in journal_de() if l["evenement"] == "alerte" and "agent bloqué" in l["motif"]]
     assert len(alertes) == 5
+
+
+# --- Double trace : comparaison du journal et des traces des registres ---
+
+def charger_verifier():
+    spec = importlib.util.spec_from_file_location("verifier", RACINE / "journal/verifier.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def ligne(id_demande, evenement="reponse-registre", resultat="ok", registre="etat-civil", ts="2026-11-16T15:00:00Z"):
+    return {"id_demande": id_demande, "evenement": evenement, "resultat": resultat, "registre": registre,
+            "attribut": "age_entre", "ts": ts}
+
+
+def trace(*ids, debut="2026-11-16T14:00:00Z"):
+    return {"debut": debut, "trace": [{"id_demande": i, "attribut": "age_entre", "ts": "2026-11-16T15:00:00Z",
+                                       "jti": "j", "destinataire": "mairie", "statut": "ok"} for i in ids]}
+
+
+def test_double_trace_concordante():
+    verifier = charger_verifier()
+    lignes = [ligne("", "catalogue", ts="2026-11-16T14:30:00Z"), ligne("d1"), ligne("d2", "alerte", "refuse"),
+              ligne("d3", resultat="indisponible")]          # d3 : registre coupé, aucune trace : normal
+    assert verifier.comparer({"etat-civil": trace("d1", "d2")}, lignes) == []
+
+
+def test_double_trace_consultation_cachee_par_le_mediateur():
+    """Le médiateur a supprimé la ligne de d2 et recalculé sa chaîne : le registre, lui, a gardé sa trace."""
+    verifier = charger_verifier()
+    ecarts = verifier.comparer({"etat-civil": trace("d1", "d2")}, [ligne("", "catalogue"), ligne("d1")])
+    assert ecarts == ["etat-civil : réponse à la demande d2 (age_entre) ABSENTE du journal du médiateur"]
+
+
+def test_double_trace_reponse_inventee():
+    verifier = charger_verifier()
+    ecarts = verifier.comparer({"etat-civil": trace("d1")}, [ligne("", "catalogue"), ligne("d1"), ligne("d9")])
+    assert ecarts == ["etat-civil : le journal cite une réponse à la demande d9 (age_entre) que le registre n'a jamais émise"]
+
+
+def test_double_trace_registre_illisible():
+    verifier = charger_verifier()
+    assert verifier.comparer({"casier": "trace illisible"}, []) == ["casier : trace illisible"]
+
+
+@respx.mock
+def test_les_lignes_du_journal_portent_l_id_de_demande(client):
+    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    d = demande()
+    client.post("/demandes", json=d)
+    assert {l["id_demande"] for l in journal_de()[-3:]} == {d["id_demande"]}

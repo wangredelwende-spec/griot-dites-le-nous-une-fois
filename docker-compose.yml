@@ -81,6 +81,7 @@ services:
       - ./registres_sim/donnees_fictives:/donnees:ro
       - cle_privee_etat_civil:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_etat_civil:/publique  # sa clé publique : seul ce registre peut l'écrire
+      - trace_etat_civil:/trace                 # double trace : ses réponses signées (jamais la valeur)
     # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
     networks: [registres, cles-agents]
     healthcheck:
@@ -101,6 +102,7 @@ services:
       - ./registres_sim/donnees_fictives:/donnees:ro
       - cle_privee_nationalite:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_nationalite:/publique  # sa clé publique : seul ce registre peut l'écrire
+      - trace_nationalite:/trace                 # double trace : ses réponses signées (jamais la valeur)
     # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
     networks: [registres, cles-agents]
     healthcheck:
@@ -121,6 +123,7 @@ services:
       - ./registres_sim/donnees_fictives:/donnees:ro
       - cle_privee_casier:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_casier:/publique  # sa clé publique : seul ce registre peut l'écrire
+      - trace_casier:/trace                 # double trace : ses réponses signées (jamais la valeur)
     # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
     networks: [registres, cles-agents]
     healthcheck:
@@ -243,6 +246,9 @@ volumes:
   cle_publique_nationalite:
   cle_privee_casier:
   cle_publique_casier:
+  trace_etat_civil:
+  trace_nationalite:
+  trace_casier:
 
 networks:
   # Réseau sans aucune sortie vers Internet : Keycloak, PostgreSQL, le guichet et le médiateur

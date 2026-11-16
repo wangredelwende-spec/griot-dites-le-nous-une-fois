@@ -172,6 +172,15 @@ Attendu : « Ligne 5 modifiée dans la copie … », puis le vrai journal « OK 
 « **ERREUR Ligne 5 modifiée** ». (On modifie une copie pour pouvoir rejouer la démo ; la manipulation est celle
 d'un administrateur : supprimer le déclencheur SQLite qui interdit les modifications, puis changer la ligne.)
 
+**Plus fort : l'administrateur habile** qui supprime une consultation ET recalcule toute la chaîne :
+`python scripts/falsifier_journal.py --cacher`
+
+Attendu : la copie falsifiée « OK Journal intègre : N lignes » (la chaîne seule ne voit rien !), puis, avec la
+**double trace** : « ERREUR etat-civil : réponse à la demande … ABSENTE du journal du médiateur » (idem nationalité
+et casier). Chaque registre garde chez lui la liste des réponses qu'il a signées (jamais la valeur) ; le médiateur
+ne peut pas y toucher. Sur le vrai journal :
+`docker compose exec mediateur python /journal/verifier.py --registres` → « OK Double trace concordante ».
+
 ## Scène 9 : wifi coupé
 
 Couper le wifi (et débrancher le câble), puis rejouer la scène 1 ou 2 : tout fonctionne. Aucun service n'a

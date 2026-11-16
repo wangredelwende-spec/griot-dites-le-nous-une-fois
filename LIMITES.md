@@ -43,5 +43,9 @@
 ## Ce qui n'est pas protégé
 
 - « Registre indisponible » n'est pas signé (par définition, le registre n'a pas répondu).
-- Supprimer la **dernière** ligne du journal n'est pas détectable par la chaîne seule : il faut un reçu remis à l'usager
-  ou une ancre externe.
+- Supprimer des lignes puis recalculer toute la chaîne n'est pas détectable par la chaîne seule. C'est détecté par :
+  les reçus déjà remis aux usagers, et la **double trace** (`verifier.py --registres`) pour toute consultation
+  qui a atteint un registre. Une demande refusée par le médiateur avant tout registre (ex. mauvaise finalité)
+  n'a pas de seconde trace : seul le reçu, ou une ancre externe (feuille de route), la protège.
+- La trace d'un registre est exportée signée sur le réseau interne `registres`, sans authentification du lecteur : elle
+  ne contient ni citoyen ni valeur (numéro de demande, jti, date, service, attribut, ok/refus).

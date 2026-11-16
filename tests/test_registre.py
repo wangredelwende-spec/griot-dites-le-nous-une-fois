@@ -15,9 +15,10 @@ from fastapi.testclient import TestClient
 from conftest import ADAPTATEUR_TEST, RACINE, TMP
 
 # Le registre est chargé sous le nom « registre_app » (le médiateur occupe déjà le nom « app »)
-for dossier in ("cles", "publique"):
+for dossier in ("cles", "publique", "trace"):
     (TMP / dossier).mkdir(exist_ok=True)
-os.environ.update(ADAPTATEUR=str(ADAPTATEUR_TEST), CLES=str(TMP / "cles"), PUBLIQUE=str(TMP / "publique"))
+os.environ.update(ADAPTATEUR=str(ADAPTATEUR_TEST), CLES=str(TMP / "cles"), PUBLIQUE=str(TMP / "publique"),
+                  TRACE=str(TMP / "trace"))
 spec = importlib.util.spec_from_file_location("registre_app", RACINE / "registres_sim/app/__init__.py",
                                               submodule_search_locations=[str(RACINE / "registres_sim/app")])
 sys.modules["registre_app"] = importlib.util.module_from_spec(spec)
@@ -150,3 +151,19 @@ def test_reconstitution_de_la_date_de_naissance_impossible():
     reponses = [demander("BF-0001", service="direction-concours",
                          parametres={"min": n, "date_reference": AUJOURDHUI}) for n in range(19, 41)]
     assert all(r["statut"] == "refus" for r in reponses)
+
+
+# --- Double trace : le registre garde la liste de ses réponses signées ---
+
+def test_trace_des_reponses_sans_valeur_ni_citoyen():
+    import sqlite3
+    demander("BF-0008", service="direction-concours", parametres={"min": 18, "max": 37, "date_reference": "2026-12-31"})
+    export = jwt.decode(client.get("/trace").json()["jeton"], CLE_PUBLIQUE, algorithms=["EdDSA"],
+                        audience="verification")                     # export SIGNÉ par le registre
+    derniere = export["trace"][-1]
+    assert set(derniere) == {"ts", "id_demande", "jti", "destinataire", "attribut", "statut"}
+    assert derniere["destinataire"] == "direction-concours" and derniere["statut"] == "ok"
+    assert "BF-0008" not in json.dumps(export) and "true" not in json.dumps(export).lower()
+    base = sqlite3.connect(TMP / "trace/trace.sqlite3")
+    with pytest.raises(sqlite3.DatabaseError, match="ajout seul"):
+        base.execute("DELETE FROM reponses")

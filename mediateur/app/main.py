@@ -38,6 +38,26 @@ for avertissement in CAT["avertissements"]:
 SECRET_PSEUDONYME = lire_secret("sujet_hmac").encode()
 SECRET_CANAL = lire_secret("canal_usager").encode()
 
+def archiver_ancien_journal() -> str:
+    """Journal d'une version précédente (sans la colonne id_demande) : il est gardé INTACT sous un autre nom
+    (toujours vérifiable : verifier.py <fichier>) et le nouveau journal le cite dans sa première ligne."""
+    chemin = DONNEES / "mediateur.sqlite3"
+    if not chemin.exists():
+        return ""
+    ancien = sqlite3.connect(chemin)
+    colonnes = [c[1] for c in ancien.execute("PRAGMA table_info(journal)")]
+    derniere = ancien.execute("SELECT n, hash FROM journal ORDER BY n DESC LIMIT 1").fetchone() if colonnes else None
+    ancien.close()
+    if not colonnes or "id_demande" in colonnes:
+        return ""
+    nom = f"mediateur-archive-{time.strftime('%Y%m%dT%H%M%SZ', time.gmtime())}.sqlite3"
+    chemin.rename(DONNEES / nom)
+    n, empreinte = derniere or (0, "0" * 64)
+    return f"journal précédent archivé intact dans {nom} : {n} lignes, dernière empreinte {empreinte}"
+
+
+ARCHIVE = archiver_ancien_journal()
+
 # Une seule connexion SQLite, protégée par un verrou (les requêtes sont traitées en parallèle)
 VERROU = threading.RLock()
 base = sqlite3.connect(DONNEES / "mediateur.sqlite3", check_same_thread=False, isolation_level=None)
@@ -80,6 +100,8 @@ with VERROU:
     """)
     if "cree_le" not in [c["name"] for c in base.execute("PRAGMA table_info(demandes)")]:
         base.execute("ALTER TABLE demandes ADD COLUMN cree_le REAL NOT NULL DEFAULT 0")
+if ARCHIVE:
+    journal.ecrire(agent="systeme", evenement="archive", resultat="ok", motif=ARCHIVE)
 # À chaque chargement, l'empreinte du catalogue entre dans le journal chaîné :
 # on peut prouver quelles règles étaient en vigueur au moment d'une consultation.
 journal.ecrire(agent="systeme", evenement="catalogue", resultat="ok",
@@ -102,7 +124,8 @@ def service_de(agent: dict) -> str | None:
 def tracer(demande: dict, evenement: str, resultat: str, motif: str = "", **precisions) -> dict:
     """Écrit une ligne au journal : le fait, jamais la valeur d'un attribut.
     « precisions » remplace attribut et registre quand la ligne ne concerne qu'un volet."""
-    champs = {"agent": demande["agent"], "demandeur": demande["demandeur"], "demarche": demande["demarche"],
+    champs = {"id_demande": demande["id_demande"], "agent": demande["agent"], "demandeur": demande["demandeur"],
+              "demarche": demande["demarche"],
               "finalite": demande["finalite"], "base": demande["base"], "attribut": demande["attributs"],
               "registre": demande["registres"], "sujet": demande["sujet"]}
     return journal.ecrire(**champs | precisions, evenement=evenement, resultat=resultat, motif=motif)
@@ -227,7 +250,7 @@ async def traiter_volet(demande: dict, demande_attribut: dict, sujet_ref: str, j
             tracer(demande, "reponse-registre", "ok" if connue == "ok" else "refuse", **ou)
             if connue != "ok":
                 volet["motif"] = "identité non confirmée par l'état civil"
-                tracer(demande, "reponse-registre", "refuse", volet["motif"], attribut=code, registre=registre)
+                tracer(demande, "demande", "refuse", volet["motif"], attribut=code, registre=registre)
                 return volet
         statut, contenu, jeton = await interroger(demande, code, catalogue.resoudre(demande_attribut["parametres"]),
                                                   sujet_ref, jeton_agent)

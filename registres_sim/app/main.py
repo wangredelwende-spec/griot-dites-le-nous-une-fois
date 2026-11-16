@@ -9,6 +9,8 @@ import base64
 import hashlib
 import json
 import os
+import sqlite3
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -88,6 +90,36 @@ def service_de_l_agent(authorization: str) -> str:
 
 
 CLE = charger_cle()
+
+# --- Double trace : le registre garde SA liste des réponses signées (jamais la valeur, jamais le citoyen) ---
+# Volume de CE registre seulement : le médiateur ne peut ni la lire en écriture ni la modifier.
+# verifier.py --registres la compare au journal du médiateur : une consultation cachée par le médiateur
+# (ligne supprimée puis chaîne recalculée) apparaît comme une réponse du registre absente du journal.
+TRACE = Path(os.environ.get("TRACE", "/trace"))
+VERROU_TRACE = threading.Lock()
+TRACE_BASE = sqlite3.connect(TRACE / "trace.sqlite3", check_same_thread=False, isolation_level=None)
+with VERROU_TRACE:
+    TRACE_BASE.executescript("""
+        CREATE TABLE IF NOT EXISTS reponses (
+            n INTEGER PRIMARY KEY, ts TEXT NOT NULL, id_demande TEXT NOT NULL, jti TEXT NOT NULL,
+            destinataire TEXT NOT NULL, attribut TEXT NOT NULL, statut TEXT NOT NULL);
+        CREATE TRIGGER IF NOT EXISTS trace_sans_modification BEFORE UPDATE ON reponses
+            BEGIN SELECT RAISE(ABORT, 'trace en ajout seul'); END;
+        CREATE TRIGGER IF NOT EXISTS trace_sans_suppression BEFORE DELETE ON reponses
+            BEGIN SELECT RAISE(ABORT, 'trace en ajout seul'); END;
+        CREATE TABLE IF NOT EXISTS debut (ts TEXT NOT NULL);   -- date de création de la trace
+    """)
+    if not TRACE_BASE.execute("SELECT 1 FROM debut").fetchone():
+        TRACE_BASE.execute("INSERT INTO debut VALUES (?)", (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),))
+
+
+def tracer_reponse(charge: dict, attribut: str):
+    """Une ligne par réponse SIGNÉE : qui, quoi, quand, ok ou refus. Ni la valeur, ni l'identifiant du citoyen."""
+    with VERROU_TRACE:
+        TRACE_BASE.execute(
+            "INSERT INTO reponses (ts, id_demande, jti, destinataire, attribut, statut) VALUES (?, ?, ?, ?, ?, ?)",
+            (time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(charge["iat"])), charge["demande"], charge["jti"],
+             charge["aud"], attribut, charge["statut"]))
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
 
@@ -131,6 +163,7 @@ def attribut(d: DemandeAttribut, authorization: str = Header("")):
         print(f"demande {d.id_demande} : refus ({motif})", flush=True)
         charge |= {"statut": "refus", "motif": ADAPTATEUR.motif_refus_public}
     jeton = jwt.encode(charge, CLE, algorithm="EdDSA")
+    tracer_reponse(charge, d.attribut)
 
     # --- Simulation de pannes (démonstration uniquement) ---
     mode = PANNE.read_text().strip() if PANNE.exists() else "normal"
@@ -139,6 +172,20 @@ def attribut(d: DemandeAttribut, authorization: str = Header("")):
     elif mode == "corrompu":
         jeton = falsifier(jeton)
     return {"jeton": jeton}
+
+
+@app.get("/trace")
+def trace():
+    """Export SIGNÉ de la trace (pour verifier.py --registres) : le médiateur ne peut pas la falsifier."""
+    with VERROU_TRACE:
+        debut = TRACE_BASE.execute("SELECT ts FROM debut").fetchone()[0]
+        lignes = TRACE_BASE.execute("SELECT ts, id_demande, jti, destinataire, attribut, statut FROM reponses "
+                                    "ORDER BY n").fetchall()
+    maintenant = int(time.time())
+    charge = {"iss": ADAPTATEUR.emetteur, "aud": "verification", "iat": maintenant, "exp": maintenant + 60,
+              "debut": debut, "trace": [dict(zip(("ts", "id_demande", "jti", "destinataire", "attribut", "statut"), l))
+                                        for l in lignes]}
+    return {"jeton": jwt.encode(charge, CLE, algorithm="EdDSA")}
 
 
 def falsifier(jeton: str) -> str:

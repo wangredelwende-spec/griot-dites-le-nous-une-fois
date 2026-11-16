@@ -6,7 +6,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
 # Utilisateur sans privilège. /cles : clé privée de CE registre ;
-# /publique : sa clé publique (volume monté en lecture seule chez le médiateur et le guichet).
-RUN useradd --system --uid 10001 griot && mkdir /cles /publique && chown griot /cles /publique
+# /publique : sa clé publique (volume monté en lecture seule chez le médiateur et le guichet) ;
+# /trace : sa liste des réponses signées (double trace), à lui seul.
+RUN useradd --system --uid 10001 griot && mkdir /cles /publique /trace && chown griot /cles /publique /trace
 USER griot
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

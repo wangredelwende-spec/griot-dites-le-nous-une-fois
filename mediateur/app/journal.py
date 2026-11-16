@@ -13,7 +13,8 @@ import threading
 from datetime import datetime, timezone
 
 ZEROS = "0" * 64
-CHAMPS = ("agent", "demandeur", "demarche", "finalite", "base", "attribut", "registre", "sujet",
+# « id_demande » relie la ligne à la trace du registre (double trace, verifier.py --registres)
+CHAMPS = ("id_demande", "agent", "demandeur", "demarche", "finalite", "base", "attribut", "registre", "sujet",
           "evenement", "resultat", "motif")
 
 

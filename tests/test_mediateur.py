@@ -696,7 +696,7 @@ def test_passeport_apercu_puis_confirmation(client):
     r = client.post("/demandes", json=d).json()
     assert r["statut"] == "en_attente" and all("jeton" not in v for v in r["volets"])     # rien ne part avant
     attente = client.get("/usagers/BF-0001/en-attente", headers=CANAL).json()
-    assert attente[0]["apercu"] == ("La Police (passeports) recevra : majeur = oui ; burkinabè = oui ; "
+    assert attente[0]["apercu"] == ("L'ONI (passeports) recevra : majeur = oui ; burkinabè = oui ; "
                                     "interdiction de sortie du territoire = non. Rien d'autre.")
     client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": "BF-0001"}, headers=CANAL)
     remise = client.get(f"/demandes/{d['id_demande']}").json()

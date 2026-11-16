@@ -24,7 +24,7 @@ COMPTES = {
     "outil-test-concours": "Direction des concours – ministère des Serviteurs du peuple",
     "outil-test-bourses": "Service des bourses",
     "outil-test-curieux": "Service des bourses",
-    "outil-test-passeport": "Division de la Migration – Police nationale",
+    "outil-test-passeport": "Service des passeports – ONI (ministère de la Sécurité)",
 }
 
 

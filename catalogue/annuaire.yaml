@@ -23,8 +23,9 @@ services:
     groupe: Mairie
     nom: La mairie
   service-passeport:
-    groupe: Division de la Migration – Police nationale
-    nom: La Police (passeports)
+    groupe: Service des passeports – ONI (ministère de la Sécurité)
+    nom: Le Service des passeports – ONI (ministère de la Sécurité)
+    nom_court: L'ONI (passeports)      # dans l'aperçu « … recevra : … » (écran USSD de 160 caractères)
 
 # Registres joignables par le médiateur (réseau Docker « registres » uniquement).
 # La clé publique de chaque registre est lue dans /publiques/<registre>/cle.pem (volume du registre, lecture seule).

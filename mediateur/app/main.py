@@ -457,7 +457,9 @@ def libelles(code_demarche: str) -> dict:
 
 def apercu(demande: dict) -> dict:
     """Ce que l'usager voit AVANT : exactement ce qui partira, et rien d'autre."""
-    service = CAT["services"].get(demande["demandeur"], {}).get("nom", demande["demandeur"])
+    fiche = CAT["services"].get(demande["demandeur"], {})
+    # « nom_court » (annuaire) pour tenir dans un écran USSD de 160 caractères, sinon le nom complet
+    service = fiche.get("nom_court") or fiche.get("nom", demande["demandeur"])
     connus = libelles(demande["demarche"])
     attributs = [{"code": v["attribut"], "libelle": connus.get(v["attribut"], {}).get("libelle", v["attribut"]),
                   "parametres": connus.get(v["attribut"], {}).get("parametres", {}),

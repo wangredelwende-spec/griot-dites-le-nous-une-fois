@@ -5,14 +5,14 @@ Démonstration pas à pas : `docs/test-manuel.md`.
 
 ## Le parcours en une minute (passeport)
 
-1. **Aujourd'hui**, pour un passeport ordinaire, l'usager apporte à la Division de la Migration (Police nationale,
-   Gounghin) acte de naissance, certificat de nationalité, CNIB et extrait de casier, en copies légalisées.
+1. **Aujourd'hui**, pour un passeport ordinaire, l'usager apporte au service des passeports
+   (passeport AES produit par l'ONI) acte de naissance, certificat de nationalité, CNIB et extrait de casier, en copies légalisées.
 2. **Avec Griot Secure**, l'agent des passeports (`moussa.kone`) choisit « Passeport ordinaire » et tape
    l'identifiant de l'usager. C'est tout : il ne peut rien demander d'autre que ce que prévoit le catalogue.
 3. Le **médiateur** interroge les trois registres **en parallèle** : état civil (« majeur ? »), nationalité
    (« burkinabè ? »), casier (« interdiction de sortie du territoire ? »).
 4. Chaque registre calcule la réponse **chez lui** et la **signe** avec sa clé. Il ne renvoie jamais la fiche.
-5. **Vous voyez avant** : sur son téléphone (`*226#`), l'usager lit « La Police (passeports) recevra : majeur = oui ;
+5. **Vous voyez avant** : sur son téléphone (`*226#`), l'usager lit « L'ONI (passeports) recevra : majeur = oui ;
    burkinabè = oui ; interdiction de sortie du territoire = non. Rien d'autre. » et choisit Confirmer ou Refuser.
 6. L'agent reçoit les trois réponses signées et le guichet **revérifie lui-même** chaque signature.
 7. **Vous vérifiez après** : « Qui a consulté mes données » montre chaque consultation (qui, quand, pourquoi, sur
@@ -24,7 +24,7 @@ Démonstration pas à pas : `docs/test-manuel.md`.
   monde peut vérifier avec sa clé publique. Si le médiateur changeait « non » en « oui », la signature ne
   correspondrait plus. Le médiateur ne peut donc **ni lire la fiche, ni fabriquer une réponse**.
 - **Journal chaîné (SHA-256)** : chaque ligne contient l'empreinte de la précédente. Modifier une ligne casse la
-  chaîne à cet endroit, et `verifier.py` dit « Ligne N modifiée ». Le journal note le **fait** (« la Police a
+  chaîne à cet endroit, et `verifier.py` dit « Ligne N modifiée ». Le journal note le **fait** (« l'ONI a
   consulté majeur pour un passeport »), jamais la **valeur** (« oui »). Le citoyen y est pseudonymisé (HMAC).
 - **Reçu** : les 16 premiers caractères de l'empreinte de la ligne. Si un administrateur réécrivait tout le journal
   en recalculant la chaîne, les reçus déjà donnés aux usagers ne se retrouveraient plus.
@@ -41,7 +41,7 @@ Démonstration pas à pas : `docs/test-manuel.md`.
 
 **Minimisation (« ne transmettre que l'utile »)**
 
-- *Que reçoit vraiment la Police ?* Trois réponses signées : `{"age_equal_or_over": {"18": true}}`,
+- *Que reçoit vraiment l'ONI ?* Trois réponses signées : `{"age_equal_or_over": {"18": true}}`,
   `{"nationalite_burkinabe": true}`, `{"interdiction_sortie_territoire": false}`. Ni date de naissance, ni
   filiation, ni casier. Preuve en direct : `scripts/preuve_minimisation.py`, qui cherche les données témoins partout
   hors des registres et ne les trouve pas.

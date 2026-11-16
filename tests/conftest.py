@@ -99,7 +99,7 @@ AGENTS = {
     "awa.ouedraogo": ["Service des bourses"],
     "issa.sawadogo": ["Direction des concours – ministère des Serviteurs du peuple"],
     "agent.curieux": ["Service des bourses"],
-    "moussa.kone": ["Division de la Migration – Police nationale"],
+    "moussa.kone": ["Service des passeports – ONI (ministère de la Sécurité)"],
 }
 
 

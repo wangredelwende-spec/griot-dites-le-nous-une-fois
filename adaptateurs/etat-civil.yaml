@@ -30,7 +30,7 @@ groupes:
   Direction des concours – ministère des Serviteurs du peuple: direction-concours
   Service des bourses: service-bourses
   Mairie: mairie
-  Division de la Migration – Police nationale: service-passeport
+  Service des passeports – ONI (ministère de la Sécurité): service-passeport
 
 # Attributs calculables. Seul le résultat est renvoyé, jamais la fiche.
 # « services » = DOUBLE CLÉ : le registre refuse lui-même tout service absent de cette liste,

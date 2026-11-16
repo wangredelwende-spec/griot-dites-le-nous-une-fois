@@ -159,7 +159,7 @@ def casier_du_depot(tmp_path):
 
 @pytest.mark.parametrize("sujet, interdiction", [
     ("BF-0001", False),
-    ("BF-0005", False),     # condamné pour vol, SANS interdiction : la Police n'en apprend rien
+    ("BF-0005", False),     # condamné pour vol, SANS interdiction : l'ONI n'en apprend rien
     ("BF-0008", True),      # interdiction de sortie du territoire inscrite
 ])
 def test_interdiction_sortie_territoire(tmp_path, sujet, interdiction):

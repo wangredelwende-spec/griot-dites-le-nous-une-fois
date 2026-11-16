@@ -52,7 +52,7 @@ service_long_mairie;Services;La mairie;;;
 service_court_service-bourses;Services;Bourses;;;
 service_court_direction-concours;Services;Concours;;;
 service_court_mairie;Services;Mairie;;;
-service_long_service-passeport;Services;La Police (passeports);;;
+service_long_service-passeport;Services;L'ONI (passeports);;;
 service_court_service-passeport;Services;Passeport;;;
 attribut_nationalite_burkinabe;Attributs;nationalité burkinabè;;;
 attribut_casier_judiciaire_vierge;Attributs;casier judiciaire vierge;;;

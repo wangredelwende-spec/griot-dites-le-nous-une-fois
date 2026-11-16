@@ -40,7 +40,7 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 
 | Compte (guichet) | Mot de passe | Service | Démarches proposées (catalogue) |
 |---|---|---|---|
-| `moussa.kone` | `Agent-Demo-2026!` | Division de la Migration – Police nationale | **Passeport ordinaire** (majeur + nationalité + interdiction de sortie du territoire, **avec l'accord de l'usager**) : scène 1 |
+| `moussa.kone` | `Agent-Demo-2026!` | Service des passeports – ONI (ministère de la Sécurité) | **Passeport ordinaire** (majeur + nationalité + interdiction de sortie du territoire, **avec l'accord de l'usager**) : scène 1 |
 | `issa.sawadogo` | `Agent-Demo-2026!` | Direction des concours – ministère des Serviteurs du peuple | **Concours direct adjoints administratifs** (âge 18–37 ans au 31/12/2026 + nationalité + casier, base légale), Vérifier la majorité |
 | `awa.ouedraogo` | `Agent-Demo-2026!` | Service des bourses | **Bourse nationale** (nationalité, **avec l'accord de l'usager**), Vérifier la majorité |
 | `mariam.kabore` | `Agent-Demo-2026!` | Mairie | Vérifier la majorité (base légale : loi n°012-2025/ALT) |
@@ -65,19 +65,19 @@ Citoyens utiles au guichet : `BF-0001` (tout est « oui »), `BF-0003` (mineure,
 
 ## Scène 1 (principale) : le passeport, « vous voyez avant »
 
-Aujourd'hui, pour un passeport ordinaire, l'usager apporte à la Division de la Migration (Police nationale,
-Gounghin) acte de naissance, certificat de nationalité, CNIB et extrait de casier, en copies légalisées (plus une
+Aujourd'hui, pour un passeport ordinaire (passeport AES produit par l'ONI), l'usager apporte au service des
+passeports acte de naissance, certificat de nationalité, CNIB et extrait de casier, en copies légalisées (plus une
 autorisation parentale pour un mineur). Ici, c'est **lui qui demande** que les preuves soient récupérées à sa place.
 
 1. Guichet → se connecter `moussa.kone` (mot de passe + code).
 2. Démarche **Passeport ordinaire**, usager `BF-0001`, Envoyer → « **En attente de l'usager** ». Rien n'est encore
    transmis au guichet.
-3. Téléphone `70000001`, PIN `1234`, `*226#` → `1` : « La Police (passeports) recevra : majeur = oui ;
+3. Téléphone `70000001`, PIN `1234`, `*226#` → `1` : « L'ONI (passeports) recevra : majeur = oui ;
    burkinabè = oui ; interdiction de sortie du territoire = non. Rien d'autre. 1. Confirmer 2. Refuser ».
 4. `1` → « Confirmé. Reçu : xxxx xxxx xxxx xxxx » (à noter : il servira en scène 3).
 5. Guichet → **Actualiser** : majeur : oui, burkinabè : oui, interdiction de sortie du territoire : non, chacun
    signé par SON registre, signature vérifiée ; « Conclusion : toutes les conditions sont vérifiées ».
-6. À dire : la Police ne reçoit ni date de naissance, ni filiation, ni le casier. Elle n'apprend même pas si le
+6. À dire : l'ONI ne reçoit ni date de naissance, ni filiation, ni le casier. Elle n'apprend même pas si le
    casier est vierge : seulement s'il existe une **interdiction de sortie du territoire** (peine complémentaire).
    Variante `BF-0005` (Salif, condamné pour vol, sans interdiction) : « interdiction : non ». Le vol ne regarde pas
    le service des passeports.

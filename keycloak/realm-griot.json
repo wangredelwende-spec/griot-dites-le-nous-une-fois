@@ -74,7 +74,7 @@
       }
     },
     {
-      "name": "Division de la Migration – Police nationale",
+      "name": "Service des passeports – ONI (ministère de la Sécurité)",
       "attributes": {
         "code": [
           "service-passeport"
@@ -300,7 +300,7 @@
       "lastName": "Koné",
       "attributes": {
         "fonction": [
-          "Agent des passeports (Division de la Migration, Gounghin)"
+          "Agent du service des passeports (ONI)"
         ]
       },
       "credentials": [
@@ -317,7 +317,7 @@
         "agent-guichet"
       ],
       "groups": [
-        "/Division de la Migration – Police nationale"
+        "/Service des passeports – ONI (ministère de la Sécurité)"
       ]
     },
     {

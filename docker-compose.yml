@@ -78,8 +78,8 @@ services:
     volumes:
       - ./adaptateurs:/adaptateurs:ro
       - ./registres_sim/donnees_fictives:/donnees:ro
-      - cles_etat_civil:/cles              # clé PRIVÉE de ce registre : aucun autre service ne la monte
-      - cles_publiques:/publiques          # y dépose sa clé publique
+      - cle_privee_etat_civil:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
+      - cle_publique_etat_civil:/publique  # sa clé publique : seul ce registre peut l'écrire
     networks: [registres]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
@@ -101,7 +101,13 @@ services:
       - ./mediateur/regles.yaml:/app/regles.yaml:ro
       - ./journal:/journal:ro              # verifier.py
       - mediateur_donnees:/donnees         # journal chaîné + demandes en attente (SQLite)
-      - cles_publiques:/publiques:ro
+      # Clé publique de chaque registre, en LECTURE SEULE (un volume par registre)
+      - cle_publique_etat_civil:/publiques/etat-civil:ro
+    depends_on:
+      # Le registre monte son volume en premier (il en devient propriétaire et y écrit sa clé).
+      # « started » et non « healthy » : le médiateur doit tourner même si un registre est en panne.
+      registre-etat-civil:
+        condition: service_started
     networks: [interne, registres]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
@@ -121,10 +127,14 @@ services:
     secrets: [guichet_oidc]
     volumes:
       - ./mediateur/regles.yaml:/app/regles.yaml:ro
-      - cles_publiques:/publiques:ro
+      # Même clé publique que le médiateur, lue directement dans le volume du registre (lecture seule) :
+      # le médiateur ne peut ni la fournir ni la remplacer.
+      - cle_publique_etat_civil:/publiques/etat-civil:ro
     depends_on:
       keycloak:
         condition: service_healthy
+      registre-etat-civil:
+        condition: service_started
     networks: [interne]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
@@ -157,8 +167,8 @@ volumes:
   postgres_donnees:
   caddy_donnees:
   mediateur_donnees:
-  cles_etat_civil:
-  cles_publiques:
+  cle_privee_etat_civil:
+  cle_publique_etat_civil:
 
 networks:
   # Réseau sans aucune sortie vers Internet : Keycloak, PostgreSQL, le guichet et le médiateur

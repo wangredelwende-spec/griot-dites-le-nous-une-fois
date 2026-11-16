@@ -4,6 +4,7 @@ Accès protégé par Keycloak (OIDC, client « guichet », mot de passe + TOTP) 
 Le service de l'agent vient de son jeton, jamais d'un formulaire.
 Le guichet ne reçoit que la réponse minimale SIGNÉE par le registre, et revérifie lui-même la signature.
 """
+import hashlib
 import secrets
 import uuid
 from datetime import datetime, timezone
@@ -13,6 +14,7 @@ import httpx
 import jwt
 import yaml
 from authlib.integrations.starlette_client import OAuth, OAuthError
+from cryptography.hazmat.primitives import serialization
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -151,22 +153,35 @@ def heure(horodatage: int) -> str:
     return f"{t.hour} h {t.minute:02d}"
 
 
+def empreinte_cle(cle_publique_pem: bytes) -> str:
+    """Empreinte courte de la clé publique du registre (SHA-256 de sa forme DER). La même s'affiche
+    au démarrage du registre (docker compose logs registre-etat-civil) : on peut comparer."""
+    der = serialization.load_pem_public_key(cle_publique_pem).public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    h = hashlib.sha256(der).hexdigest()[:16]
+    return " ".join(h[i:i + 4] for i in range(0, 16, 4))
+
+
 def verifier_reponse(jeton: str, demarche: dict, service: str, id_demande: str) -> dict:
-    """Le guichet NE FAIT PAS confiance au médiateur : il revérifie la signature du registre."""
+    """Le guichet NE FAIT PAS confiance au médiateur : il revérifie la signature du registre, avec la clé
+    lue dans le volume du registre (monté en lecture seule ; le médiateur ne peut ni la fournir ni la remplacer)."""
     attribut = REGLES["attributs"][demarche["attribut"]]
     registre = REGLES["registres"][attribut["registre"]]
-    cle_publique = (CLES_PUBLIQUES / f"{attribut['registre']}.pem").read_bytes()
+    cle_publique = (CLES_PUBLIQUES / attribut["registre"] / "cle.pem").read_bytes()
     infos = jwt.decode(jeton, cle_publique, algorithms=["EdDSA"], audience=service, issuer=registre["emetteur"],
-                       options={"require": ["iss", "aud", "sub", "demande", "iat", "exp", "jti"]})
+                       options={"require": ["iss", "aud", "sub", "demande", "iat", "exp", "jti", "statut"]})
     if infos["demande"] != id_demande:
         raise jwt.InvalidTokenError("réponse émise pour une autre demande")
+    commun = {"registre": registre["nom"], "cle": empreinte_cle(cle_publique)}
+    if infos["statut"] == "refus":
+        return commun | {"refus": str(infos["motif"])}
     valeur = infos[attribut["claim"]]
     if attribut.get("cle") is not None:
         valeur = valeur[attribut["cle"]]
-    if type(valeur) is not bool:
+    if infos["statut"] != "ok" or type(valeur) is not bool:
         raise jwt.InvalidTokenError("valeur inattendue")
-    return {"attribut": attribut["libelle"], "valeur": "oui" if valeur else "non", "registre": registre["nom"],
-            "jusqu_a": heure(infos["exp"])}
+    return commun | {"attribut": attribut["libelle"], "valeur": "oui" if valeur else "non",
+                     "jusqu_a": heure(infos["exp"])}
 
 
 @app.get("/")

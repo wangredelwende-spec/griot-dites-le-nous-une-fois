@@ -4,11 +4,17 @@
 <h1>{{ regle.libelle }}</h1>
 <p class="aide">Usager : <code>{{ suivi.sujet_ref }}</code> · finalité : {{ regle.finalite }}</p>
 
-{% if resultat %}
+{% if resultat and resultat.refus %}
+<div class="erreur" role="alert">
+  <p><strong>Refusé par le {{ resultat.registre }}</strong> : {{ resultat.refus }}.</p>
+  <p>Réponse signée par le registre, signature vérifiée (clé du registre : <code>{{ resultat.cle }}</code>).</p>
+</div>
+{% elif resultat %}
 <div class="bloc succes" role="status">
   <p class="resultat"><strong>{{ resultat.attribut }} : {{ resultat.valeur }}</strong></p>
   <p>Signé par le {{ resultat.registre }}, signature vérifiée, valable jusqu'à {{ resultat.jusqu_a }}.</p>
-  <p class="aide">Le guichet n'a reçu que cette réponse : aucune date de naissance, aucune fiche.</p>
+  <p class="aide">Clé du registre : <code>{{ resultat.cle }}</code>. Le guichet n'a reçu que cette réponse :
+  aucune date de naissance, aucune fiche.</p>
 </div>
 {% elif etat.statut in ("en_attente", "confirmee") %}
 <div class="bloc attente" role="status">

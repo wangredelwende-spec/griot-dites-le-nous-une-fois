@@ -12,6 +12,12 @@ identite: nip
 champs:
   nombre_condamnations: nombre_condamnations
 refuser_si_decede: false
+# Personne absente du casier :
+#   refus  (par défaut) : « réponse impossible » : absent n'est pas vierge, on ne devine pas ;
+#   vierge : comme le vrai casier, qui ne contient que les condamnations. Le médiateur vérifie alors
+#            D'ABORD à l'état civil que la personne existe (sinon : « identité non confirmée »).
+# À trancher avec les données du jury.
+absence: refus
 motif_refus_public: "réponse impossible, s'adresser au greffe"
 
 attributs:

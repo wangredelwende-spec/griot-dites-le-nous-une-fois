@@ -22,10 +22,14 @@ from pydantic import BaseModel, Field
 
 from . import registres
 from .agents import agent_connecte
-from .config import CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FICHIER_REGLES, lire_secret
+from .config import ADAPTATEURS, CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FICHIER_REGLES, lire_secret
 from .journal import Journal
 
 REGLES = yaml.safe_load(FICHIER_REGLES.read_text(encoding="utf-8"))
+# Registres dont l'adaptateur dit « absence: vierge » (casier réel : seules les condamnations y figurent).
+# Le médiateur lit le fichier publié par le registre (adaptateurs/, monté en lecture seule).
+ABSENCE_VIERGE = {nom: yaml.safe_load((ADAPTATEURS / f"{nom}.yaml").read_text(encoding="utf-8")).get("absence") == "vierge"
+                  for nom in REGLES["registres"] if (ADAPTATEURS / f"{nom}.yaml").exists()}
 SECRET_PSEUDONYME = lire_secret("sujet_hmac").encode()
 SECRET_CANAL = lire_secret("canal_usager").encode()
 
@@ -120,6 +124,28 @@ def remettre(demande: dict) -> dict:
     return etat(demande, jeton)
 
 
+async def interroger(demande: dict, sujet_ref: str) -> tuple[str, bool | str, str]:
+    """Appelle le registre de l'attribut demandé et vérifie TOUTE sa réponse signée.
+    Renvoie (« ok », valeur, jeton) ou (« refus », motif public, jeton).
+    Lève Indisponible, ReponseCorrompue ou FileNotFoundError (clé publique absente)."""
+    conf_attribut = REGLES["attributs"][demande["attribut"]]
+    conf_registre = REGLES["registres"][demande["registre"]]
+    corps = {"id_demande": demande["id_demande"], "attribut": demande["attribut"], "sujet_ref": sujet_ref,
+             "destinataire": demande["demandeur"]}
+    jeton = await registres.appeler(conf_registre["url"], corps, DELAI_REGISTRE)
+    # La clé publique vient du volume du registre, monté en LECTURE SEULE ici
+    cle_publique = (CLES_PUBLIQUES / demande["registre"] / "cle.pem").read_bytes()
+    statut, contenu, infos = registres.verifier(jeton, cle_publique, conf_registre["emetteur"], demande["demandeur"],
+                                                sujet_ref, demande["id_demande"], conf_attribut["claim"],
+                                                conf_attribut.get("cle"))
+    try:
+        with VERROU:
+            base.execute("INSERT INTO jti_vus (jti) VALUES (?)", (infos["jti"],))
+    except sqlite3.IntegrityError:
+        raise registres.ReponseCorrompue("réponse déjà utilisée (rejeu du jeton)")
+    return statut, contenu, jeton
+
+
 # --- Côté guichet ---
 
 UUID4 = r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -172,22 +198,26 @@ async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
         return etat(refuser(demande, "refuse", "demande", "finalité non autorisée"))
     tracer(demande, "demande", "ok")
 
-    # 2. Appel du registre, avec un délai maximal (total)
-    conf_registre = REGLES["registres"][demande["registre"]]
-    corps = {"id_demande": d.id_demande, "attribut": d.attribut, "sujet_ref": d.sujet_ref, "destinataire": demandeur}
-    try:
-        jeton = await registres.appeler(conf_registre["url"], corps, DELAI_REGISTRE)
-        # La clé publique vient du volume du registre, monté en LECTURE SEULE ici
-        cle_publique = (CLES_PUBLIQUES / demande["registre"] / "cle.pem").read_bytes()
-        # 3. Vérification complète de la réponse signée (réponse OU refus)
-        statut, contenu, infos = registres.verifier(jeton, cle_publique, conf_registre["emetteur"], demandeur,
-                                                    d.sujet_ref, d.id_demande, conf_attribut["claim"],
-                                                    conf_attribut.get("cle"))
+    # 2. Casier « absence: vierge » : on vérifie D'ABORD à l'état civil que la personne existe
+    #    (sinon un identifiant inventé obtiendrait « casier vierge »)
+    if ABSENCE_VIERGE.get(demande["registre"]):
+        controle = dict(demande, attribut="personne_connue", registre="etat-civil")
         try:
-            with VERROU:
-                base.execute("INSERT INTO jti_vus (jti) VALUES (?)", (infos["jti"],))
-        except sqlite3.IntegrityError:
-            raise registres.ReponseCorrompue("réponse déjà utilisée (rejeu du jeton)")
+            statut, _, _ = await interroger(controle, d.sujet_ref)
+        except (registres.Indisponible, FileNotFoundError) as e:
+            return etat(refuser(demande, "indisponible", "reponse-registre",
+                                f"identité non vérifiable : registre d'état civil indisponible ({e}), "
+                                "rien n'a été deviné"))
+        except registres.ReponseCorrompue as e:
+            tracer(controle, "alerte", "refuse", f"réponse corrompue : {e}")
+            return etat(refuser(demande, "refuse", "reponse-registre", "identité non confirmée"))
+        tracer(controle, "reponse-registre", "ok" if statut == "ok" else "refuse")
+        if statut != "ok":
+            return etat(refuser(demande, "refuse", "reponse-registre", "identité non confirmée"))
+
+    # 3. Appel du registre (délai maximal total) et vérification complète de sa réponse signée
+    try:
+        statut, contenu, jeton = await interroger(demande, d.sujet_ref)
     except registres.Indisponible as e:
         return etat(refuser(demande, "indisponible", "reponse-registre",
                             f"Registre indisponible ({e}), rien n'a été deviné"))

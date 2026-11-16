@@ -82,3 +82,25 @@ def test_casier(sujet, vierge):
 def test_refus_nationalite_casier(registre, attribut, sujet, motif):
     with pytest.raises(adaptateur.Refus, match=motif):
         {"nationalite": NATIONALITE, "casier": CASIER}[registre].calculer(attribut, sujet)
+
+
+def test_personne_connue():
+    assert REGISTRE.calculer("personne_connue", "BF-0001", FINALE) == {"personne_connue": True}
+    for sujet, motif in (("BF-0099", "introuvable"), ("BF-0007", "décédée"), ("BF-0019", "ambiguë")):
+        with pytest.raises(adaptateur.Refus, match=motif):
+            REGISTRE.calculer("personne_connue", sujet, FINALE)
+
+
+def test_casier_absence_vierge(tmp_path):
+    """« absence: vierge » : une personne absente du casier est vierge (le médiateur a vérifié son existence)."""
+    texte = (RACINE / "adaptateurs/casier.yaml").read_text(encoding="utf-8")
+    assert "absence: refus" in texte                    # comportement par défaut du dépôt
+    chemin = tmp_path / "casier.yaml"
+    chemin.write_text(texte.replace("absence: refus", "absence: vierge").replace(
+        "/donnees/casier.csv", (RACINE / "registres_sim/donnees_fictives/casier.csv").as_posix()), encoding="utf-8")
+    casier = adaptateur.Adaptateur(chemin)
+    assert casier.calculer("casier_vierge", "BF-0003") == {"casier_judiciaire_vierge": True}
+    assert casier.calculer("casier_vierge", "BF-0008") == {"casier_judiciaire_vierge": False}
+    chemin.write_text(texte.replace("absence: refus", "absence: peut-etre"), encoding="utf-8")
+    with pytest.raises(ValueError, match="absence"):
+        adaptateur.Adaptateur(chemin)

@@ -71,13 +71,24 @@ class Adaptateur:
         # Seul motif de refus envoyé hors du registre (signé) : il ne révèle rien de la fiche
         self.motif_refus_public = conf["motif_refus_public"]
         self.attributs = conf["attributs"]
+        # Personne absente du registre : « refus » (par défaut) ou « vierge » (casier réel : une personne jamais
+        # condamnée n'y figure pas). Avec « vierge », le MÉDIATEUR vérifie d'abord à l'état civil que la
+        # personne existe : sinon, un identifiant inventé obtiendrait « casier vierge ».
+        self.absence = conf.get("absence", "refus")
+        if self.absence not in ("refus", "vierge"):
+            raise ValueError(f"{chemin.name} : absence doit valoir « refus » ou « vierge »")
+        if self.absence == "vierge" and any(r["regle"] != "nombre_nul" for r in self.attributs.values()):
+            raise ValueError(f"{chemin.name} : « absence: vierge » n'a de sens que pour la règle nombre_nul")
         self.lignes = lire_source(conf["source"])
 
     def valeur(self, ligne: dict, nom: str) -> str:
         return (ligne.get(self.champs[nom]) or "").strip()
 
+    def fiches(self, sujet_ref: str) -> list[dict]:
+        return [l for l in self.lignes if (l.get(self.identite) or "").strip() == sujet_ref]
+
     def trouver(self, sujet_ref: str) -> dict:
-        fiches = [l for l in self.lignes if (l.get(self.identite) or "").strip() == sujet_ref]
+        fiches = self.fiches(sujet_ref)
         if not fiches:
             raise Refus("introuvable")
         if len(fiches) > 1:
@@ -89,9 +100,13 @@ class Adaptateur:
         regle = self.attributs.get(attribut)
         if regle is None:
             raise Refus("attribut non disponible dans ce registre")
+        if self.absence == "vierge" and not self.fiches(sujet_ref):
+            return {regle["claim"]: True}       # jamais condamné = absent du casier (existence vérifiée avant)
         fiche = self.trouver(sujet_ref)
         if self.refuser_si_decede and "date_deces" in self.champs and self.valeur(fiche, "date_deces"):
             raise Refus("personne décédée")
+        if regle["regle"] == "existe":
+            return {regle["claim"]: True}       # une seule fiche, personne vivante : identité confirmée
         if regle["regle"] == "age_minimum":
             age = int(regle["age"])
             atteint = age_minimum_atteint(self.valeur(fiche, regle["champ"]), age, aujourdhui or date.today())

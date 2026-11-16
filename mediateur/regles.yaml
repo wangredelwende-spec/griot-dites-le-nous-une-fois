@@ -42,6 +42,10 @@ attributs:
     registre: nationalite
     claim: nationalite_burkinabe
     libelle: nationalité burkinabè
+  personne_connue:                 # contrôle d'existence avant un casier « absence: vierge »
+    registre: etat-civil
+    claim: personne_connue
+    libelle: identité confirmée
   casier_vierge:
     registre: casier
     claim: casier_judiciaire_vierge

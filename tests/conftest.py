@@ -23,12 +23,15 @@ for dossier in ("secrets", "donnees", "publiques"):
 (TMP / "secrets/canal_usager").write_text("secret-de-test-canal")
 os.environ.update(GRIOT_SECRETS=str(TMP / "secrets"), GRIOT_DONNEES=str(TMP / "donnees"),
                   GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_REGLES=str(RACINE / "mediateur/regles.yaml"),
+                  GRIOT_ADAPTATEURS=str(RACINE / "adaptateurs"),
                   DELAI_REGISTRE="0.5")
 
 CLE_REGISTRE = Ed25519PrivateKey.generate()
-(TMP / "publiques/etat-civil").mkdir()
-(TMP / "publiques/etat-civil/cle.pem").write_bytes(CLE_REGISTRE.public_key().public_bytes(
-    serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
+# Pour simplifier, les trois faux registres signent avec la même clé de test
+for registre in ("etat-civil", "nationalite", "casier"):
+    (TMP / "publiques" / registre).mkdir()
+    (TMP / "publiques" / registre / "cle.pem").write_bytes(CLE_REGISTRE.public_key().public_bytes(
+        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
 URL_REGISTRE = "http://registre-etat-civil:8000/attributs"
 CANAL = {"X-Cle-Canal": "secret-de-test-canal"}
 CHEMIN_JOURNAL = TMP / "donnees/mediateur.sqlite3"

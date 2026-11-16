@@ -105,7 +105,21 @@ async def connexion(request: Request):
 async def retour_keycloak(request: Request):
     try:
         jeton = await oauth.keycloak.authorize_access_token(request)
-    except OAuthError:
+    except OAuthError as e:
+        # Raison précise dans les logs du guichet (docker compose logs guichet), JAMAIS le jeton ni le code.
+        # Cas typique : « mismatching_state » = le cookie de session ne correspond plus (guichet redémarré
+        # entre le départ vers Keycloak et le retour, ou onglet trop ancien).
+        print(f"connexion OIDC échouée : {type(e).__name__} : {e.error} : {e.description or ''}", flush=True)
+        if e.error == "mismatching_state":
+            return page(request, "erreur.html", 400, message="Votre session de connexion a expiré (le guichet a "
+                        "peut-être redémarré). Revenez à l'accueil pour vous reconnecter.")
+        return page(request, "erreur.html", 400, message="La connexion a échoué. Veuillez réessayer.")
+    except httpx.HTTPError as e:
+        print(f"connexion OIDC échouée : Keycloak injoignable ({type(e).__name__})", flush=True)
+        return page(request, "erreur.html", 502, message="Le service de connexion est injoignable. Réessayez "
+                    "dans un instant.")
+    except Exception as e:      # ex. jeton d'identité refusé (horloge, émetteur) : on note le type, pas le jeton
+        print(f"connexion OIDC échouée : {type(e).__name__} : {str(e)[:200]}", flush=True)
         return page(request, "erreur.html", 400, message="La connexion a échoué. Veuillez réessayer.")
     infos = jeton["userinfo"]
     request.session.clear()

@@ -9,7 +9,7 @@ import httpx
 import respx
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from conftest import CANAL, CHEMIN_JOURNAL, RACINE, URL_REGISTRE, demande, jeton_registre, refus_registre
+from conftest import CANAL, mediateur, CHEMIN_JOURNAL, RACINE, URL_REGISTRE, demande, jeton_registre, refus_registre
 
 
 def registre_qui_signe(**modifs):
@@ -254,3 +254,45 @@ def test_verifier_recu_avec_ou_sans_espaces():
     trop_court = subprocess.run([sys.executable, str(RACINE / "journal/verifier.py"), str(CHEMIN_JOURNAL),
                                  "--recu", recu[:8]], capture_output=True, text=True, encoding="utf-8")
     assert trop_court.returncode != 0 and "16 caractères" in trop_court.stderr
+
+
+URL_CASIER = "http://registre-casier:8000/attributs"
+
+
+def demande_casier(sujet="BF-0003"):
+    return demande(sujet=sujet, demarche="concours", attribut="casier_vierge",
+                   finalite="vérification du casier judiciaire pour concourir") | {"demarche": "concours-casier"}
+
+
+@respx.mock
+def test_casier_absence_vierge_verifie_l_identite(client, monkeypatch):
+    """Casier « absence: vierge » : identité non confirmée par l'état civil -> refus, casier jamais appelé."""
+    monkeypatch.setitem(mediateur.ABSENCE_VIERGE, "casier", True)
+    respx.post(URL_REGISTRE).mock(side_effect=lambda r: httpx.Response(200, json={
+        "jeton": refus_registre(json.loads(r.content))}))
+    casier = respx.post(URL_CASIER).mock(return_value=httpx.Response(500))
+    r = client.post("/demandes", json=demande_casier("BF-0099")).json()
+    assert r["statut"] == "refuse" and r["motif"] == "identité non confirmée"
+    assert not casier.called
+
+
+@respx.mock
+def test_casier_absence_vierge_identite_confirmee(client, monkeypatch):
+    monkeypatch.setitem(mediateur.ABSENCE_VIERGE, "casier", True)
+    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe(age_equal_or_over=None, personne_connue=True))
+    respx.post(URL_CASIER).mock(side_effect=registre_qui_signe(
+        iss="registre-casier", age_equal_or_over=None, casier_judiciaire_vierge=True))
+    r = client.post("/demandes", json=demande_casier()).json()
+    assert r["statut"] == "remise" and r["jeton"]
+    lignes = journal_de()[-4:]
+    assert [(l["evenement"], l["attribut"]) for l in lignes] == [
+        ("demande", "casier_vierge"), ("reponse-registre", "personne_connue"),
+        ("reponse-registre", "casier_vierge"), ("remise", "casier_vierge")]
+
+
+@respx.mock
+def test_casier_absence_vierge_etat_civil_coupe(client, monkeypatch):
+    monkeypatch.setitem(mediateur.ABSENCE_VIERGE, "casier", True)
+    respx.post(URL_REGISTRE).mock(side_effect=httpx.ConnectError("coupé"))
+    r = client.post("/demandes", json=demande_casier()).json()
+    assert r["statut"] == "indisponible" and "identité non vérifiable" in r["motif"]

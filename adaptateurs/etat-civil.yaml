@@ -31,3 +31,6 @@ attributs:
     champ: date_naissance
     age: 18
     claim: age_equal_or_over        # réponse : {"age_equal_or_over": {"18": true}}
+  personne_connue:
+    regle: existe                   # une seule fiche et personne vivante -> true ; sinon refus
+    claim: personne_connue          # sert au médiateur avant un casier « absence: vierge »

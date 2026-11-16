@@ -136,6 +136,7 @@ services:
     volumes:
       - ./mediateur/regles.yaml:/app/regles.yaml:ro
       - ./journal:/journal:ro              # verifier.py
+      - ./adaptateurs:/adaptateurs:ro      # descriptions publiées par les registres (« absence » du casier)
       - mediateur_donnees:/donnees         # journal chaîné + demandes en attente (SQLite)
       # Clé publique de chaque registre, en LECTURE SEULE (un volume par registre)
       - cle_publique_etat_civil:/publiques/etat-civil:ro

@@ -82,13 +82,14 @@ def demander(client: httpx.Client, csrf: str, sujet: str, autre_finalite: str = 
     return " ".join(texte.split())
 
 
+REFUS = "Refusé par le registre d'état civil : réponse impossible, s'adresser à l'état civil. Réponse signée par le registre, signature vérifiée"
 CAS = [
     ("BF-0001", "", "majeur : oui Signé par le registre d'état civil, signature vérifiée"),
     ("BF-0003", "", "majeur : non"),
-    ("BF-0004", "", "donnée insuffisante"),
-    ("BF-0007", "", "personne décédée"),
-    ("BF-0019", "", "identité ambiguë"),
-    ("BF-0099", "", "introuvable"),
+    ("BF-0004", "", REFUS),      # vers 1990
+    ("BF-0007", "", REFUS),      # décédée : le guichet ne l'apprend pas
+    ("BF-0019", "", REFUS),      # doublon
+    ("BF-0099", "", REFUS),      # introuvable
     ("BF-0001", "curiosité", "finalité non autorisée"),
 ]
 

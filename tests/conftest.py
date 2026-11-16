@@ -26,7 +26,8 @@ os.environ.update(GRIOT_SECRETS=str(TMP / "secrets"), GRIOT_DONNEES=str(TMP / "d
                   DELAI_REGISTRE="0.5")
 
 CLE_REGISTRE = Ed25519PrivateKey.generate()
-(TMP / "publiques/etat-civil.pem").write_bytes(CLE_REGISTRE.public_key().public_bytes(
+(TMP / "publiques/etat-civil").mkdir()
+(TMP / "publiques/etat-civil/cle.pem").write_bytes(CLE_REGISTRE.public_key().public_bytes(
     serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
 URL_REGISTRE = "http://registre-etat-civil:8000/attributs"
 CANAL = {"X-Cle-Canal": "secret-de-test-canal"}
@@ -42,9 +43,24 @@ def jeton_registre(corps: dict, cle=CLE_REGISTRE, **modifs) -> str:
     maintenant = int(time.time())
     charge = {"iss": "registre-etat-civil", "aud": corps["destinataire"], "sub": corps["sujet_ref"],
               "demande": corps["id_demande"], "iat": maintenant, "exp": maintenant + 600,
-              "jti": str(uuid.uuid4()), "age_equal_or_over": {"18": True}}
+              "jti": str(uuid.uuid4()), "statut": "ok", "age_equal_or_over": {"18": True}}
     charge.update(modifs)
+    for nom in [c for c, v in charge.items() if v is None]:     # modifs={"x": None} retire le claim x
+        del charge[nom]
     return jwt.encode(charge, cle, algorithm="EdDSA")
+
+
+def refus_registre(corps: dict, cle=CLE_REGISTRE, **modifs) -> str:
+    """Refus signé, tel que l'émet le registre."""
+    return jeton_registre(corps, cle, statut="refus", motif="réponse impossible, s'adresser à l'état civil",
+                          age_equal_or_over=None, **modifs)
+
+
+# Adaptateur de l'état civil lisant le CSV du dépôt (au lieu de /donnees dans Docker)
+ADAPTATEUR_TEST = TMP / "etat-civil.yaml"
+ADAPTATEUR_TEST.write_text((RACINE / "adaptateurs/etat-civil.yaml").read_text(encoding="utf-8").replace(
+    "/donnees/etat_civil.csv", (RACINE / "registres_sim/donnees_fictives/etat_civil.csv").as_posix()),
+    encoding="utf-8")
 
 
 AGENTS = {

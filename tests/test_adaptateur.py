@@ -4,18 +4,13 @@ from datetime import date
 
 import pytest
 
-from conftest import RACINE, TMP
+from conftest import ADAPTATEUR_TEST, RACINE
 
 spec = importlib.util.spec_from_file_location("adaptateur", RACINE / "registres_sim/app/adaptateur.py")
 adaptateur = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adaptateur)
 
-# Même adaptateur que dans Docker, mais lisant le CSV du dépôt
-yaml_test = TMP / "etat-civil.yaml"
-yaml_test.write_text((RACINE / "adaptateurs/etat-civil.yaml").read_text(encoding="utf-8").replace(
-    "/donnees/etat_civil.csv", str(RACINE / "registres_sim/donnees_fictives/etat_civil.csv").replace("\\", "/")),
-    encoding="utf-8")
-REGISTRE = adaptateur.Adaptateur(yaml_test)
+REGISTRE = adaptateur.Adaptateur(ADAPTATEUR_TEST)
 FINALE = date(2026, 11, 16)
 
 

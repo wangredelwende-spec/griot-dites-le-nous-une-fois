@@ -1,13 +1,15 @@
 """Médiateur : signature, délai, rejeu, finalité, consentement, journal."""
+import asyncio
 import importlib.util
 import json
 import sqlite3
+import time
 
 import httpx
 import respx
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from conftest import CANAL, CHEMIN_JOURNAL, RACINE, URL_REGISTRE, demande, jeton_registre
+from conftest import CANAL, CHEMIN_JOURNAL, RACINE, URL_REGISTRE, demande, jeton_registre, refus_registre
 
 
 def registre_qui_signe(**modifs):
@@ -64,11 +66,60 @@ def test_registre_coupe_refuse(client):
     assert r["statut"] == "indisponible" and "injoignable" in r["motif"]
 
 
+def registre_qui_refuse(**modifs):
+    def repondre(requete):
+        return httpx.Response(200, json={"jeton": refus_registre(json.loads(requete.content), **modifs)})
+    return repondre
+
+
 @respx.mock
-def test_refus_du_registre_transmis(client):
+def test_refus_signe_transmis_sans_detail(client):
+    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_refuse())
+    r = client.post("/demandes", json=demande(sujet="BF-0007")).json()
+    assert r["statut"] == "refuse" and r["motif"] == "réponse impossible, s'adresser à l'état civil"
+    assert r["jeton"]                     # le refus signé part au guichet, qui en revérifie la signature
+    assert "décéd" not in json.dumps(r, ensure_ascii=False)
+    assert journal_de()[-1]["evenement"] == "reponse-registre"
+
+
+@respx.mock
+def test_refus_non_signe_rejete(client):
+    # Un refus en clair pourrait être fabriqué par n'importe qui sur le chemin : alerte
     respx.post(URL_REGISTRE).mock(return_value=httpx.Response(200, json={"refus": "personne décédée"}))
     r = client.post("/demandes", json=demande(sujet="BF-0007")).json()
-    assert r["statut"] == "refuse" and "personne décédée" in r["motif"]
+    assert r["statut"] == "refuse" and "mal formée" in r["motif"]
+    assert journal_de()[-1]["evenement"] == "alerte"
+
+
+@respx.mock
+def test_refus_signe_par_une_autre_cle_rejete(client):
+    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_refuse(cle=Ed25519PrivateKey.generate()))
+    r = client.post("/demandes", json=demande()).json()
+    assert "signature invalide" in r["motif"] and journal_de()[-1]["evenement"] == "alerte"
+
+
+@respx.mock
+def test_refus_qui_revele_un_detail_rejete(client):
+    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_refuse(detail="décédée le 2024-06-01"))
+    r = client.post("/demandes", json=demande()).json()
+    assert "refus au contenu inattendu" in r["motif"] and journal_de()[-1]["evenement"] == "alerte"
+
+
+class GoutteAGoutte(httpx.AsyncByteStream):
+    """Registre qui répond un octet toutes les 0,2 s : chaque lecture est rapide, le total est interminable."""
+    async def __aiter__(self):
+        for _ in range(50):
+            await asyncio.sleep(0.2)
+            yield b" "
+
+
+@respx.mock
+def test_registre_goutte_a_goutte_coupe_au_delai_total(client):
+    respx.post(URL_REGISTRE).mock(return_value=httpx.Response(200, stream=GoutteAGoutte()))
+    debut = time.monotonic()
+    r = client.post("/demandes", json=demande()).json()
+    assert time.monotonic() - debut < 1.5                  # délai total des tests : 0,5 s (et non 10 s)
+    assert r["statut"] == "indisponible" and "délai dépassé" in r["motif"]
 
 
 @respx.mock

@@ -1,22 +1,22 @@
-nip;nom;prenoms;sexe;date_naissance;lieu_naissance;date_deces
-BF-0001;KABORE;Aminata;F;2001-03-14;Ouagadougou;
-BF-0002;OUEDRAOGO;Moussa;M;1998-07-02;Koudougou;
-BF-0003;SAWADOGO;Fatimata;F;2010-05-21;Kaya;
-BF-0004;ZONGO;Issouf;M;vers 1990;Ziniaré;
-BF-0005;COMPAORE;Salif;M;1985-11-30;Bobo-Dioulasso;
-BF-0006;COMPAORE;Salif;M;1992-02-08;Banfora;
-BF-0007;TRAORE;Mariam;F;1950-01-10;Dédougou;2024-06-01
-BF-0008;ILBOUDO;Adama;M;1979-09-09;Ouahigouya;
-BF-0009;NIKIEMA;Rasmata;F;2008-11-20;Ouagadougou;
-BF-0010;YAMEOGO;Boureima;M;2008-11;Tenkodogo;
-BF-0011;KONATE;Awa;F;2004;Fada N'Gourma;
-BF-0012;DIALLO;Aïssata;F;1995-04-17;Dori;
-BF-0013;SOME;Pascal;M;1988-12-25;Gaoua;
-BF-0014;BAMOGO;Halimatou;F;2000-08-08;Koupéla;
-BF-0015;TIENDREBEOGO;Karim;M;1993-06-30;Manga;
-BF-0016;KIENTEGA;Rosalie;F;1999-10-10;Pô;
-BF-0017;BELEM;Ousmane;M;2012-01-15;Yako;
-BF-0018;OUATTARA;Clarisse;F;1997-03-03;Bobo-Dioulasso;
-BF-0019;SANOU;Jean;M;1991-05-05;Houndé;
-BF-0019;SANOU;Jean;M;1991-05-15;Houndé;
-BF-0020;ZOUNGRANA;Pauline;F;2003-02-28;Réo;
+nip;nom;prenoms;sexe;date_naissance;lieu_naissance;date_deces;pere;mere
+BF-0001;KABORE;Aminata;F;2001-03-14;Ouagadougou;;Issaka KABORE;Salimata KABORE
+BF-0002;OUEDRAOGO;Moussa;M;1998-07-02;Koudougou;;Hamidou OUEDRAOGO;Bintou OUEDRAOGO
+BF-0003;SAWADOGO;Fatimata;F;2010-05-21;Kaya;;Boukary SAWADOGO;Kadiatou SAWADOGO
+BF-0004;ZONGO;Issouf;M;vers 1990;Ziniaré;;Seydou ZONGO;Assétou ZONGO
+BF-0005;COMPAORE;Salif;M;1985-11-30;Bobo-Dioulasso;;Moumouni COMPAORE;Fanta COMPAORE
+BF-0006;COMPAORE;Salif;M;1992-02-08;Banfora;;Lassané COMPAORE;Habibou COMPAORE
+BF-0007;TRAORE;Mariam;F;1950-01-10;Dédougou;2024-06-01;Yacouba TRAORE;Djénéba TRAORE
+BF-0008;ILBOUDO;Adama;M;1979-09-09;Ouahigouya;;Noufou ILBOUDO;Mariétou ILBOUDO
+BF-0009;NIKIEMA;Rasmata;F;2008-11-20;Ouagadougou;;Salam NIKIEMA;Rokia NIKIEMA
+BF-0010;YAMEOGO;Boureima;M;2008-11;Tenkodogo;;Tasséré YAMEOGO;Aguiratou YAMEOGO
+BF-0011;KONATE;Awa;F;2004;Fada N'Gourma;;Adama KONATE;Fatoumata KONATE
+BF-0012;DIALLO;Aïssata;F;1995-04-17;Dori;;Amadou DIALLO;Haoua DIALLO
+BF-0013;SOME;Pascal;M;1988-12-25;Gaoua;;Bernard SOME;Odile SOME
+BF-0014;BAMOGO;Halimatou;F;2000-08-08;Koupéla;;Daouda BAMOGO;Bibata BAMOGO
+BF-0015;TIENDREBEOGO;Karim;M;1993-06-30;Manga;;Ernest TIENDREBEOGO;Céline TIENDREBEOGO
+BF-0016;KIENTEGA;Rosalie;F;1999-10-10;Pô;;Fulgence KIENTEGA;Delphine KIENTEGA
+BF-0017;BELEM;Ousmane;M;2012-01-15;Yako;;Gaston BELEM;Edwige BELEM
+BF-0018;OUATTARA;Clarisse;F;1997-03-03;Bobo-Dioulasso;;Hyacinthe OUATTARA;Félicité OUATTARA
+BF-0019;SANOU;Jean;M;1991-05-05;Houndé;;Joseph SANOU;Germaine SANOU
+BF-0019;SANOU;Jean;M;1991-05-15;Houndé;;Joseph SANOU;Germaine SANOU
+BF-0020;ZOUNGRANA;Pauline;F;2003-02-28;Réo;;Kassoum ZOUNGRANA;Ines ZOUNGRANA

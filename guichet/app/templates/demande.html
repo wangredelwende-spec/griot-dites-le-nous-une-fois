@@ -38,7 +38,12 @@
 <div class="erreur" role="alert">
   <p><strong>{{ l.libelle }} : refusé.</strong> {{ r.echec }}.</p>
 </div>
-{% elif r.attente %}
+{% endif %}
+{% if r.claims %}
+<details class="aide"><summary>{{ l.libelle }} : réponse signée reçue (contenu complet, décodé)</summary>
+<pre id="jeton-{{ l.code }}">{{ r.claims | tojson(indent=2) }}</pre></details>
+{% endif %}
+{% if r.attente %}
 <div class="bloc attente"><p>{{ l.libelle }} : en attente de l'accord de l'usager.</p></div>
 {% endif %}
 {% endfor %}

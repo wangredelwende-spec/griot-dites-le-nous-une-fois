@@ -61,6 +61,19 @@ Citoyens utiles au guichet : `BF-0001` (tout est « oui »), `BF-0003` (mineure,
    `BF-0018` → « nationalité burkinabè : non » ; `BF-0003` (mineure) → « âge … : non ».
 6. **Vérifier la majorité** (au cas où un juré la demande), `BF-0001` → « majeur (18 ans accomplis) : oui ».
 
+## Scène 1 bis : la preuve que rien ne fuit
+
+`python scripts/preuve_minimisation.py BF-0008` (le jury peut choisir un autre citoyen)
+
+Attendu :
+1. Données témoins lues DANS les registres : nom, date et lieu de naissance, parents, détail du casier (« vol… »).
+2. Une vraie demande « Concours direct » de bout en bout.
+3. Chaque témoin est cherché hors des registres (base SQLite du médiateur, historique de l'usager, page du guichet,
+   réponses reçues, logs du médiateur, du guichet, de l'USSD et de Caddy) : **« introuvable ✅ » partout**.
+4. Les réponses signées reçues par le guichet, décodées en entier : `{"age_equal_or_over": {"18": true, "38": true},
+   "date_reference": "2026-12-31", …}` (47 ans : trop âgé), `"casier_judiciaire_vierge": false`. Rien d'autre.
+Au guichet, chaque résultat a aussi un bouton « réponse signée reçue (contenu complet, décodé) ».
+
 ## Scène 2 : « Vous voyez avant » (consentement par USSD)
 
 1. Guichet (fenêtre privée) → `awa.ouedraogo`. Démarche **Bourse nationale**, usager `BF-0012`, Envoyer.

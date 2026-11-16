@@ -194,7 +194,8 @@ def verifier_volet(jeton: str, demande_attribut: dict, service: str, id_demande:
                        options={"require": ["iss", "aud", "sub", "demande", "iat", "exp", "jti", "statut"]})
     if infos["demande"] != id_demande or infos["sub"] != sujet_ref:
         raise jwt.InvalidTokenError("réponse émise pour une autre demande ou une autre personne")
-    resultat = {"signe": True, "registre": registre["nom"], "cle": empreinte_cle(cle_publique)}
+    # « claims » = contenu COMPLET de la réponse signée, montré tel quel à l'agent : rien d'autre n'est arrivé
+    resultat = {"signe": True, "registre": registre["nom"], "cle": empreinte_cle(cle_publique), "claims": infos}
     if infos["statut"] == "refus":
         return resultat | {"refus": str(infos["motif"])}
     if infos["statut"] != "ok":
@@ -300,7 +301,7 @@ async def suivre(request: Request, id_demande: uuid.UUID, session: dict = Depend
             return page(request, "erreur.html", 502, message="Médiateur injoignable : rien n'a été deviné. "
                         "Réessayez dans un instant.")
     etat = suivi["etat"]
-    lignes = [{"libelle": a["libelle"], "resultat": suivi["volets"].get(a["attribut"], {})}
+    lignes = [{"code": a["attribut"], "libelle": a["libelle"], "resultat": suivi["volets"].get(a["attribut"], {})}
               for a in demarche["attributs"]]
     return page(request, "demande.html", suivi=suivi, demarche=demarche, etat=etat, lignes=lignes,
                 conclusion=conclusion(lignes), expire=heure(etat["expire_le"]) if etat.get("expire_le") else None)

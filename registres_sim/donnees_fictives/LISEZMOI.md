@@ -1,6 +1,6 @@
 # Données fictives (en attendant les données du jury)
 
-Personnes inventées, sans lien avec des personnes réelles. Cas pièges prévus (date de référence : 16/11/2026) :
+Personnes inventées, sans lien avec des personnes réelles. Les colonnes `pere` et `mere` (filiation) ne servent qu'aux témoins de `scripts/preuve_minimisation.py` : aucun attribut ne les utilise. Cas pièges prévus (date de référence : 16/11/2026) :
 
 | nip | Cas | Réponse attendue pour « majeur » |
 |---|---|---|

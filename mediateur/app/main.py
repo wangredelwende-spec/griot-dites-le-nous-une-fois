@@ -1,13 +1,15 @@
-"""Médiateur : fait circuler l'attribut UTILE du registre vers le guichet, avec consentement et traçabilité.
+"""Médiateur : fait circuler les attributs UTILES des registres vers le guichet, avec consentement et traçabilité.
 
 API JSON, joignable uniquement par le réseau Docker interne (jamais publiée par Caddy).
-- Côté guichet (jeton Keycloak de l'agent) : POST /demandes, GET /demandes/{id}
+- Côté guichet (jeton Keycloak de l'agent) : POST /demandes, GET /demandes/{id}  (docs/API.md)
 - Côté usager (canal authentifié par un secret partagé) : en-attente, confirmer, refuser, historique
-  (contrats décrits dans docs/API_USAGER.md)
+  (docs/API_USAGER.md)
 
-Le médiateur ne voit que la réponse minimale signée par le registre ; il la garde en attente
-jusqu'à la confirmation de l'usager, puis l'efface dès qu'elle est remise ou expirée.
+Une demande = une démarche du catalogue = un ou plusieurs attributs (« volets »), chacun demandé à SON
+registre, en parallèle. Le médiateur ne voit que les réponses minimales signées par les registres ; il les
+garde en attente jusqu'à la confirmation de l'usager, puis les efface dès qu'elles sont remises ou expirées.
 """
+import asyncio
 import hashlib
 import hmac
 import json
@@ -15,21 +17,23 @@ import sqlite3
 import threading
 import time
 
-import yaml
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import PlainTextResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
-from . import registres
+from . import catalogue, registres
 from .agents import agent_connecte
-from .config import ADAPTATEURS, CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FICHIER_REGLES, lire_secret
+from .config import CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, lire_secret
 from .journal import Journal
 
-REGLES = yaml.safe_load(FICHIER_REGLES.read_text(encoding="utf-8"))
-# Registres dont l'adaptateur dit « absence: vierge » (casier réel : seules les condamnations y figurent).
-# Le médiateur lit le fichier publié par le registre (adaptateurs/, monté en lecture seule).
-ABSENCE_VIERGE = {nom: yaml.safe_load((ADAPTATEURS / f"{nom}.yaml").read_text(encoding="utf-8")).get("absence") == "vierge"
-                  for nom in REGLES["registres"] if (ADAPTATEURS / f"{nom}.yaml").exists()}
+# Catalogue validé au démarrage : s'il est incomplet, le médiateur ne démarre pas (on ne devine pas une règle)
+try:
+    CAT = catalogue.charger()
+except catalogue.CatalogueInvalide as e:
+    raise SystemExit(f"CATALOGUE INVALIDE : le médiateur ne démarre pas.\n{e}")
+for avertissement in CAT["avertissements"]:
+    print(f"Attention, {avertissement}", flush=True)
+
 SECRET_PSEUDONYME = lire_secret("sujet_hmac").encode()
 SECRET_CANAL = lire_secret("canal_usager").encode()
 
@@ -39,23 +43,42 @@ base = sqlite3.connect(DONNEES / "mediateur.sqlite3", check_same_thread=False, i
 base.row_factory = sqlite3.Row
 journal = Journal(base, VERROU)
 with VERROU:
+    # Ancienne forme de la table de travail (un seul attribut par demande) : on la reconstruit.
+    # Seules les demandes en cours sont perdues ; le JOURNAL n'est jamais touché.
+    colonnes = [c["name"] for c in base.execute("PRAGMA table_info(demandes)")]
+    if colonnes and "attributs" not in colonnes:
+        print("Table de travail « demandes » à l'ancienne forme : reconstruite (journal intact)", flush=True)
+        base.execute("DROP TABLE demandes")
     base.executescript("""
-        -- Demandes : table de TRAVAIL (modifiable), à ne pas confondre avec le journal (ajout seul).
+        -- Demandes et volets : tables de TRAVAIL (modifiables), à ne pas confondre avec le journal (ajout seul).
         -- On n'y garde ni le nom ni l'identifiant en clair du citoyen : seulement son pseudonyme.
         CREATE TABLE IF NOT EXISTS demandes (
             id_demande TEXT PRIMARY KEY,
             requete TEXT NOT NULL,       -- empreinte de la demande (détecte un id réutilisé pour autre chose)
             agent TEXT NOT NULL, demandeur TEXT NOT NULL, demarche TEXT NOT NULL, finalite TEXT NOT NULL,
-            base TEXT NOT NULL, attribut TEXT NOT NULL, registre TEXT NOT NULL, sujet TEXT NOT NULL,
+            base TEXT NOT NULL, sujet TEXT NOT NULL,
+            attributs TEXT NOT NULL,     -- codes des attributs demandés, séparés par « + »
+            registres TEXT NOT NULL,     -- registres correspondants, séparés par « + »
             statut TEXT NOT NULL,        -- en_cours | en_attente | confirmee | remise | refuse | indisponible | expiree
+            motif TEXT NOT NULL DEFAULT '',
+            expire_le REAL NOT NULL DEFAULT 0
+        );
+        -- Un volet = un attribut demandé à un registre
+        CREATE TABLE IF NOT EXISTS volets (
+            id_demande TEXT NOT NULL, attribut TEXT NOT NULL, registre TEXT NOT NULL,
+            statut TEXT NOT NULL,        -- ok | refuse | indisponible
             motif TEXT NOT NULL DEFAULT '',
             valeur INTEGER,              -- réponse minimale (pour l'aperçu), effacée dès la remise
             jeton TEXT,                  -- réponse signée en attente, effacée dès la remise ou l'expiration
-            expire_le REAL NOT NULL DEFAULT 0
+            PRIMARY KEY (id_demande, attribut)
         );
         -- Identifiants (jti) des réponses déjà acceptées : une réponse ne sert qu'une fois
         CREATE TABLE IF NOT EXISTS jti_vus (jti TEXT PRIMARY KEY);
     """)
+# À chaque chargement, l'empreinte du catalogue entre dans le journal chaîné :
+# on peut prouver quelles règles étaient en vigueur au moment d'une consultation.
+journal.ecrire(agent="systeme", evenement="catalogue", resultat="ok",
+               motif=f"catalogue chargé : {len(CAT['demarches'])} démarches, sha256 {CAT['empreinte']}")
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -67,22 +90,32 @@ def pseudonyme(sujet_ref: str) -> str:
 
 def service_de(agent: dict) -> str | None:
     """Groupe Keycloak de l'agent -> code du service demandeur (un et un seul)."""
-    services = [code for code, s in REGLES["services"].items() if s["groupe"] in agent["groupes"]]
+    services = [code for code, s in CAT["services"].items() if s["groupe"] in agent["groupes"]]
     return services[0] if len(services) == 1 else None
 
 
-def tracer(demande: dict, evenement: str, resultat: str, motif: str = "") -> dict:
-    """Écrit une ligne au journal : le fait, jamais la valeur de l'attribut."""
-    return journal.ecrire(agent=demande["agent"], demandeur=demande["demandeur"], demarche=demande["demarche"],
-                          finalite=demande["finalite"], base=demande["base"], attribut=demande["attribut"],
-                          registre=demande["registre"], sujet=demande["sujet"], evenement=evenement,
-                          resultat=resultat, motif=motif)
+def tracer(demande: dict, evenement: str, resultat: str, motif: str = "", **precisions) -> dict:
+    """Écrit une ligne au journal : le fait, jamais la valeur d'un attribut.
+    « precisions » remplace attribut et registre quand la ligne ne concerne qu'un volet."""
+    champs = {"agent": demande["agent"], "demandeur": demande["demandeur"], "demarche": demande["demarche"],
+              "finalite": demande["finalite"], "base": demande["base"], "attribut": demande["attributs"],
+              "registre": demande["registres"], "sujet": demande["sujet"]}
+    return journal.ecrire(**champs | precisions, evenement=evenement, resultat=resultat, motif=motif)
+
+
+def transmis(demande: dict) -> dict:
+    """Attributs réellement obtenus (volets « ok ») : ce sont eux qu'on confirme, remet ou efface."""
+    ok = [v for v in demande.get("volets", []) if v["statut"] == "ok"]
+    if not ok:
+        return {}
+    return {"attribut": "+".join(v["attribut"] for v in ok), "registre": "+".join(v["registre"] for v in ok)}
 
 
 def lire(id_demande: str) -> dict | None:
     with VERROU:
         ligne = base.execute("SELECT * FROM demandes WHERE id_demande = ?", (id_demande,)).fetchone()
-    return dict(ligne) if ligne else None
+        volets = base.execute("SELECT * FROM volets WHERE id_demande = ? ORDER BY rowid", (id_demande,)).fetchall()
+    return dict(ligne) | {"volets": [dict(v) for v in volets]} if ligne else None
 
 
 def changer(demande: dict, **champs):
@@ -92,52 +125,78 @@ def changer(demande: dict, **champs):
                      [*champs.values(), demande["id_demande"]])
 
 
+def effacer_reponses(demande: dict):
+    """Le médiateur ne garde aucune réponse au-delà du nécessaire."""
+    for volet in demande.get("volets", []):
+        volet.update(valeur=None, jeton=None)
+    with VERROU:
+        base.execute("UPDATE volets SET valeur = NULL, jeton = NULL WHERE id_demande = ?", (demande["id_demande"],))
+
+
 def refuser(demande: dict, statut: str, evenement: str, motif: str) -> dict:
-    tracer(demande, evenement, "indisponible" if statut == "indisponible" else "refuse", motif)
-    changer(demande, statut=statut, motif=motif, valeur=None, jeton=None)
+    tracer(demande, evenement, "refuse", motif, **transmis(demande))
+    changer(demande, statut=statut, motif=motif)
+    effacer_reponses(demande)
     return demande
 
 
 def rafraichir(demande: dict) -> dict:
-    """Consentement non donné (ou réponse non retirée) dans le délai : on efface la réponse."""
+    """Consentement non donné (ou réponse non retirée) dans le délai : on efface les réponses."""
     if demande["statut"] in ("en_attente", "confirmee") and time.time() > demande["expire_le"]:
         refuser(demande, "expiree", "expiration", "délai de 10 minutes dépassé : rien n'a été remis")
     return demande
 
 
-def etat(demande: dict, jeton: str | None = None) -> dict:
-    """Ce que voit le guichet : jamais la valeur en clair, seulement la réponse signée au moment de la remise."""
+def etat(demande: dict, remise: bool = False) -> dict:
+    """Ce que voit le guichet : jamais une valeur en clair. Les réponses signées « ok » ne partent
+    qu'au moment de la remise ; un refus signé par un registre part tout de suite (il ne contient aucune donnée)."""
+    volets = []
+    for v in demande.get("volets", []):
+        statut = v["statut"]
+        if statut == "ok" and demande["statut"] in ("en_attente", "confirmee"):
+            statut = "en_attente"                       # obtenu, mais l'usager n'a pas encore confirmé
+        elif statut == "ok" and not remise:
+            statut = "remise" if demande["statut"] == "remise" else "non_transmis"
+        volet = {"attribut": v["attribut"], "registre": v["registre"], "statut": statut, "motif": v["motif"]}
+        if v.get("jeton") and (v["statut"] != "ok" or remise):
+            volet["jeton"] = v["jeton"]
+        volets.append(volet)
     reponse = {"id_demande": demande["id_demande"], "statut": demande["statut"], "motif": demande["motif"],
-               "demarche": demande["demarche"], "registre": demande["registre"]}
+               "demarche": demande["demarche"], "volets": volets}
     if demande["statut"] in ("en_attente", "confirmee"):
         reponse["expire_le"] = int(demande["expire_le"])
-    if jeton:
-        reponse["jeton"] = jeton
     return reponse
 
 
 def remettre(demande: dict) -> dict:
-    """Remise au guichet : la réponse signée part une fois, puis le médiateur l'efface."""
-    jeton = demande["jeton"]
-    tracer(demande, "remise", "ok")
-    changer(demande, statut="remise", valeur=None, jeton=None)
-    return etat(demande, jeton)
+    """Remise au guichet : les réponses signées partent une fois, puis le médiateur les efface."""
+    tracer(demande, "remise", "ok", **transmis(demande))
+    changer(demande, statut="remise")
+    reponse = etat(demande, remise=True)
+    effacer_reponses(demande)
+    return reponse
 
 
-async def interroger(demande: dict, sujet_ref: str) -> tuple[str, bool | str, str]:
-    """Appelle le registre de l'attribut demandé et vérifie TOUTE sa réponse signée.
-    Renvoie (« ok », valeur, jeton) ou (« refus », motif public, jeton).
-    Lève Indisponible, ReponseCorrompue ou FileNotFoundError (clé publique absente)."""
-    conf_attribut = REGLES["attributs"][demande["attribut"]]
-    conf_registre = REGLES["registres"][demande["registre"]]
-    corps = {"id_demande": demande["id_demande"], "attribut": demande["attribut"], "sujet_ref": sujet_ref,
-             "destinataire": demande["demandeur"]}
-    jeton = await registres.appeler(conf_registre["url"], corps, DELAI_REGISTRE)
-    # La clé publique vient du volume du registre, monté en LECTURE SEULE ici
-    cle_publique = (CLES_PUBLIQUES / demande["registre"] / "cle.pem").read_bytes()
-    statut, contenu, infos = registres.verifier(jeton, cle_publique, conf_registre["emetteur"], demande["demandeur"],
-                                                sujet_ref, demande["id_demande"], conf_attribut["claim"],
-                                                conf_attribut.get("cle"))
+# --- Appel des registres ---
+
+async def interroger(demande: dict, code: str, parametres: dict, sujet_ref: str) -> tuple[str, bool | str, str]:
+    """Demande UN attribut à son registre et vérifie TOUTE la réponse signée.
+    Renvoie (« ok », oui/non, jeton) ou (« refus », motif public, jeton).
+    Lève Indisponible (rien n'est deviné) ou ReponseCorrompue (ligne d'alerte)."""
+    attribut = CAT["attributs"][code]
+    registre = CAT["registres"][attribut["registre"]]
+    corps = {"id_demande": demande["id_demande"], "attribut": code, "parametres": parametres,
+             "sujet_ref": sujet_ref, "destinataire": demande["demandeur"]}
+    try:
+        jeton = await registres.appeler(registre["url"], corps, DELAI_REGISTRE)
+        # La clé publique vient du volume du registre, monté en LECTURE SEULE ici
+        cle_publique = (CLES_PUBLIQUES / attribut["registre"] / "cle.pem").read_bytes()
+    except registres.Indisponible as e:
+        raise registres.Indisponible(f"{registre['nom']} indisponible ({e})")
+    except FileNotFoundError:
+        raise registres.Indisponible(f"{registre['nom']} : clé publique absente")
+    statut, contenu, infos = registres.verifier(jeton, cle_publique, registre["emetteur"], demande["demandeur"],
+                                                sujet_ref, demande["id_demande"], attribut, parametres)
     try:
         with VERROU:
             base.execute("INSERT INTO jti_vus (jti) VALUES (?)", (infos["jti"],))
@@ -146,17 +205,58 @@ async def interroger(demande: dict, sujet_ref: str) -> tuple[str, bool | str, st
     return statut, contenu, jeton
 
 
+async def traiter_volet(demande: dict, demande_attribut: dict, sujet_ref: str) -> dict:
+    """Un volet = un attribut demandé à son registre. Renvoie toujours un volet, jamais une exception :
+    un registre en panne n'empêche pas les autres de répondre."""
+    code = demande_attribut["attribut"]
+    registre = CAT["attributs"][code]["registre"]
+    volet = {"id_demande": demande["id_demande"], "attribut": code, "registre": registre,
+             "statut": "refuse", "motif": "", "valeur": None, "jeton": None}
+    try:
+        if registre in CAT["absence_vierge"]:
+            # Casier « absence: vierge » : on vérifie D'ABORD à l'état civil que la personne existe
+            # (sinon un identifiant inventé obtiendrait « casier vierge »)
+            ou = {"attribut": "personne_connue", "registre": CAT["attributs"]["personne_connue"]["registre"]}
+            connue, _, _ = await interroger(demande, "personne_connue", {}, sujet_ref)
+            tracer(demande, "reponse-registre", "ok" if connue == "ok" else "refuse", **ou)
+            if connue != "ok":
+                volet["motif"] = "identité non confirmée par l'état civil"
+                tracer(demande, "reponse-registre", "refuse", volet["motif"], attribut=code, registre=registre)
+                return volet
+        statut, contenu, jeton = await interroger(demande, code, catalogue.resoudre(demande_attribut["parametres"]),
+                                                  sujet_ref)
+    except registres.Indisponible as e:
+        motif = f"{e}, rien n'a été deviné"
+        volet.update(statut="indisponible", motif=motif[0].upper() + motif[1:])
+        tracer(demande, "reponse-registre", "indisponible", volet["motif"], attribut=code, registre=registre)
+        return volet
+    except registres.ReponseCorrompue as e:
+        volet["motif"] = f"réponse corrompue : {e}"
+        tracer(demande, "alerte", "refuse", volet["motif"], attribut=code, registre=registre)
+        return volet
+
+    if statut == "refus":
+        # Refus signé par le registre : transmis tel quel, le guichet en revérifie la signature
+        volet.update(motif=contenu, jeton=jeton)
+        tracer(demande, "reponse-registre", "refuse", contenu, attribut=code, registre=registre)
+        return volet
+    tracer(demande, "reponse-registre", "ok", attribut=code, registre=registre)
+    return volet | {"statut": "ok", "valeur": int(contenu), "jeton": jeton}
+
+
 # --- Côté guichet ---
 
 UUID4 = r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
 
 
 class Demande(BaseModel):
+    model_config = ConfigDict(extra="forbid")       # aucun champ libre : on ne peut rien demander « en plus »
     id_demande: str = Field(pattern=UUID4)
     demarche: str = Field(max_length=64)
-    attribut: str = Field(max_length=64)
     sujet_ref: str = Field(pattern=r"^[A-Za-z0-9-]{1,64}$")
     finalite: str = Field(max_length=200)
+    # Facultatif : si le demandeur précise des attributs, ce doit être EXACTEMENT ceux du catalogue
+    attributs: list[str] | None = Field(default=None, max_length=10)
 
 
 @app.get("/sante", include_in_schema=False)
@@ -167,16 +267,17 @@ def sante():
 @app.post("/demandes")
 async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
     demandeur = service_de(agent) or "inconnu"
-    regle = REGLES["demarches"].get(d.demarche, {})
-    conf_attribut = REGLES["attributs"].get(d.attribut, {})
+    demarche = CAT["demarches"].get(d.demarche)
+    prevus = [a["attribut"] for a in demarche["attributs"]] if demarche else []
     demande = {"id_demande": d.id_demande, "agent": agent["nom"], "demandeur": demandeur, "demarche": d.demarche,
-               "finalite": d.finalite, "base": regle.get("base", ""), "attribut": d.attribut,
-               "registre": conf_attribut.get("registre", ""), "sujet": pseudonyme(d.sujet_ref),
-               "statut": "en_cours", "motif": "", "valeur": None, "jeton": None, "expire_le": 0}
+               "finalite": d.finalite, "base": demarche["base"] if demarche else "", "sujet": pseudonyme(d.sujet_ref),
+               "attributs": "+".join(prevus),
+               "registres": "+".join(CAT["attributs"][a]["registre"] for a in prevus),
+               "statut": "en_cours", "motif": "", "expire_le": 0}
     demande["requete"] = hashlib.sha256(json.dumps(
         [agent["nom"], d.model_dump()], sort_keys=True).encode()).hexdigest()
 
-    # Rejeu : même id_demande -> une seule exécution, le même résultat est renvoyé (registre non rappelé)
+    # Rejeu : même id_demande -> une seule exécution, le même résultat est renvoyé (registres non rappelés)
     with VERROU:
         existante = lire(d.id_demande)
         if existante is None:
@@ -187,54 +288,38 @@ async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
             raise HTTPException(409, "identifiant de demande déjà utilisé pour une autre demande")
         return etat(rafraichir(existante))
 
-    # 1. Règles : service, démarche, attribut, finalité
+    # 1. Règles du catalogue : service, démarche, attributs, finalité
     if demandeur == "inconnu":
         return etat(refuser(demande, "refuse", "demande", "service de l'agent indéterminé"))
-    if not regle or regle["service"] != demandeur:
+    if demarche is None or demandeur not in demarche["services"]:
         return etat(refuser(demande, "refuse", "demande", "démarche non autorisée pour ce service"))
-    if d.attribut != regle["attribut"]:
-        return etat(refuser(demande, "refuse", "demande", "attribut non autorisé pour cette démarche"))
-    if d.finalite != regle["finalite"]:
+    if d.attributs is not None and d.attributs != prevus:
+        return etat(refuser(demande, "refuse", "demande", "attributs non autorisés : le catalogue fixe ce que "
+                            "cette démarche peut demander"))
+    if d.finalite != demarche["finalite"]:
         return etat(refuser(demande, "refuse", "demande", "finalité non autorisée"))
     tracer(demande, "demande", "ok")
 
-    # 2. Casier « absence: vierge » : on vérifie D'ABORD à l'état civil que la personne existe
-    #    (sinon un identifiant inventé obtiendrait « casier vierge »)
-    if ABSENCE_VIERGE.get(demande["registre"]):
-        controle = dict(demande, attribut="personne_connue", registre="etat-civil")
-        try:
-            statut, _, _ = await interroger(controle, d.sujet_ref)
-        except (registres.Indisponible, FileNotFoundError) as e:
-            return etat(refuser(demande, "indisponible", "reponse-registre",
-                                f"identité non vérifiable : registre d'état civil indisponible ({e}), "
-                                "rien n'a été deviné"))
-        except registres.ReponseCorrompue as e:
-            tracer(controle, "alerte", "refuse", f"réponse corrompue : {e}")
-            return etat(refuser(demande, "refuse", "reponse-registre", "identité non confirmée"))
-        tracer(controle, "reponse-registre", "ok" if statut == "ok" else "refuse")
-        if statut != "ok":
-            return etat(refuser(demande, "refuse", "reponse-registre", "identité non confirmée"))
+    # 2. Un appel par attribut, tous EN PARALLÈLE : chaque registre a son délai, sa clé, son résultat
+    volets = await asyncio.gather(*(traiter_volet(demande, a, d.sujet_ref) for a in demarche["attributs"]))
+    demande["volets"] = volets
+    with VERROU:
+        for v in volets:
+            # Seules les réponses « ok » restent en attente ; un refus signé part tout de suite au guichet
+            garde = v | {"jeton": v["jeton"] if v["statut"] == "ok" else None}
+            base.execute(f"INSERT INTO volets ({', '.join(garde)}) VALUES ({', '.join('?' * len(garde))})",
+                         list(garde.values()))
 
-    # 3. Appel du registre (délai maximal total) et vérification complète de sa réponse signée
-    try:
-        statut, contenu, jeton = await interroger(demande, d.sujet_ref)
-    except registres.Indisponible as e:
-        return etat(refuser(demande, "indisponible", "reponse-registre",
-                            f"Registre indisponible ({e}), rien n'a été deviné"))
-    except FileNotFoundError:
-        return etat(refuser(demande, "indisponible", "reponse-registre",
-                            "clé publique du registre absente, rien n'a été deviné"))
-    except registres.ReponseCorrompue as e:
-        return etat(refuser(demande, "refuse", "alerte", f"réponse corrompue : {e}"))
-
-    if statut == "refus":
-        # Refus signé par le registre : transmis tel quel, le guichet en revérifie la signature
-        return etat(refuser(demande, "refuse", "reponse-registre", contenu), jeton)
-    tracer(demande, "reponse-registre", "ok")
+    # 3. Rien d'exploitable : la demande s'arrête là (chaque volet garde son motif)
+    if not any(v["statut"] == "ok" for v in volets):
+        tous_en_panne = all(v["statut"] == "indisponible" for v in volets)
+        motif = volets[0]["motif"] if len(volets) == 1 else "aucune réponse exploitable, rien n'a été deviné"
+        changer(demande, statut="indisponible" if tous_en_panne else "refuse", motif=motif)
+        return etat(demande)
 
     # 4. Base légale : remise immédiate. Consentement : en attente de l'usager (aperçu exact).
-    changer(demande, jeton=jeton, valeur=int(contenu), expire_le=time.time() + DUREE_CONSENTEMENT)
-    if regle["base"] == "base-legale":
+    changer(demande, expire_le=time.time() + DUREE_CONSENTEMENT)
+    if demarche["base"] == "base_legale":
         return remettre(demande)
     changer(demande, statut="en_attente")
     return etat(demande)
@@ -262,23 +347,33 @@ class Usager(BaseModel):
     sujet_ref: str = Field(pattern=r"^[A-Za-z0-9-]{1,64}$")
 
 
+def libelles(code_demarche: str) -> dict:
+    """{code d'attribut: sa demande dans le catalogue} pour une démarche (vide si elle a été retirée)."""
+    demarche = CAT["demarches"].get(code_demarche, {})
+    return {a["attribut"]: a for a in demarche.get("attributs", [])}
+
+
 def apercu(demande: dict) -> dict:
-    service = REGLES["services"].get(demande["demandeur"], {}).get("nom", demande["demandeur"])
-    libelle = REGLES["attributs"][demande["attribut"]]["libelle"]
-    valeur = "oui" if demande["valeur"] else "non"
+    """Ce que l'usager voit AVANT : exactement ce qui partira, et rien d'autre."""
+    service = CAT["services"].get(demande["demandeur"], {}).get("nom", demande["demandeur"])
+    connus = libelles(demande["demarche"])
+    attributs = [{"code": v["attribut"], "libelle": connus.get(v["attribut"], {}).get("libelle", v["attribut"]),
+                  "parametres": connus.get(v["attribut"], {}).get("parametres", {}),
+                  "valeur": "oui" if v["valeur"] else "non"}
+                 for v in demande["volets"] if v["statut"] == "ok"]
+    liste = " ; ".join(f"{a['libelle']} = {a['valeur']}" for a in attributs)
     return {"id_demande": demande["id_demande"], "service": service, "code_service": demande["demandeur"],
-            "code_attribut": demande["attribut"],
-            "demarche": REGLES["demarches"][demande["demarche"]]["libelle"], "finalite": demande["finalite"],
-            "attribut": libelle, "valeur": valeur, "expire_le": int(demande["expire_le"]),
-            "apercu": f"{service} recevra : {libelle} = {valeur}. Rien d'autre."}
+            "demarche": CAT["demarches"].get(demande["demarche"], {}).get("libelle", demande["demarche"]),
+            "finalite": demande["finalite"], "attributs": attributs, "expire_le": int(demande["expire_le"]),
+            "apercu": f"{service} recevra : {liste}. Rien d'autre."}
 
 
 @app.get("/usagers/{sujet_ref}/en-attente", dependencies=[Depends(canal_usager)])
 def en_attente(sujet_ref: str):
     with VERROU:
-        lignes = base.execute("SELECT * FROM demandes WHERE sujet = ? AND statut = 'en_attente'",
-                              (pseudonyme(sujet_ref),)).fetchall()
-    demandes = [rafraichir(dict(l)) for l in lignes]
+        ids = base.execute("SELECT id_demande FROM demandes WHERE sujet = ? AND statut = 'en_attente'",
+                           (pseudonyme(sujet_ref),)).fetchall()
+    demandes = [rafraichir(lire(i["id_demande"])) for i in ids]
     return [apercu(d) for d in demandes if d["statut"] == "en_attente"]
 
 
@@ -294,8 +389,9 @@ def demande_de_l_usager(id_demande: str, usager: Usager) -> dict:
 
 @app.post("/demandes/{id_demande}/confirmer", dependencies=[Depends(canal_usager)])
 def confirmer(id_demande: str, usager: Usager):
+    """UNE confirmation pour tout l'aperçu (un ou plusieurs attributs)."""
     demande = demande_de_l_usager(id_demande, usager)
-    ligne = tracer(demande, "confirmation", "ok")
+    ligne = tracer(demande, "confirmation", "ok", **transmis(demande))
     changer(demande, statut="confirmee")
     return {"id_demande": id_demande, "statut": "confirmee", "empreinte": ligne["hash"]}
 
@@ -312,13 +408,16 @@ def historique(sujet_ref: str):
     """Qui a consulté, quand, pourquoi, sur quelle base. Jamais la valeur (le journal ne la contient pas)."""
     lignes = []
     for l in journal.lignes_du_sujet(pseudonyme(sujet_ref)):
-        demarche = REGLES["demarches"].get(l["demarche"], {})
+        demarche = CAT["demarches"].get(l["demarche"], {})
+        connus = libelles(l["demarche"])
         lignes.append({
             "n": l["n"], "ts": l["ts"], "agent": l["agent"],
-            "service": REGLES["services"].get(l["demandeur"], {}).get("nom", l["demandeur"]),
+            "service": CAT["services"].get(l["demandeur"], {}).get("nom", l["demandeur"]),
             "code_service": l["demandeur"],
             "demarche": demarche.get("libelle", l["demarche"]), "finalite": l["finalite"], "base": l["base"],
-            "texte_base": demarche.get("texte", "") if l["base"] == "base-legale" else "",
-            "attribut": l["attribut"], "evenement": l["evenement"], "resultat": l["resultat"],
+            "texte_base": demarche.get("texte", "") if l["base"] == "base_legale" else "",
+            "attributs": [{"code": c, "libelle": connus.get(c, {}).get("libelle", c)}
+                          for c in l["attribut"].split("+") if c],
+            "evenement": l["evenement"], "resultat": l["resultat"],
             "motif": l["motif"], "empreinte": l["hash"]})
     return lignes

@@ -6,7 +6,7 @@ SECRETS = Path(os.environ.get("GRIOT_SECRETS", "/run/secrets"))
 DONNEES = Path(os.environ.get("GRIOT_DONNEES", "/donnees"))
 CLES_PUBLIQUES = Path(os.environ.get("GRIOT_PUBLIQUES", "/publiques"))
 ADAPTATEURS = Path(os.environ.get("GRIOT_ADAPTATEURS", "/adaptateurs"))   # descriptions des registres (lecture seule)
-FICHIER_REGLES = Path(os.environ.get("GRIOT_REGLES", "/app/regles.yaml"))
+CATALOGUE = Path(os.environ.get("GRIOT_CATALOGUE", "/catalogue"))        # annuaire.yaml + demarches.yaml
 
 # Jetons des agents : émis par Keycloak, vérifiés avec ses clés publiques (lues par le réseau interne)
 KEYCLOAK_CLES = "http://keycloak:8080/realms/griot/protocol/openid-connect/certs"

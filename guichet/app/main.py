@@ -7,7 +7,7 @@ Le guichet ne reçoit que la réponse minimale SIGNÉE par le registre, et revé
 import hashlib
 import secrets
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from urllib.parse import urlencode
 
 import httpx
@@ -21,11 +21,18 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
-from .config import (CLES_PUBLIQUES, CLIENT_ID, FICHIER_REGLES, GUICHET_URL, KEYCLOAK_INTERNE, KEYCLOAK_PUBLIC,
+from .config import (ADAPTATEURS, CATALOGUE, CLES_PUBLIQUES, CLIENT_ID, GUICHET_URL, KEYCLOAK_INTERNE, KEYCLOAK_PUBLIC,
                      MEDIATEUR, REALM, ROLE_AGENT, lire_secret)
 
 SECRET_OIDC = lire_secret("guichet_oidc")
-REGLES = yaml.safe_load(FICHIER_REGLES.read_text(encoding="utf-8"))
+# Mêmes fichiers que le médiateur, en lecture seule : annuaire, catalogue des démarches,
+# et attributs déclarés par chaque registre (adaptateurs/<registre>.yaml).
+ANNUAIRE = yaml.safe_load((CATALOGUE / "annuaire.yaml").read_text(encoding="utf-8"))
+DEMARCHES = yaml.safe_load((CATALOGUE / "demarches.yaml").read_text(encoding="utf-8"))["demarches"]
+ATTRIBUTS = {}
+for _registre in ANNUAIRE["registres"]:
+    _conf = yaml.safe_load((ADAPTATEURS / f"{_registre}.yaml").read_text(encoding="utf-8"))
+    ATTRIBUTS |= {code: a | {"registre": _registre} for code, a in _conf["attributs"].items()}
 
 # Jetons Keycloak des agents connectés, gardés EN MÉMOIRE côté serveur (trop gros pour un cookie).
 # Le cookie de session ne contient qu'un numéro de session aléatoire.
@@ -84,8 +91,8 @@ def page(request: Request, modele: str, statut: int = 200, **contexte):
 
 
 def service_de(groupes: list[str]) -> tuple[str, str] | None:
-    """Groupe Keycloak -> (code, nom) du service, à partir des mêmes règles que le médiateur."""
-    services = [(code, s["nom"]) for code, s in REGLES["services"].items() if s["groupe"] in groupes]
+    """Groupe Keycloak -> (code, nom) du service, à partir du même annuaire que le médiateur."""
+    services = [(code, s["nom"]) for code, s in ANNUAIRE["services"].items() if s["groupe"] in groupes]
     return services[0] if len(services) == 1 else None
 
 
@@ -147,7 +154,8 @@ async def deconnexion(request: Request, csrf: str = Form(...)):
 # --- Demandes ---
 
 def demarches_du_service(service: str) -> dict:
-    return {code: d for code, d in REGLES["demarches"].items() if d["service"] == service}
+    """Le guichet ne propose QUE les démarches du catalogue ouvertes au service de l'agent."""
+    return {code: d for code, d in DEMARCHES.items() if service in d["services"]}
 
 
 async def mediateur(methode: str, chemin: str, session: dict, **kwargs) -> dict:
@@ -176,26 +184,43 @@ def empreinte_cle(cle_publique_pem: bytes) -> str:
     return " ".join(h[i:i + 4] for i in range(0, 16, 4))
 
 
-def verifier_reponse(jeton: str, demarche: dict, service: str, id_demande: str) -> dict:
+def verifier_volet(jeton: str, demande_attribut: dict, service: str, id_demande: str, sujet_ref: str) -> dict:
     """Le guichet NE FAIT PAS confiance au médiateur : il revérifie la signature du registre, avec la clé
     lue dans le volume du registre (monté en lecture seule ; le médiateur ne peut ni la fournir ni la remplacer)."""
-    attribut = REGLES["attributs"][demarche["attribut"]]
-    registre = REGLES["registres"][attribut["registre"]]
+    attribut = ATTRIBUTS[demande_attribut["attribut"]]
+    registre = ANNUAIRE["registres"][attribut["registre"]]
     cle_publique = (CLES_PUBLIQUES / attribut["registre"] / "cle.pem").read_bytes()
     infos = jwt.decode(jeton, cle_publique, algorithms=["EdDSA"], audience=service, issuer=registre["emetteur"],
                        options={"require": ["iss", "aud", "sub", "demande", "iat", "exp", "jti", "statut"]})
-    if infos["demande"] != id_demande:
-        raise jwt.InvalidTokenError("réponse émise pour une autre demande")
-    commun = {"registre": registre["nom"], "cle": empreinte_cle(cle_publique)}
+    if infos["demande"] != id_demande or infos["sub"] != sujet_ref:
+        raise jwt.InvalidTokenError("réponse émise pour une autre demande ou une autre personne")
+    resultat = {"signe": True, "registre": registre["nom"], "cle": empreinte_cle(cle_publique)}
     if infos["statut"] == "refus":
-        return commun | {"refus": str(infos["motif"])}
+        return resultat | {"refus": str(infos["motif"])}
+    if infos["statut"] != "ok":
+        raise jwt.InvalidTokenError("statut inattendu")
+    return resultat | {"valeur": lire_valeur(infos, attribut, demande_attribut.get("parametres") or {}),
+                       "jusqu_a": heure(infos["exp"])}
+
+
+def lire_valeur(infos: dict, attribut: dict, parametres: dict) -> bool:
+    """Réponse signée -> oui/non. Le guichet relit lui-même la réponse, avec les paramètres du catalogue."""
     valeur = infos[attribut["claim"]]
-    if attribut.get("cle") is not None:
-        valeur = valeur[attribut["cle"]]
-    if infos["statut"] != "ok" or type(valeur) is not bool:
-        raise jwt.InvalidTokenError("valeur inattendue")
-    return commun | {"attribut": attribut["libelle"], "valeur": "oui" if valeur else "non",
-                     "jusqu_a": heure(infos["exp"])}
+    if attribut["regle"] != "age_entre":
+        if type(valeur) is not bool:                # ex. {"nationalite_burkinabe": true}
+            raise jwt.InvalidTokenError("valeur inattendue")
+        return valeur
+    # ex. {"age_equal_or_over": {"18": true, "38": false}, "date_reference": "2026-12-31"}
+    #     = au moins 18 ans ET pas encore 38 ans (donc 37 ans au plus) à la date de référence
+    reference = str(parametres["date_reference"])
+    if reference == "aujourd'hui":                  # le jour où le registre a signé
+        reference = datetime.fromtimestamp(infos["iat"], timezone.utc).date().isoformat()
+    if infos["date_reference"] != reference:
+        raise jwt.InvalidTokenError("date de référence différente de celle du catalogue")
+    seuils = [str(parametres["min"])] + ([str(parametres["max"] + 1)] if parametres.get("max") is not None else [])
+    if set(valeur) != set(seuils) or any(type(v) is not bool for v in valeur.values()):
+        raise jwt.InvalidTokenError("seuils d'âge inattendus")
+    return valeur[seuils[0]] and not (len(seuils) == 2 and valeur[seuils[1]])
 
 
 @app.get("/")
@@ -205,36 +230,59 @@ async def accueil(request: Request, session: dict = Depends(exiger_agent)):
 
 @app.post("/demandes")
 async def envoyer(request: Request, csrf: str = Form(...), demarche: str = Form(""), sujet_ref: str = Form(""),
-                  autre_finalite: str = Form(""), session: dict = Depends(exiger_agent)):
+                  session: dict = Depends(exiger_agent)):
     verifier_csrf(request, csrf)
     demarches = demarches_du_service(session["service"])
     if demarche not in demarches or not sujet_ref.strip():
         return page(request, "accueil.html", 400, demarches=demarches, erreur="Choisissez une démarche et "
                     "indiquez l'identifiant de l'usager.")
-    regle = demarches[demarche]
     id_demande = str(uuid.uuid4())
-    corps = {"id_demande": id_demande, "demarche": demarche, "attribut": regle["attribut"],
-             "sujet_ref": sujet_ref.strip(), "finalite": autre_finalite.strip() or regle["finalite"]}
+    # Ni attribut ni question libre : c'est le catalogue qui fixe ce que la démarche peut demander
+    corps = {"id_demande": id_demande, "demarche": demarche, "sujet_ref": sujet_ref.strip(),
+             "finalite": demarches[demarche]["finalite"]}
     try:
         etat = await mediateur("POST", "/demandes", session, json=corps)
     except httpx.HTTPError:
         return page(request, "erreur.html", 502, message="Médiateur injoignable ou demande invalide : "
                     "rien n'a été transmis, rien n'a été deviné.")
-    RESULTATS[id_demande] = {"agent": session["nom"], "sujet_ref": corps["sujet_ref"], "demarche": demarche}
-    # Base légale : la réponse signée arrive tout de suite, et le médiateur ne la remet qu'une fois
+    RESULTATS[id_demande] = {"agent": session["nom"], "sujet_ref": corps["sujet_ref"], "demarche": demarche,
+                             "volets": {}}
+    # Base légale : les réponses signées arrivent tout de suite, et le médiateur ne les remet qu'une fois
     noter(RESULTATS[id_demande], etat, session, id_demande)
     return RedirectResponse(f"/demandes/{id_demande}", status_code=303)
 
 
 def noter(suivi: dict, etat: dict, session: dict, id_demande: str):
-    """Garde l'état reçu du médiateur ; si la réponse signée est là, la vérifie avant tout affichage."""
+    """Garde l'état reçu du médiateur. Chaque réponse signée est vérifiée ICI avant tout affichage ;
+    un résultat déjà vérifié n'est jamais remplacé."""
     suivi["etat"] = etat
-    if etat.get("jeton"):
-        try:
-            suivi["resultat"] = verifier_reponse(etat["jeton"], REGLES["demarches"][suivi["demarche"]],
-                                                 session["service"], id_demande)
-        except (jwt.PyJWTError, KeyError, TypeError, FileNotFoundError) as e:
-            suivi["etat"] = {"statut": "refuse", "motif": f"signature du registre non vérifiée au guichet ({e})"}
+    demandes = {a["attribut"]: a for a in DEMARCHES[suivi["demarche"]]["attributs"]}
+    for volet in etat.get("volets", []):
+        code = volet["attribut"]
+        if code not in demandes or suivi["volets"].get(code, {}).get("signe"):
+            continue
+        if volet.get("jeton"):
+            try:
+                suivi["volets"][code] = verifier_volet(volet["jeton"], demandes[code], session["service"],
+                                                       id_demande, suivi["sujet_ref"])
+            except (jwt.PyJWTError, KeyError, TypeError, AttributeError, FileNotFoundError) as e:
+                suivi["volets"][code] = {"echec": f"signature du registre non vérifiée au guichet ({e})"}
+        elif volet["statut"] == "en_attente":
+            suivi["volets"][code] = {"attente": True}
+        elif volet["statut"] == "indisponible":
+            suivi["volets"][code] = {"indisponible": volet["motif"]}
+        else:       # refusé sans réponse signée, ou non transmis (usager : refus, délai dépassé)
+            suivi["volets"][code] = {"echec": volet["motif"] or etat.get("motif") or "non transmis"}
+
+
+def conclusion(lignes: list[dict]) -> str:
+    """Jamais de « oui » global sur un résultat partiel."""
+    valeurs = [l["resultat"].get("valeur") for l in lignes]
+    if all(v is True for v in valeurs):
+        return "oui"
+    if any(v is False for v in valeurs):
+        return "non"
+    return "incomplet"
 
 
 @app.get("/demandes/{id_demande}")
@@ -243,7 +291,7 @@ async def suivre(request: Request, id_demande: uuid.UUID, session: dict = Depend
     suivi = RESULTATS.get(id_demande)
     if suivi is None or suivi["agent"] != session["nom"]:
         raise HTTPException(404, "Demande introuvable")
-    regle = REGLES["demarches"][suivi["demarche"]]
+    demarche = DEMARCHES[suivi["demarche"]]
     # On ne réinterroge le médiateur que tant que l'usager n'a pas répondu
     if suivi["etat"]["statut"] in ("en_attente", "confirmee"):
         try:
@@ -252,5 +300,7 @@ async def suivre(request: Request, id_demande: uuid.UUID, session: dict = Depend
             return page(request, "erreur.html", 502, message="Médiateur injoignable : rien n'a été deviné. "
                         "Réessayez dans un instant.")
     etat = suivi["etat"]
-    return page(request, "demande.html", suivi=suivi, regle=regle, etat=etat, resultat=suivi.get("resultat"),
-                expire=heure(etat["expire_le"]) if etat.get("expire_le") else None)
+    lignes = [{"libelle": a["libelle"], "resultat": suivi["volets"].get(a["attribut"], {})}
+              for a in demarche["attributs"]]
+    return page(request, "demande.html", suivi=suivi, demarche=demarche, etat=etat, lignes=lignes,
+                conclusion=conclusion(lignes), expire=heure(etat["expire_le"]) if etat.get("expire_le") else None)

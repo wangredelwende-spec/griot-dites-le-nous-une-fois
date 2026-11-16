@@ -22,14 +22,19 @@ spec.loader.exec_module(ussd)
 
 M = "http://mediateur:8000"
 EN_ATTENTE = [{"id_demande": "d-1", "service": "Le service des bourses", "code_service": "service-bourses",
-               "code_attribut": "majeur", "demarche": "Demande de bourse", "finalite": "attribution de bourse",
-               "attribut": "majeur", "valeur": "oui", "expire_le": 1794838200,
-               "apercu": "Le service des bourses recevra : majeur = oui. Rien d'autre."}]
+               "demarche": "Bourse nationale", "finalite": "attribution de la bourse nationale",
+               "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè", "parametres": {},
+                              "valeur": "oui"}], "expire_le": 1794838200,
+               "apercu": "Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre."}]
+CONCOURS = [{"code": "age_entre", "libelle": "âge de 18 à 37 ans au 31/12/2026"},
+            {"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"},
+            {"code": "casier_judiciaire_vierge", "libelle": "casier judiciaire vierge"}]
 
 
 def ligne(n, evenement="remise", service="direction-concours", resultat="ok"):
     return {"n": n, "ts": "2026-11-16T11:54:30Z", "agent": "issa.sawadogo", "service": "…", "code_service": service,
-            "demarche": "…", "finalite": "…", "base": "base-legale", "texte_base": "…", "attribut": "majeur",
+            "demarche": "…", "finalite": "…", "base": "base_legale", "texte_base": "…",
+            "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"}],
             "evenement": evenement, "resultat": resultat, "motif": "", "empreinte": f"{n:08x}" + "a" * 56}
 
 
@@ -62,7 +67,7 @@ def test_apercu_puis_confirmation_avec_recu():
     tel = Telephone()
     tel.connecter()
     apercu = tel.taper("1")
-    assert apercu.startswith("Le service des bourses recevra : majeur = oui. Rien d'autre.")
+    assert apercu.startswith("Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre.")
     assert "1. Confirmer 2. Refuser" in apercu
     assert tel.taper("1") == "Confirmé. Reçu : 3f9a 1c0b 0000 0000\n0. Menu"
     assert confirmer.calls[0].request.headers["X-Cle-Canal"] == "secret-de-test-canal"
@@ -86,10 +91,10 @@ def test_historique_pagine_par_3_sans_la_valeur():
     tel = Telephone()
     tel.connecter()
     page1 = tel.taper("2")
-    assert page1.splitlines()[0] == "1. 16/11 11h54 Concours majeur transmis"
+    assert page1.splitlines()[0] == "1. 16/11 11h54 Concours nation. transmis"
     assert len(page1.splitlines()) == 4 and page1.endswith("9.Suite 0.Retour")
     assert len(tel.taper("9").splitlines()) == 4
-    assert tel.taper("9").splitlines() == ["1. 16/11 11h54 Concours majeur transmis", "0. Retour"]
+    assert tel.taper("9").splitlines() == ["1. 16/11 11h54 Concours nation. transmis", "0. Retour"]
     assert "oui" not in page1
 
 
@@ -100,7 +105,7 @@ def test_detail_avec_finalite_base_et_recu_de_16_caracteres():
     tel.connecter()
     tel.taper("2")
     detail = tel.taper("1")
-    assert detail.splitlines() == ["La direction des concours : majeur transmis", "Pour : …", "Base légale",
+    assert detail.splitlines() == ["La direction des concours : nationalité burkinabè transmis", "Pour : …", "Base légale",
                                    "Reçu : 0000 0007 aaaa aaaa", "0. Retour"]
     assert tel.taper("0").startswith("1. 16/11")          # retour à la liste
 
@@ -161,3 +166,30 @@ def test_moore_incomplet_non_propose():
 @pytest.mark.parametrize("cle", ["apercu", "confirme", "pin_faux"])
 def test_les_reperes_sont_presents(cle):
     assert "{" in ussd.TEXTES["fr"][cle]
+
+
+@respx.mock
+def test_concours_trois_attributs_historique_et_detail():
+    respx.get(f"{M}/usagers/BF-0012/historique").mock(return_value=httpx.Response(200, json=[
+        ligne(n) | {"attributs": CONCOURS, "finalite": "vérification des conditions d'inscription au concours "
+                    "direct des adjoints administratifs"} for n in range(9, 0, -1)]))
+    tel = Telephone()
+    tel.connecter()
+    assert tel.taper("2").splitlines()[0] == "1. 16/11 11h54 Concours 3 infos transmis"
+    detail = tel.taper("1")
+    assert detail.splitlines()[0] == "La direction des concours : âge, nation., casier transmis"
+    assert "Reçu : 0000 0009 aaaa aaaa" in detail and detail.endswith("0. Retour")
+
+
+@respx.mock
+def test_apercu_de_plusieurs_attributs_tient_en_160():
+    """Un seul aperçu liste TOUT ; trop long en libellés complets : libellés courts, jamais coupé."""
+    attente = [EN_ATTENTE[0] | {"attributs": [a | {"valeur": "oui", "parametres": {}} for a in CONCOURS]},
+               EN_ATTENTE[0]]
+    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=attente))
+    tel = Telephone()
+    tel.connecter()
+    apercu = tel.taper("1")
+    assert apercu.startswith("(1/2) Le service des bourses recevra : âge = oui ; nation. = oui ; casier = oui. "
+                             "Rien d'autre.")
+    assert "…" not in apercu and "1. Confirmer 2. Refuser" in apercu

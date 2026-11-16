@@ -11,7 +11,8 @@ CLIENT_ID = "guichet"
 ROLE_AGENT = "agent-guichet"
 MEDIATEUR = "http://mediateur:8000"
 CLES_PUBLIQUES = Path("/publiques")
-FICHIER_REGLES = Path("/app/regles.yaml")
+CATALOGUE = Path("/catalogue")          # annuaire.yaml + demarches.yaml (lecture seule)
+ADAPTATEURS = Path("/adaptateurs")      # attributs déclarés par chaque registre (lecture seule)
 
 
 def lire_secret(nom: str) -> str:

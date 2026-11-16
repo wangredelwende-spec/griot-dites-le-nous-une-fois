@@ -12,6 +12,7 @@ from pathlib import Path
 
 import jwt
 import pytest
+import yaml
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
@@ -22,7 +23,7 @@ for dossier in ("secrets", "donnees", "publiques"):
 (TMP / "secrets/sujet_hmac").write_text("secret-de-test-pseudonyme")
 (TMP / "secrets/canal_usager").write_text("secret-de-test-canal")
 os.environ.update(GRIOT_SECRETS=str(TMP / "secrets"), GRIOT_DONNEES=str(TMP / "donnees"),
-                  GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_REGLES=str(RACINE / "mediateur/regles.yaml"),
+                  GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_CATALOGUE=str(RACINE / "catalogue"),
                   GRIOT_ADAPTATEURS=str(RACINE / "adaptateurs"),
                   DELAI_REGISTRE="0.5")
 
@@ -33,6 +34,8 @@ for registre in ("etat-civil", "nationalite", "casier"):
     (TMP / "publiques" / registre / "cle.pem").write_bytes(CLE_REGISTRE.public_key().public_bytes(
         serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
 URL_REGISTRE = "http://registre-etat-civil:8000/attributs"
+URL_NATIONALITE = "http://registre-nationalite:8000/attributs"
+URL_CASIER = "http://registre-casier:8000/attributs"
 CANAL = {"X-Cle-Canal": "secret-de-test-canal"}
 CHEMIN_JOURNAL = TMP / "donnees/mediateur.sqlite3"
 
@@ -41,12 +44,27 @@ from app import main as mediateur  # noqa: E402
 from app.agents import agent_connecte  # noqa: E402
 
 
+EMETTEURS = {"age_entre": "registre-etat-civil", "personne_connue": "registre-etat-civil",
+             "nationalite_burkinabe": "registre-nationalite", "casier_judiciaire_vierge": "registre-casier"}
+
+
+def claims_attribut(corps: dict) -> dict:
+    """Réponse « oui » que calculerait le registre pour l'attribut demandé."""
+    if corps["attribut"] == "age_entre":
+        p = corps["parametres"]
+        ages = {str(p["min"]): True}
+        if p.get("max") is not None:
+            ages[str(p["max"] + 1)] = False             # « pas encore max + 1 ans »
+        return {"age_equal_or_over": ages, "date_reference": p["date_reference"]}
+    return {corps["attribut"]: True}
+
+
 def jeton_registre(corps: dict, cle=CLE_REGISTRE, **modifs) -> str:
     """Réponse que signerait le vrai registre (on peut la modifier pour simuler une corruption)."""
     maintenant = int(time.time())
-    charge = {"iss": "registre-etat-civil", "aud": corps["destinataire"], "sub": corps["sujet_ref"],
+    charge = {"iss": EMETTEURS[corps["attribut"]], "aud": corps["destinataire"], "sub": corps["sujet_ref"],
               "demande": corps["id_demande"], "iat": maintenant, "exp": maintenant + 600,
-              "jti": str(uuid.uuid4()), "statut": "ok", "age_equal_or_over": {"18": True}}
+              "jti": str(uuid.uuid4()), "statut": "ok", **claims_attribut(corps)}
     charge.update(modifs)
     for nom in [c for c, v in charge.items() if v is None]:     # modifs={"x": None} retire le claim x
         del charge[nom]
@@ -55,8 +73,9 @@ def jeton_registre(corps: dict, cle=CLE_REGISTRE, **modifs) -> str:
 
 def refus_registre(corps: dict, cle=CLE_REGISTRE, **modifs) -> str:
     """Refus signé, tel que l'émet le registre."""
-    return jeton_registre(corps, cle, statut="refus", motif="réponse impossible, s'adresser à l'état civil",
-                          age_equal_or_over=None, **modifs)
+    sans_attribut = {c: None for c in claims_attribut(corps)}
+    return jeton_registre(corps, cle, **sans_attribut | {"statut": "refus",
+                          "motif": "réponse impossible, s'adresser à l'état civil"} | modifs)
 
 
 # Adaptateur de l'état civil lisant le CSV du dépôt (au lieu de /donnees dans Docker)
@@ -84,9 +103,11 @@ def client():
     mediateur.app.dependency_overrides.clear()
 
 
-def demande(demarche="concours", sujet="BF-0001", **modifs) -> dict:
-    finalites = {"concours": "vérification de l'âge minimal pour concourir", "bourse": "attribution de bourse"}
-    d = {"id_demande": str(uuid.uuid4()), "demarche": demarche, "attribut": "majeur", "sujet_ref": sujet,
-         "finalite": finalites[demarche]}
+FINALITES = {code: d["finalite"] for code, d in
+             yaml.safe_load((RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8"))["demarches"].items()}
+
+
+def demande(demarche="verifier-majorite", sujet="BF-0001", **modifs) -> dict:
+    d = {"id_demande": str(uuid.uuid4()), "demarche": demarche, "sujet_ref": sujet, "finalite": FINALITES[demarche]}
     d.update(modifs)
     return d

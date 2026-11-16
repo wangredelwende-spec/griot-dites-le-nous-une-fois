@@ -1,4 +1,4 @@
-# API usager du médiateur (figée le 16/11/2026)
+# API usager du médiateur (figée le 16/11/2026, catalogue multi-attributs le 16/11 après-midi)
 
 Utilisée par les écrans usager : **USSD simulé** (`ussd_sim/`, d'abord) puis portail web.
 Elle est indépendante de l'écran : le texte d'aperçu est fourni, mais aussi ses morceaux, pour
@@ -18,13 +18,17 @@ composer l'écran dans une autre langue (mooré).
 
 ```json
 [{"id_demande": "8c1f…", "service": "Le service des bourses", "code_service": "service-bourses",
-  "code_attribut": "majeur", "demarche": "Demande de bourse",
-  "finalite": "attribution de bourse", "attribut": "majeur", "valeur": "oui", "expire_le": 1794838200,
-  "apercu": "Le service des bourses recevra : majeur = oui. Rien d'autre."}]
+  "demarche": "Bourse nationale", "finalite": "attribution de la bourse nationale",
+  "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè", "parametres": {},
+                 "valeur": "oui"}],
+  "expire_le": 1794838200,
+  "apercu": "Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre."}]
 ```
 
-- `code_service`, `code_attribut` : codes stables (ajoutés le 16/11, compatibles) pour composer l'écran
-  dans une autre langue ; les textes `service`, `attribut`, `apercu` restent en français.
+- **Une demande peut porter plusieurs attributs** (démarche du catalogue) : UN aperçu les liste tous,
+  UNE confirmation vaut pour tous.
+- `code_service`, `attributs[].code` : codes stables pour composer l'écran dans une autre langue ;
+  les textes `service`, `libelle`, `apercu` restent en français.
 - `valeur` : `"oui"` ou `"non"`, exactement ce qui partira si l'usager confirme.
 - `expire_le` : horodatage Unix (UTC) ; après, la demande disparaît (expirée, rien n'est remis).
 
@@ -50,15 +54,19 @@ composer l'écran dans une autre langue (mooré).
 ```json
 [{"n": 36, "ts": "2026-11-16T11:54:30Z", "agent": "issa.sawadogo",
   "service": "La direction des concours de la fonction publique", "code_service": "direction-concours",
-  "demarche": "Inscription à un concours de la fonction publique",
-  "finalite": "vérification de l'âge minimal pour concourir", "base": "base-legale",
-  "texte_base": "Règlement des concours … (texte fictif pour la démonstration)",
-  "attribut": "majeur", "evenement": "remise", "resultat": "ok", "motif": "",
+  "demarche": "Concours direct adjoints administratifs",
+  "finalite": "vérification des conditions d'inscription au concours direct des adjoints administratifs",
+  "base": "base_legale", "texte_base": "Loi n°081-2015/CNT …",
+  "attributs": [{"code": "age_entre", "libelle": "âge de 18 à 37 ans au 31/12/2026"},
+                {"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"},
+                {"code": "casier_judiciaire_vierge", "libelle": "casier judiciaire vierge"}],
+  "evenement": "remise", "resultat": "ok", "motif": "",
   "empreinte": "038672c337eaa71a…"}]
 ```
 
 - **Jamais la valeur** de l'attribut : le journal ne la contient pas.
-- `base` : `consentement` ou `base-legale` (alors `texte_base` donne le texte qui l'autorise).
+- `base` : `consentement` ou `base_legale` (alors `texte_base` donne le texte qui l'autorise).
+- `attributs` : ce que concerne la ligne (une ligne `reponse-registre` ne concerne qu'un attribut).
 - `evenement` : `demande` | `reponse-registre` | `confirmation` | `refus-usager` | `remise` | `expiration` | `alerte`.
 - `resultat` : `ok` | `refuse` | `indisponible`. `motif` explique un refus.
 - **Reçu** = 16 premiers caractères de `empreinte` (64 bits), affichés « 9035 47b3 1c2e 9f04 ». Il se vérifie avec

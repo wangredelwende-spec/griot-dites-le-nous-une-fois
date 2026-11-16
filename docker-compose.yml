@@ -134,7 +134,7 @@ services:
       DUREE_CONSENTEMENT: "600"            # 10 minutes pour confirmer
     secrets: [sujet_hmac, canal_usager]
     volumes:
-      - ./mediateur/regles.yaml:/app/regles.yaml:ro
+      - ./catalogue:/catalogue:ro          # annuaire + catalogue des démarches
       - ./journal:/journal:ro              # verifier.py
       - ./adaptateurs:/adaptateurs:ro      # descriptions publiées par les registres (« absence » du casier)
       - mediateur_donnees:/donnees         # journal chaîné + demandes en attente (SQLite)
@@ -166,7 +166,8 @@ services:
       AUTHLIB_INSECURE_TRANSPORT: "1"
     secrets: [guichet_oidc]
     volumes:
-      - ./mediateur/regles.yaml:/app/regles.yaml:ro
+      - ./catalogue:/catalogue:ro          # annuaire + catalogue des démarches
+      - ./adaptateurs:/adaptateurs:ro      # attributs déclarés par les registres
       # Même clé publique que le médiateur, lue directement dans le volume du registre (lecture seule) :
       # le médiateur ne peut ni la fournir ni la remplacer.
       - cle_publique_etat_civil:/publiques/etat-civil:ro

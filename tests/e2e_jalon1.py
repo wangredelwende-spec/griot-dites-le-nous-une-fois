@@ -75,32 +75,30 @@ def connecter(client: httpx.Client, agent: str = AGENT) -> str:
     return re.search(r'name="csrf" value="([^"]+)"', r.text).group(1)
 
 
-def demander(client: httpx.Client, csrf: str, sujet: str, autre_finalite: str = "",
-             demarche: str = "concours") -> str:
+def demander(client: httpx.Client, csrf: str, sujet: str, demarche: str = "verifier-majorite") -> str:
     r = client.post("https://guichet.griot.test/demandes",
-                    data={"csrf": csrf, "demarche": demarche, "sujet_ref": sujet, "autre_finalite": autre_finalite})
+                    data={"csrf": csrf, "demarche": demarche, "sujet_ref": sujet})
     texte = html.unescape(re.sub(r"<[^>]+>", " ", r.text))
     return " ".join(texte.split())
 
 
-REFUS = "Refusé par le registre d'état civil : réponse impossible, s'adresser à l'état civil. Réponse signée par le registre, signature vérifiée"
+REFUS = "refusé par le registre d'état civil : réponse impossible, s'adresser à l'état civil. Réponse signée par le registre, signature vérifiée"
+# (démarche, usager, textes attendus) ; démarches du catalogue (catalogue/demarches.yaml)
 CAS = [
-    ("BF-0001", "", "majeur : oui Signé par le registre d'état civil, signature vérifiée"),
-    ("BF-0003", "", "majeur : non"),
-    ("BF-0004", "", REFUS),      # vers 1990
-    ("BF-0007", "", REFUS),      # décédée : le guichet ne l'apprend pas
-    ("BF-0019", "", REFUS),      # doublon
-    ("BF-0099", "", REFUS),      # introuvable
-    ("BF-0001", "curiosité", "finalité non autorisée"),
-]
-# Nationalité et casier (base légale, Direction des concours)
-CAS_AUTRES = [
-    ("concours-nationalite", "BF-0001", "nationalité burkinabè : oui Signé par le registre de la nationalité"),
-    ("concours-nationalite", "BF-0018", "nationalité burkinabè : non"),
-    ("concours-nationalite", "BF-0013", "réponse impossible, s'adresser au service de la nationalité"),
-    ("concours-casier", "BF-0001", "casier judiciaire vierge : oui Signé par le casier judiciaire"),
-    ("concours-casier", "BF-0008", "casier judiciaire vierge : non"),
-    ("concours-casier", "BF-0003", "réponse impossible, s'adresser au greffe"),     # absent ≠ vierge
+    ("verifier-majorite", "BF-0001", ["majeur (18 ans accomplis) : oui Signé par le registre d'état civil, signature vérifiée"]),
+    ("verifier-majorite", "BF-0003", ["majeur (18 ans accomplis) : non"]),
+    ("verifier-majorite", "BF-0004", [REFUS]),      # vers 1990
+    ("verifier-majorite", "BF-0007", [REFUS]),      # décédée : le guichet ne l'apprend pas
+    ("verifier-majorite", "BF-0019", [REFUS]),      # doublon
+    ("verifier-majorite", "BF-0099", [REFUS]),      # introuvable
+    # Concours direct : UNE demande, 3 registres
+    ("concours-adjoints", "BF-0001", ["âge de 18 à 37 ans au 31/12/2026 : oui", "nationalité burkinabè : oui",
+                                      "casier judiciaire vierge : oui", "Conclusion : toutes les conditions sont vérifiées"]),
+    ("concours-adjoints", "BF-0008", ["casier judiciaire vierge : non", "au moins une condition n'est pas remplie"]),
+    ("concours-adjoints", "BF-0018", ["nationalité burkinabè : non"]),
+    ("concours-adjoints", "BF-0003", ["âge de 18 à 37 ans au 31/12/2026 : non",
+                                      "réponse impossible, s'adresser au greffe"]),          # absente du casier ≠ vierge
+    ("concours-adjoints", "BF-0013", ["réponse impossible, s'adresser au service de la nationalité"]),
 ]
 
 
@@ -109,19 +107,13 @@ def main():
     with httpx.Client(verify=autorite_caddy(), follow_redirects=True, timeout=20) as client:
         csrf = connecter(client)
         print("OK  connexion de agent.banc (mot de passe + TOTP)")
-        for sujet, finalite, attendu in CAS:
-            texte = demander(client, csrf, sujet, finalite)
-            ok = attendu in texte
+        for demarche, sujet, attendus in CAS:
+            texte = demander(client, csrf, sujet, demarche)
+            # Le détail du casier (« vol », « escroquerie ») et les dates ne doivent jamais apparaître au guichet
+            ok = all(a in texte for a in attendus) and not any(m in texte for m in ("vol ", "escroquerie", "2001-03-14"))
             echecs += not ok
-            print(f"{'OK ' if ok else 'ÉCHEC'} {sujet} {finalite or ''} -> attendu « {attendu} »"
-                  + ("" if ok else f"\n      page : {texte[-300:]}"))
-        for demarche, sujet, attendu in CAS_AUTRES:
-            texte = demander(client, csrf, sujet, demarche=demarche)
-            # Le détail du casier (« vol », « escroquerie ») ne doit jamais apparaître au guichet
-            ok = attendu in texte and "vol" not in texte and "escroquerie" not in texte
-            echecs += not ok
-            print(f"{'OK ' if ok else 'ÉCHEC'} {demarche} {sujet} -> attendu « {attendu} »"
-                  + ("" if ok else f"\n      page : {texte[-300:]}"))
+            print(f"{'OK ' if ok else 'ÉCHEC'} {demarche} {sujet} -> {' | '.join(attendus)}"
+                  + ("" if ok else f"\n      page : {texte[-400:]}"))
     verification = subprocess.run(["docker", "compose", "exec", "-T", "mediateur", "python", "/journal/verifier.py"],
                                   cwd=RACINE, capture_output=True, text=True)
     print(verification.stdout.strip())

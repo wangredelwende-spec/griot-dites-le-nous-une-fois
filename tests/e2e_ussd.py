@@ -1,8 +1,8 @@
 """Test de bout en bout « Vous voyez avant, vous vérifiez après », contre la pile qui tourne.
 
-1. agent.banc.bourses (Service des bourses) demande « majeur » pour BF-0012 : en attente de l'usager.
+1. agent.banc.bourses (Service des bourses) demande la « Bourse nationale » pour BF-0012 : en attente de l'usager.
 2. L'usager (téléphone 70000012) compose *226#, voit l'aperçu exact et confirme : il reçoit un reçu.
-3. Le guichet actualise : « majeur : oui », signature vérifiée.
+3. Le guichet actualise : « nationalité burkinabè : oui », signature vérifiée.
 4. L'usager consulte « Qui a consulté mes données » : le reçu y figure, sans la valeur.
 5. Une seconde demande est refusée par l'usager : le guichet n'obtient rien.
 
@@ -25,7 +25,7 @@ def texte(page: str) -> str:
 
 
 def demander(guichet: httpx.Client, csrf: str) -> str:
-    r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf, "demarche": "bourse", "sujet_ref": "BF-0012"})
+    r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf, "demarche": "bourse-nationale", "sujet_ref": "BF-0012"})
     assert "En attente de l'usager" in texte(r.text), texte(r.text)[-300:]
     return str(r.url)
 
@@ -67,23 +67,23 @@ def main():
         resultats.append(verifier("demande de bourse en attente de l'usager", True))
         apercu = tel.taper("1")
         resultats.append(verifier("aperçu exact sur le téléphone",
-                                  "Le service des bourses recevra : majeur = oui. Rien d'autre." in apercu, apercu))
+                                  "Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre." in apercu, apercu))
         confirmation = tel.taper("1")
         recu = re.search(r"Reçu : ((?:[0-9a-f]{4} ){3}[0-9a-f]{4})", confirmation)
         resultats.append(verifier(f"confirmation avec reçu ({recu[1] if recu else '?'})", bool(recu), confirmation))
 
         page = texte(guichet.get(adresse).text)
-        resultats.append(verifier("guichet : majeur : oui, signature vérifiée",
-                                  "majeur : oui Signé par le registre d'état civil, signature vérifiée" in page, page[-300:]))
+        resultats.append(verifier("guichet : nationalité burkinabè : oui, signature vérifiée",
+                                  "nationalité burkinabè : oui Signé par le registre de la nationalité, signature vérifiée" in page, page[-300:]))
 
         tel.taper("0")
         historique = tel.taper("2")
         resultats.append(verifier("historique : la consultation apparaît, sans la valeur",
-                                  "Bourses majeur transmis" in historique and "Bourses majeur accordé" in historique
+                                  "Bourses nation. transmis" in historique and "Bourses nation. accordé" in historique
                                   and "oui" not in historique, historique))
         detail = tel.taper("2")        # ligne 1 : « transmis » ; ligne 2 : « accordé », celle du reçu
         resultats.append(verifier("détail : finalité, base et le même reçu",
-                                  "Pour : attribution de bourse" in detail and bool(recu) and recu[1] in detail
+                                  "Pour : attribution de la bourse nationale" in detail and bool(recu) and recu[1] in detail
                                   and "Avec votre accord" in detail, detail))
         tel.taper("0")       # détail -> liste
         tel.taper("0")       # liste -> menu
@@ -93,7 +93,7 @@ def main():
         refus = tel.taper("2")
         page = texte(guichet.get(adresse).text)
         resultats.append(verifier("refus de l'usager : le guichet n'obtient rien",
-                                  "Refusé" in page and "refusé par l'usager" in page and "majeur : oui" not in page,
+                                  "refusé par l'usager : rien n'a été transmis" in page and "nationalité burkinabè : oui" not in page,
                                   refus + " | " + page[-200:]))
     sys.exit(0 if all(resultats) else 1)
 

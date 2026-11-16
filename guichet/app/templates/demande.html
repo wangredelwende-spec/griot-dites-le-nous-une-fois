@@ -1,32 +1,59 @@
 {% extends "base.html" %}
 {% block titre %}Demande{% endblock %}
 {% block contenu %}
-<h1>{{ regle.libelle }}</h1>
-<p class="aide">Usager : <code>{{ suivi.sujet_ref }}</code> · finalité : {{ regle.finalite }}</p>
+<h1>{{ demarche.libelle }}</h1>
+<p class="aide">Usager : <code>{{ suivi.sujet_ref }}</code> · finalité : {{ demarche.finalite }} ·
+{% if demarche.base == "consentement" %}avec l'accord de l'usager{% else %}base légale : {{ demarche.texte }}{% endif %}</p>
 
-{% if resultat and resultat.refus %}
-<div class="erreur" role="alert">
-  <p><strong>Refusé par le {{ resultat.registre }}</strong> : {{ resultat.refus }}.</p>
-  <p>Réponse signée par le registre, signature vérifiée (clé du registre : <code>{{ resultat.cle }}</code>).</p>
-</div>
-{% elif resultat %}
-<div class="bloc succes" role="status">
-  <p class="resultat"><strong>{{ resultat.attribut }} : {{ resultat.valeur }}</strong></p>
-  <p>Signé par le {{ resultat.registre }}, signature vérifiée, valable jusqu'à {{ resultat.jusqu_a }}.</p>
-  <p class="aide">Clé du registre : <code>{{ resultat.cle }}</code>. Le guichet n'a reçu que cette réponse :
-  aucune date de naissance, aucune fiche.</p>
-</div>
-{% elif etat.statut in ("en_attente", "confirmee") %}
+{% if etat.statut in ("en_attente", "confirmee") %}
 <div class="bloc attente" role="status">
   <p><strong>En attente de l'usager.</strong> Il voit exactement ce qui sera transmis et doit confirmer
-  (délai : jusqu'à {{ expire }}).</p>
+  (délai : jusqu'à {{ expire }}). Rien n'est encore transmis.</p>
   <p><a class="bouton" href="{{ request.url.path }}">Actualiser</a></p>
 </div>
-{% else %}
+{% elif not etat.volets or etat.statut == "expiree" or (etat.statut == "refuse" and etat.volets|length > 1) %}
 <div class="erreur" role="alert">
-  <p><strong>{% if etat.statut == "indisponible" %}Registre indisponible{% elif etat.statut == "expiree" %}Délai dépassé{% else %}Refusé{% endif %}</strong></p>
-  <p>{{ etat.motif }}</p>
+  <p><strong>{% if etat.statut == "expiree" %}Délai dépassé{% else %}Refusé{% endif %}</strong> : {{ etat.motif }}</p>
 </div>
+{% endif %}
+
+{% for l in lignes %}
+{% set r = l.resultat %}
+{% if r.valeur is defined %}
+<div class="bloc succes" role="status">
+  <p class="resultat"><strong>{{ l.libelle }} : {{ "oui" if r.valeur else "non" }}</strong></p>
+  <p>Signé par le {{ r.registre }}, signature vérifiée, valable jusqu'à {{ r.jusqu_a }}.
+  <span class="aide">Clé du registre : <code>{{ r.cle }}</code>.</span></p>
+</div>
+{% elif r.refus %}
+<div class="erreur" role="alert">
+  <p><strong>{{ l.libelle }} : refusé par le {{ r.registre }}</strong> : {{ r.refus }}.</p>
+  <p>Réponse signée par le registre, signature vérifiée (clé du registre : <code>{{ r.cle }}</code>).</p>
+</div>
+{% elif r.indisponible %}
+<div class="erreur" role="alert">
+  <p><strong>{{ l.libelle }} : indisponible.</strong> {{ r.indisponible }}.</p>
+</div>
+{% elif r.echec %}
+<div class="erreur" role="alert">
+  <p><strong>{{ l.libelle }} : refusé.</strong> {{ r.echec }}.</p>
+</div>
+{% elif r.attente %}
+<div class="bloc attente"><p>{{ l.libelle }} : en attente de l'accord de l'usager.</p></div>
+{% endif %}
+{% endfor %}
+
+{% if etat.statut == "remise" or (etat.volets and etat.statut in ("refuse", "indisponible")) %}
+{% if lignes|length > 1 %}
+<div class="bloc {{ 'succes' if conclusion == 'oui' else 'attente' }}" role="status">
+  <p><strong>Conclusion :
+  {% if conclusion == "oui" %}toutes les conditions sont vérifiées.
+  {% elif conclusion == "non" %}au moins une condition n'est pas remplie.
+  {% else %}résultat incomplet, aucune conclusion. Rien n'a été deviné : refaire la demande plus tard.{% endif %}
+  </strong></p>
+</div>
+{% endif %}
+<p class="aide">Le guichet n'a reçu que ces réponses : aucune date de naissance, aucune fiche, aucun détail.</p>
 {% endif %}
 
 <p><a href="/">Nouvelle demande</a></p>

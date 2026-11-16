@@ -86,17 +86,30 @@ async def mediateur(methode: str, chemin: str, **kwargs):
 
 # --- Écrans ---
 
+def nom_attribut(s: dict, a: dict, court: bool = False) -> str:
+    """Libellé d'un attribut : texte traduit s'il existe (phrases-ussd.csv), sinon libellé du catalogue."""
+    textes = TEXTES[s["langue"]]
+    if court:
+        return textes.get(f"attribut_court_{a['code']}", a["code"][:8])
+    return textes.get(f"attribut_{a['code']}", a["libelle"])
+
+
 def ecran_attente(s: dict) -> str:
     if not s["liste"]:
         s["etape"] = "info"
         return ecran(t(s, "aucune_demande"), t(s, "retour_menu"))
     d = s["liste"][s["index"]]
     service = TEXTES[s["langue"]].get(f"service_long_{d['code_service']}", d["service"])
-    attribut = TEXTES[s["langue"]].get(f"attribut_{d['code_attribut']}", d["attribut"])
     rang = f"({s['index'] + 1}/{len(s['liste'])}) " if len(s["liste"]) > 1 else ""
     suivante = t(s, "suivante") + " " if s["index"] + 1 < len(s["liste"]) else ""
-    return ecran(rang + t(s, "apercu", service=service, attribut=attribut, valeur=t(s, d["valeur"])),
-                 t(s, "confirmer_refuser"), suivante + t(s, "retour"))
+    # UN aperçu qui liste TOUT ce qui partira ; trop long pour 160 caractères : libellés courts
+    for court in (False, True):
+        liste = " ; ".join(f"{nom_attribut(s, a, court)} = {t(s, a['valeur'])}" for a in d["attributs"])
+        lignes = (rang + t(s, "apercu", service=service, liste=liste), t(s, "confirmer_refuser"),
+                  suivante + t(s, "retour"))
+        if len("\n".join(lignes)) <= LIMITE:
+            break
+    return ecran(*lignes)
 
 
 def format_recu(empreinte: str) -> str:
@@ -109,7 +122,10 @@ def ligne_historique(s: dict, numero: int, l: dict) -> str:
     """« 1. 16/11 11h54 Concours majeur transmis » : date, qui, quoi, résultat."""
     date = datetime.strptime(l["ts"], "%Y-%m-%dT%H:%M:%SZ").strftime("%d/%m %Hh%M")
     service = TEXTES[s["langue"]].get(f"service_court_{l['code_service']}", l["code_service"][:8])
-    attribut = TEXTES[s["langue"]].get(f"attribut_court_{l['attribut']}", l["attribut"][:8])
+    if len(l["attributs"]) == 1:
+        attribut = nom_attribut(s, l["attributs"][0], court=True)
+    else:
+        attribut = t(s, "n_infos", n=len(l["attributs"]))       # « 3 infos » : le détail est sur l'écran suivant
     etat = t(s, EVENEMENTS.get(l["evenement"], "etat_refuse"))
     return f"{numero}. {date} {service} {attribut} {etat}"
 
@@ -129,14 +145,17 @@ def ecran_detail(s: dict, l: dict) -> str:
     """Détail d'une consultation : qui, quoi, résultat, pourquoi, sur quelle base, reçu."""
     s["etape"] = "detail"
     service = TEXTES[s["langue"]].get(f"service_long_{l['code_service']}", l["service"])
-    attribut = TEXTES[s["langue"]].get(f"attribut_{l['attribut']}", l["attribut"])
+    if len(l["attributs"]) == 1:
+        attribut = nom_attribut(s, l["attributs"][0])
+    else:
+        attribut = ", ".join(nom_attribut(s, a, court=True) for a in l["attributs"])
     etat = t(s, EVENEMENTS.get(l["evenement"], "etat_refuse"))
-    base = t(s, "base_legale" if l["base"] == "base-legale" else "base_consentement")
+    base = t(s, "base_legale" if l["base"] == "base_legale" else "base_consentement")
     lignes = [f"{service} : {attribut} {etat}", t(s, "pour", finalite=l["finalite"]), base,
               t(s, "recu", recu=format_recu(l["empreinte"])), t(s, "retour")]
     # Si l'écran déborde, on raccourcit la finalité : le reçu n'est JAMAIS coupé
     place = LIMITE - len("\n".join(lignes[:1] + lignes[2:])) - 1
-    if len(lignes[1]) > place:
+    if len(lignes[1]) > place >= 10:
         lignes[1] = lignes[1][:place - 1] + "…"
     return ecran(*lignes)
 

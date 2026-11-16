@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titre %}Agents{% endblock %} · Griot Secure, guichet</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="entete">
+    <div class="entete-haut">
+      <p class="marque"><strong>Griot Secure</strong> <span>Guichet des agents</span></p>
+      {% if agent %}
+      <form method="post" action="/deconnexion" class="deconnexion">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <span class="connecte">{{ agent }}</span>
+        <button>Se déconnecter</button>
+      </form>
+      {% endif %}
+    </div>
+  </header>
+  <main>{% block contenu %}{% endblock %}</main>
+</body>
+</html>

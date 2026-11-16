@@ -13,7 +13,7 @@ Dans le sélecteur, chaque langue s'affiche sous son propre nom : Mooré, Julaka
 1. Ouvrir `phrases.csv` (Excel, LibreOffice ou un éditeur de texte), séparateur **point-virgule**.
 2. Remplir uniquement la colonne de sa langue. Ne pas toucher aux colonnes `cle`, `ecran`, `fr`.
 3. Garder tels quels les repères **`{0}`** : Keycloak les remplace par une valeur
-   (un nombre de caractères, le nom de la messagerie…).
+   (un nombre de caractères, le nom du service…).
 4. Enregistrer en **CSV UTF-8, séparateur point-virgule** (pour que les caractères ɛ, ɩ, ʋ… soient conservés).
 
 ## Pour l'intégration
@@ -24,7 +24,7 @@ docker compose restart keycloak
 ```
 
 Le script indique pour chaque langue le nombre de phrases remplies et si elle est publiée. Il met à
-jour les fichiers de messages, `theme.properties`, `keycloak/realm-administration.json` et le realm
+jour les fichiers de messages, `theme.properties`, `keycloak/realm-griot.json` et le realm
 déjà en place (pas besoin de tout réinitialiser).
 
 ## Ajouter une langue en 3 étapes

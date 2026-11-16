@@ -1,16 +1,14 @@
 {
-  "realm": "administration",
-  "displayName": "Messagerie de l'administration",
+  "realm": "griot",
+  "displayName": "Griot Secure, guichet de l'administration",
   "enabled": true,
   "sslRequired": "external",
-
   "registrationAllowed": false,
   "resetPasswordAllowed": false,
   "rememberMe": false,
   "loginWithEmailAllowed": false,
   "editUsernameAllowed": false,
   "verifyEmail": false,
-
   "bruteForceProtected": true,
   "permanentLockout": false,
   "failureFactor": 5,
@@ -19,41 +17,59 @@
   "quickLoginCheckMilliSeconds": 1000,
   "maxFailureWaitSeconds": 900,
   "maxDeltaTimeSeconds": 43200,
-
   "passwordPolicy": "length(12) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and notUsername and passwordHistory(3)",
-
   "otpPolicyType": "totp",
   "otpPolicyAlgorithm": "HmacSHA1",
   "otpPolicyDigits": 6,
   "otpPolicyPeriod": 30,
   "otpPolicyLookAheadWindow": 1,
-
   "ssoSessionIdleTimeout": 1800,
   "ssoSessionMaxLifespan": 36000,
-
   "internationalizationEnabled": true,
-  "supportedLocales": ["fr", "mos"],
+  "supportedLocales": [
+    "fr",
+    "mos"
+  ],
   "defaultLocale": "fr",
-  "loginTheme": "messagerie",
-
+  "loginTheme": "griot",
   "eventsEnabled": true,
   "eventsExpiration": 604800,
   "adminEventsEnabled": true,
   "adminEventsDetailsEnabled": false,
-
   "roles": {
     "realm": [
-      { "name": "agent", "description": "Agent public autorisé à utiliser la messagerie" },
-      { "name": "admin-messagerie", "description": "Administrateur de la console d'administration" }
+      {
+        "name": "agent-guichet",
+        "description": "Agent de guichet autorisé à demander un attribut"
+      }
     ]
   },
-
   "groups": [
-    { "name": "Ministère de la Santé", "attributes": { "code": ["sante"] } },
-    { "name": "Ministère de l'Économie et des Finances", "attributes": { "code": ["finances"] } },
-    { "name": "Ministère de la Transition digitale", "attributes": { "code": ["numerique"] } }
+    {
+      "name": "Service des bourses",
+      "attributes": {
+        "code": [
+          "service-bourses"
+        ]
+      }
+    },
+    {
+      "name": "Direction des concours de la fonction publique",
+      "attributes": {
+        "code": [
+          "direction-concours"
+        ]
+      }
+    },
+    {
+      "name": "Mairie",
+      "attributes": {
+        "code": [
+          "mairie"
+        ]
+      }
+    }
   ],
-
   "browserFlow": "navigateur-otp-obligatoire",
   "authenticationFlows": [
     {
@@ -63,8 +79,20 @@
       "topLevel": true,
       "builtIn": false,
       "authenticationExecutions": [
-        { "authenticator": "auth-cookie", "authenticatorFlow": false, "requirement": "ALTERNATIVE", "priority": 10, "userSetupAllowed": false },
-        { "authenticatorFlow": true, "flowAlias": "mot-de-passe-puis-otp", "requirement": "ALTERNATIVE", "priority": 20, "userSetupAllowed": false }
+        {
+          "authenticator": "auth-cookie",
+          "authenticatorFlow": false,
+          "requirement": "ALTERNATIVE",
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorFlow": true,
+          "flowAlias": "mot-de-passe-puis-otp",
+          "requirement": "ALTERNATIVE",
+          "priority": 20,
+          "userSetupAllowed": false
+        }
       ]
     },
     {
@@ -74,33 +102,44 @@
       "topLevel": false,
       "builtIn": false,
       "authenticationExecutions": [
-        { "authenticator": "auth-username-password-form", "authenticatorFlow": false, "requirement": "REQUIRED", "priority": 10, "userSetupAllowed": false },
-        { "authenticator": "auth-otp-form", "authenticatorFlow": false, "requirement": "REQUIRED", "priority": 20, "userSetupAllowed": false }
+        {
+          "authenticator": "auth-username-password-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "auth-otp-form",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false
+        }
       ]
     }
   ],
-
   "clients": [
     {
-      "clientId": "synapse",
-      "name": "Messagerie (Synapse)",
+      "clientId": "guichet",
+      "name": "Guichet des agents",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
       "clientAuthenticatorType": "client-secret",
-      "secret": "${SYNAPSE_OIDC_SECRET}",
+      "secret": "${GUICHET_OIDC_SECRET}",
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
-      "redirectUris": ["https://matrix.messagerie.test/_synapse/client/oidc/callback"],
+      "redirectUris": [
+        "https://guichet.griot.test/auth/callback"
+      ],
       "webOrigins": [],
       "frontchannelLogout": false,
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "https://chat.messagerie.test/*",
-        "backchannel.logout.url": "http://synapse:8008/_synapse/client/oidc/backchannel_logout",
-        "backchannel.logout.session.required": "true"
+        "post.logout.redirect.uris": "https://guichet.griot.test/*"
       },
       "protocolMappers": [
         {
@@ -117,38 +156,15 @@
             "userinfo.token.claim": "true",
             "introspection.token.claim": "true"
           }
-        }
-      ]
-    },
-    {
-      "clientId": "console",
-      "name": "Console d'administration",
-      "enabled": true,
-      "protocol": "openid-connect",
-      "publicClient": false,
-      "clientAuthenticatorType": "client-secret",
-      "secret": "${CONSOLE_OIDC_SECRET}",
-      "standardFlowEnabled": true,
-      "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": true,
-      "redirectUris": ["https://admin.messagerie.test/auth/callback"],
-      "webOrigins": [],
-      "frontchannelLogout": false,
-      "attributes": {
-        "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "https://admin.messagerie.test/*"
-      },
-      "protocolMappers": [
+        },
         {
-          "name": "roles",
+          "name": "groupes",
           "protocol": "openid-connect",
-          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "protocolMapper": "oidc-group-membership-mapper",
           "consentRequired": false,
           "config": {
-            "claim.name": "roles",
-            "multivalued": "true",
-            "jsonType.label": "String",
+            "claim.name": "groups",
+            "full.path": "false",
             "id.token.claim": "true",
             "access.token.claim": "true",
             "userinfo.token.claim": "true",
@@ -158,7 +174,6 @@
       ]
     }
   ],
-
   "components": {
     "org.keycloak.userprofile.UserProfileProvider": [
       {
@@ -172,81 +187,114 @@
       }
     ]
   },
-
   "users": [
     {
       "username": "awa.ouedraogo",
       "enabled": true,
       "firstName": "Awa",
       "lastName": "Ouédraogo",
-      "attributes": { "fonction": ["Médecin-chef de district"] },
-      "credentials": [{ "type": "password", "value": "Agent-Demo-2026!", "temporary": false }],
-      "requiredActions": ["CONFIGURE_TOTP"],
-      "realmRoles": ["agent"],
-      "groups": ["/Ministère de la Santé"]
-    },
-    {
-      "username": "boukary.zongo",
-      "enabled": true,
-      "firstName": "Boukary",
-      "lastName": "Zongo",
-      "attributes": { "fonction": ["Responsable de la logistique"] },
-      "credentials": [{ "type": "password", "value": "Agent-Demo-2026!", "temporary": false }],
-      "requiredActions": ["CONFIGURE_TOTP"],
-      "realmRoles": ["agent"],
-      "groups": ["/Ministère de la Santé"]
+      "attributes": {
+        "fonction": [
+          "Agente du service des bourses"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026!",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "agent-guichet"
+      ],
+      "groups": [
+        "/Service des bourses"
+      ]
     },
     {
       "username": "issa.sawadogo",
       "enabled": true,
       "firstName": "Issa",
       "lastName": "Sawadogo",
-      "attributes": { "fonction": ["Contrôleur financier"] },
-      "credentials": [{ "type": "password", "value": "Agent-Demo-2026!", "temporary": false }],
-      "requiredActions": ["CONFIGURE_TOTP"],
-      "realmRoles": ["agent"],
-      "groups": ["/Ministère de l'Économie et des Finances"]
+      "attributes": {
+        "fonction": [
+          "Agent de la direction des concours"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026!",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "agent-guichet"
+      ],
+      "groups": [
+        "/Direction des concours de la fonction publique"
+      ]
     },
     {
       "username": "mariam.kabore",
       "enabled": true,
       "firstName": "Mariam",
       "lastName": "Kaboré",
-      "attributes": { "fonction": ["Cheffe de projet numérique"] },
-      "credentials": [{ "type": "password", "value": "Agent-Demo-2026!", "temporary": false }],
-      "requiredActions": ["CONFIGURE_TOTP"],
-      "realmRoles": ["agent"],
-      "groups": ["/Ministère de la Transition digitale"]
+      "attributes": {
+        "fonction": [
+          "Agente d'état civil de la mairie"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026!",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "agent-guichet"
+      ],
+      "groups": [
+        "/Mairie"
+      ]
     },
     {
-      "username": "admin.messagerie",
-      "enabled": true,
-      "firstName": "Salimata",
-      "lastName": "Nikiéma",
-      "attributes": { "fonction": ["Administratrice de la messagerie"] },
-      "credentials": [{ "type": "password", "value": "Admin-Demo-2026!", "temporary": false }],
-      "requiredActions": ["CONFIGURE_TOTP"],
-      "realmRoles": ["admin-messagerie"],
-      "groups": ["/Ministère de la Transition digitale"]
-    },
-    {
-      "username": "stagiaire.sansrole",
+      "username": "agent.curieux",
       "enabled": true,
       "firstName": "Paul",
       "lastName": "Yaméogo",
-      "attributes": { "fonction": ["Stagiaire (compte SANS le rôle agent, pour le test d'intrusion)"] },
-      "credentials": [{ "type": "password", "value": "Stagiaire-Demo-2026!", "temporary": false }],
-      "requiredActions": ["CONFIGURE_TOTP"],
-      "realmRoles": [],
-      "groups": ["/Ministère de la Santé"]
-    },
-    {
-      "username": "service-account-console",
-      "enabled": true,
-      "serviceAccountClientId": "console",
-      "clientRoles": {
-        "realm-management": ["manage-users", "view-users", "query-users", "query-groups", "view-realm"]
-      }
+      "attributes": {
+        "fonction": [
+          "Agent CURIEUX (test de la limite de débit)"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026!",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "agent-guichet"
+      ],
+      "groups": [
+        "/Service des bourses"
+      ]
     }
   ]
 }

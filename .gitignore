@@ -1,7 +1,7 @@
 # Secrets : ne jamais les commiter (on fournit .env.example à la place)
 .env
 
-# Données générées au démarrage (bases, clés Synapse, médias, certificats Caddy)
+# Données générées au démarrage (bases, clés, certificats Caddy)
 donnees/
 
 # Python
@@ -24,3 +24,6 @@ caddy-racine.crt
 
 # Notes de travail locales
 CLAUDE.md
+
+# Données fournies par le jury : hors du dépôt public sauf autorisation explicite
+donnees_jury/

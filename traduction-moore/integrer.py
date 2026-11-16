@@ -5,10 +5,10 @@ Une langue n'est publiée que si TOUTES ses phrases sont remplies : sinon son fi
 est retiré et elle n'est pas proposée (pas d'écran à moitié traduit).
 
 Le script met à jour :
-- keycloak/themes/messagerie/login/messages/messages_<code>.properties (langues complètes) ;
+- keycloak/themes/griot/login/messages/messages_<code>.properties (langues complètes) ;
 - le nom de chaque langue dans tous les fichiers de messages (sélecteur de langue) ;
-- « locales » de theme.properties et « supportedLocales » de keycloak/realm-administration.json ;
-- le realm « administration » déjà en place (par kcadm, réseau interne), si la pile tourne.
+- « locales » de theme.properties et « supportedLocales » de keycloak/realm-griot.json ;
+- le realm « griot » déjà en place (par kcadm, réseau interne), si la pile tourne.
 
 Utilisation :  python traduction-moore/integrer.py
 puis :         docker compose restart keycloak
@@ -22,9 +22,9 @@ from pathlib import Path
 
 ICI = Path(__file__).parent
 RACINE = ICI.parent
-THEME = RACINE / "keycloak/themes/messagerie/login"
+THEME = RACINE / "keycloak/themes/griot/login"
 MESSAGES = THEME / "messages"
-REALM = RACINE / "keycloak/realm-administration.json"
+REALM = RACINE / "keycloak/realm-griot.json"
 
 # Code de langue -> nom de la langue écrit dans cette langue (affiché dans le sélecteur)
 LANGUES = {
@@ -71,7 +71,7 @@ def mettre_a_jour_realm_en_place(publiees: list[str]) -> str:
     script = ('K=/opt/keycloak/bin/kcadm.sh; C="--config /tmp/langues.cfg"; '
               '($K config credentials $C --server http://keycloak:8080 --realm master --user admin '
               '--password "$KC_BOOTSTRAP_ADMIN_PASSWORD" >/dev/null && '
-              f"$K update realms/administration $C -s 'supportedLocales={valeur}'); "
+              f"$K update realms/griot $C -s 'supportedLocales={valeur}'); "
               's=$?; rm -f /tmp/langues.cfg; exit $s')
     try:
         subprocess.run(["docker", "compose", "exec", "-T", "keycloak", "bash", "-c", script],

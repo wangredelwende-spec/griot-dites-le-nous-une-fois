@@ -75,9 +75,10 @@ def connecter(client: httpx.Client, agent: str = AGENT) -> str:
     return re.search(r'name="csrf" value="([^"]+)"', r.text).group(1)
 
 
-def demander(client: httpx.Client, csrf: str, sujet: str, autre_finalite: str = "") -> str:
+def demander(client: httpx.Client, csrf: str, sujet: str, autre_finalite: str = "",
+             demarche: str = "concours") -> str:
     r = client.post("https://guichet.griot.test/demandes",
-                    data={"csrf": csrf, "demarche": "concours", "sujet_ref": sujet, "autre_finalite": autre_finalite})
+                    data={"csrf": csrf, "demarche": demarche, "sujet_ref": sujet, "autre_finalite": autre_finalite})
     texte = html.unescape(re.sub(r"<[^>]+>", " ", r.text))
     return " ".join(texte.split())
 
@@ -92,6 +93,15 @@ CAS = [
     ("BF-0099", "", REFUS),      # introuvable
     ("BF-0001", "curiosité", "finalité non autorisée"),
 ]
+# Nationalité et casier (base légale, Direction des concours)
+CAS_AUTRES = [
+    ("concours-nationalite", "BF-0001", "nationalité burkinabè : oui Signé par le registre de la nationalité"),
+    ("concours-nationalite", "BF-0018", "nationalité burkinabè : non"),
+    ("concours-nationalite", "BF-0013", "réponse impossible, s'adresser au service de la nationalité"),
+    ("concours-casier", "BF-0001", "casier judiciaire vierge : oui Signé par le casier judiciaire"),
+    ("concours-casier", "BF-0008", "casier judiciaire vierge : non"),
+    ("concours-casier", "BF-0003", "réponse impossible, s'adresser au greffe"),     # absent ≠ vierge
+]
 
 
 def main():
@@ -104,6 +114,13 @@ def main():
             ok = attendu in texte
             echecs += not ok
             print(f"{'OK ' if ok else 'ÉCHEC'} {sujet} {finalite or ''} -> attendu « {attendu} »"
+                  + ("" if ok else f"\n      page : {texte[-300:]}"))
+        for demarche, sujet, attendu in CAS_AUTRES:
+            texte = demander(client, csrf, sujet, demarche=demarche)
+            # Le détail du casier (« vol », « escroquerie ») ne doit jamais apparaître au guichet
+            ok = attendu in texte and "vol" not in texte and "escroquerie" not in texte
+            echecs += not ok
+            print(f"{'OK ' if ok else 'ÉCHEC'} {demarche} {sujet} -> attendu « {attendu} »"
                   + ("" if ok else f"\n      page : {texte[-300:]}"))
     verification = subprocess.run(["docker", "compose", "exec", "-T", "mediateur", "python", "/journal/verifier.py"],
                                   cwd=RACINE, capture_output=True, text=True)

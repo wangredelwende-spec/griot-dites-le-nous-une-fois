@@ -2,9 +2,10 @@
 
 Il ne renvoie JAMAIS la fiche du citoyen : seulement l'attribut demandé, calculé ici puis
 SIGNÉ avec la clé Ed25519 du registre (JWT EdDSA, bibliothèque PyJWT). Le médiateur ne peut
-donc ni lire la fiche, ni fabriquer une réponse.
+donc ni lire la fiche, ni fabriquer une réponse, ni fabriquer un refus.
 Joignable uniquement par le réseau Docker « registres » (médiateur seulement).
 """
+import hashlib
 import os
 import time
 import uuid
@@ -21,13 +22,21 @@ from .adaptateur import Adaptateur, Refus
 
 ADAPTATEUR = Adaptateur(Path(os.environ["ADAPTATEUR"]))
 DUREE_VALIDITE = 600          # une réponse signée vaut 10 minutes
-CLES = Path(os.environ.get("CLES", "/cles"))                    # volume privé de ce registre
-PUBLIQUES = Path(os.environ.get("PUBLIQUES", "/publiques"))     # volume partagé, lu par médiateur et guichet
+CLES = Path(os.environ.get("CLES", "/cles"))                  # clé privée : volume de CE registre seulement
+PUBLIQUE = Path(os.environ.get("PUBLIQUE", "/publique"))      # clé publique : volume monté en lecture seule
+                                                              # chez le médiateur et le guichet
+
+
+def empreinte_cle(cle_publique_pem: bytes) -> str:
+    """Empreinte courte de la clé publique (SHA-256 de sa forme DER), à comparer avec celle du guichet."""
+    der = serialization.load_pem_public_key(cle_publique_pem).public_bytes(
+        serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
+    h = hashlib.sha256(der).hexdigest()[:16]
+    return " ".join(h[i:i + 4] for i in range(0, 16, 4))
 
 
 def charger_cle() -> Ed25519PrivateKey:
-    """Clé générée au premier démarrage (par la bibliothèque cryptography), conservée dans le volume.
-    La clé publique est déposée là où le médiateur et le guichet la lisent."""
+    """Clé générée au premier démarrage (par la bibliothèque cryptography), conservée dans le volume."""
     prive = CLES / "prive.pem"
     if not prive.exists():
         cle = Ed25519PrivateKey.generate()
@@ -35,8 +44,10 @@ def charger_cle() -> Ed25519PrivateKey:
                                             serialization.NoEncryption()))
         prive.chmod(0o600)
     cle = serialization.load_pem_private_key(prive.read_bytes(), password=None)
-    (PUBLIQUES / f"{ADAPTATEUR.registre}.pem").write_bytes(cle.public_key().public_bytes(
-        serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
+    publique = cle.public_key().public_bytes(serialization.Encoding.PEM,
+                                             serialization.PublicFormat.SubjectPublicKeyInfo)
+    (PUBLIQUE / "cle.pem").write_bytes(publique)
+    print(f"Registre {ADAPTATEUR.registre} : empreinte de la clé publique {empreinte_cle(publique)}", flush=True)
     return cle
 
 
@@ -58,12 +69,15 @@ def sante():
 
 @app.post("/attributs")
 def attribut(d: DemandeAttribut):
-    try:
-        reponse_minimale = ADAPTATEUR.calculer(d.attribut, d.sujet_ref)
-    except Refus as motif:
-        return {"refus": str(motif)}
+    """Réponse TOUJOURS signée : {"statut": "ok", <attribut>} ou {"statut": "refus", "motif": <motif public>}."""
     maintenant = int(time.time())
     charge = {"iss": ADAPTATEUR.emetteur, "aud": d.destinataire, "sub": d.sujet_ref, "demande": d.id_demande,
-              "iat": maintenant, "exp": maintenant + DUREE_VALIDITE, "jti": str(uuid.uuid4()),
-              **reponse_minimale}
+              "iat": maintenant, "exp": maintenant + DUREE_VALIDITE, "jti": str(uuid.uuid4())}
+    try:
+        charge |= {"statut": "ok", **ADAPTATEUR.calculer(d.attribut, d.sujet_ref)}
+    except Refus as motif:
+        # Le motif précis (décédé, homonyme…) reste ici : le guichet n'apprend rien de plus que « impossible ».
+        # Trace locale sans identifiant du citoyen, pour le service du registre.
+        print(f"demande {d.id_demande} : refus ({motif})", flush=True)
+        charge |= {"statut": "refus", "motif": ADAPTATEUR.motif_refus_public}
     return {"jeton": jwt.encode(charge, CLE, algorithm="EdDSA")}

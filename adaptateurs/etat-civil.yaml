@@ -20,6 +20,10 @@ champs:
 # Une fiche dont « date_deces » est remplie est refusée
 refuser_si_decede: true
 
+# Motif envoyé (signé) pour TOUT refus : introuvable, ambigu, date insuffisante, décès…
+# Le motif précis reste dans le registre ; le guichet n'apprend rien de plus.
+motif_refus_public: "réponse impossible, s'adresser à l'état civil"
+
 # Attributs calculables. Seul le résultat est renvoyé, jamais la fiche.
 attributs:
   majeur:

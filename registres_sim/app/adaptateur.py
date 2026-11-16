@@ -68,6 +68,8 @@ class Adaptateur:
         self.identite = conf["identite"]
         self.champs = conf.get("champs", {})
         self.refuser_si_decede = conf.get("refuser_si_decede", False)
+        # Seul motif de refus envoyé hors du registre (signé) : il ne révèle rien de la fiche
+        self.motif_refus_public = conf["motif_refus_public"]
         self.attributs = conf["attributs"]
         self.lignes = lire_source(conf["source"])
 

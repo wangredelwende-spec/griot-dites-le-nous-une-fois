@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
-# /donnees : journal chaîné + demandes en attente (SQLite) ; /publiques : clés publiques des registres
-RUN useradd --system --uid 10001 griot && mkdir /donnees /publiques && chown griot /donnees /publiques
+# /donnees : journal chaîné + demandes en attente (SQLite)
+RUN useradd --system --uid 10001 griot && mkdir /donnees && chown griot /donnees
 USER griot
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

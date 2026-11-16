@@ -5,8 +5,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
-# Utilisateur sans privilège (même uid dans toutes nos images : le volume partagé des clés publiques
-# lui appartient). /cles : clé privée de CE registre ; /publiques : clés publiques de tous les registres.
-RUN useradd --system --uid 10001 griot && mkdir /cles /publiques && chown griot /cles /publiques
+# Utilisateur sans privilège. /cles : clé privée de CE registre ;
+# /publique : sa clé publique (volume monté en lecture seule chez le médiateur et le guichet).
+RUN useradd --system --uid 10001 griot && mkdir /cles /publique && chown griot /cles /publique
 USER griot
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

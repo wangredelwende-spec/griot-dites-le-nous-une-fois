@@ -139,7 +139,7 @@ def sante():
 
 
 @app.post("/demandes")
-def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
+async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
     demandeur = service_de(agent) or "inconnu"
     regle = REGLES["demarches"].get(d.demarche, {})
     conf_attribut = REGLES["attributs"].get(d.attribut, {})
@@ -172,17 +172,17 @@ def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
         return etat(refuser(demande, "refuse", "demande", "finalité non autorisée"))
     tracer(demande, "demande", "ok")
 
-    # 2. Appel du registre, avec un délai maximal
+    # 2. Appel du registre, avec un délai maximal (total)
     conf_registre = REGLES["registres"][demande["registre"]]
     corps = {"id_demande": d.id_demande, "attribut": d.attribut, "sujet_ref": d.sujet_ref, "destinataire": demandeur}
     try:
-        reponse = registres.appeler(conf_registre["url"], corps, DELAI_REGISTRE)
-        if "refus" in reponse:
-            return etat(refuser(demande, "refuse", "reponse-registre", f"le registre répond : {reponse['refus'][:200]}"))
-        cle_publique = (CLES_PUBLIQUES / f"{demande['registre']}.pem").read_bytes()
-        # 3. Vérification complète de la réponse signée
-        valeur, infos = registres.verifier(reponse["jeton"], cle_publique, conf_registre["emetteur"], demandeur,
-                                           d.sujet_ref, d.id_demande, conf_attribut["claim"], conf_attribut.get("cle"))
+        jeton = await registres.appeler(conf_registre["url"], corps, DELAI_REGISTRE)
+        # La clé publique vient du volume du registre, monté en LECTURE SEULE ici
+        cle_publique = (CLES_PUBLIQUES / demande["registre"] / "cle.pem").read_bytes()
+        # 3. Vérification complète de la réponse signée (réponse OU refus)
+        statut, contenu, infos = registres.verifier(jeton, cle_publique, conf_registre["emetteur"], demandeur,
+                                                    d.sujet_ref, d.id_demande, conf_attribut["claim"],
+                                                    conf_attribut.get("cle"))
         try:
             with VERROU:
                 base.execute("INSERT INTO jti_vus (jti) VALUES (?)", (infos["jti"],))
@@ -196,10 +196,14 @@ def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
                             "clé publique du registre absente, rien n'a été deviné"))
     except registres.ReponseCorrompue as e:
         return etat(refuser(demande, "refuse", "alerte", f"réponse corrompue : {e}"))
+
+    if statut == "refus":
+        # Refus signé par le registre : transmis tel quel, le guichet en revérifie la signature
+        return etat(refuser(demande, "refuse", "reponse-registre", contenu), jeton)
     tracer(demande, "reponse-registre", "ok")
 
     # 4. Base légale : remise immédiate. Consentement : en attente de l'usager (aperçu exact).
-    changer(demande, jeton=reponse["jeton"], valeur=int(valeur), expire_le=time.time() + DUREE_CONSENTEMENT)
+    changer(demande, jeton=jeton, valeur=int(contenu), expire_le=time.time() + DUREE_CONSENTEMENT)
     if regle["base"] == "base-legale":
         return remettre(demande)
     changer(demande, statut="en_attente")

@@ -196,7 +196,10 @@ besoin d'Internet (réseaux Docker internes, certificats locaux, aucune ressourc
    refusé / retiré / expiré, journal modifié, consultation cachée, réseau, double trace), en 45 s environ.
 3. **Remettre `OUTILS_TEST=0`** puis `python scripts/outils_test.py` : les comptes de test sont supprimés.
 4. `python scripts/remise_a_zero.py --oui` : journal et traces neufs, pour que l'historique des citoyens de la démo
-   ne montre pas les lignes du banc.
+   ne montre pas les lignes du banc. **Rien n'est effacé** : l'ancien journal et les traces des registres sont
+   archivés (renommés avec la date) et l'archive reste vérifiable :
+   `docker compose exec mediateur python /journal/verifier.py /donnees/mediateur-archive-<date>.sqlite3 --registres`
+   (les écarts « ABSENTE du journal » qu'elle montre sont les appels directs du banc, scénario A : attendus).
 
 ## Après la démo
 

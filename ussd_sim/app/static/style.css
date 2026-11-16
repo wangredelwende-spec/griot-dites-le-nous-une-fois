@@ -1,0 +1,24 @@
+/* USSD simulé : un téléphone simple. Polices système, aucune ressource externe. */
+* { box-sizing: border-box; }
+body { margin: 0; font: 1rem/1.5 system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+       color: #1b1f23; background: #e9ece8; }
+main { max-width: 26rem; margin: 0 auto; padding: 1.5rem 1rem 3rem; }
+.legende { font-size: .9rem; color: #4a5560; }
+:focus-visible { outline: 3px solid #1d70b8; outline-offset: 2px; }
+
+.telephone { background: #2b2f33; border-radius: 2rem; padding: 1.5rem 1.25rem 2rem; }
+.numero { color: #c9d1d9; text-align: center; margin: 0 0 .5rem; font-size: .9rem; }
+/* Écran monochrome d'un téléphone simple : texte brut, retours à la ligne conservés */
+.ecran { background: #c7d3b5; color: #13200c; border-radius: .5rem; padding: .9rem; min-height: 11rem;
+         font: 1.05rem/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap;
+         overflow-wrap: anywhere; }
+.compteur { color: #9aa4ad; text-align: right; font-size: .8rem; margin: .25rem 0 1rem; }
+
+.clavier { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+.clavier label { color: #c9d1d9; width: 100%; font-size: .9rem; }
+.clavier input { flex: 1; min-width: 0; padding: .6rem; font: 1.1rem ui-monospace, Consolas, monospace;
+                 border-radius: .4rem; border: 0; }
+.clavier button { padding: .6rem 1rem; border: 0; border-radius: .4rem; background: #00563f; color: #fff;
+                  font-weight: 600; cursor: pointer; }
+.clavier button.raccrocher { width: 100%; background: #b42318; }
+.masque { position: absolute; left: -9999px; }

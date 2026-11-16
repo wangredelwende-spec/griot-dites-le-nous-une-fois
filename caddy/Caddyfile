@@ -50,9 +50,9 @@ guichet.griot.test {
 	reverse_proxy guichet:8000
 }
 
-# Portail de l'usager
+# Écran de l'usager : d'abord l'USSD simulé (*226#) ; le portail web viendra ensuite
 usager.griot.test {
 	import securite
 	import sans_script
-	reverse_proxy portail_usager:8000
+	reverse_proxy ussd_sim:8000
 }

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>*226# · Griot Secure, service usager</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<main>
+  <p class="legende">Simulation d'un téléphone simple : service <strong>*226#</strong>
+  « Dites-le-nous une fois ». Écrans de {{ limite }} caractères au plus.</p>
+
+  <div class="telephone">
+    {% if not s %}
+    <div class="ecran">*226#</div>
+    <form method="post" action="/allumer" class="clavier">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label for="numero">{{ textes.telephone_numero }}</label>
+      <input id="numero" name="numero" inputmode="numeric" maxlength="12" required autofocus placeholder="70000012">
+      <button>{{ textes.telephone_allumer }}</button>
+    </form>
+    {% else %}
+    <p class="numero">{{ s.numero }}</p>
+    <div class="ecran" role="status" aria-live="polite">{{ s.ecran }}</div>
+    <p class="compteur">{{ s.ecran | length }}/{{ limite }}</p>
+    <form method="post" action="/" class="clavier">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label for="reponse" class="masque">Réponse</label>
+      <input id="reponse" name="reponse" maxlength="20" autocomplete="off" autofocus
+             {% if s.etape == "pin" %}type="password" inputmode="numeric"{% endif %}>
+      <button>{{ textes.telephone_envoyer }}</button>
+    </form>
+    <form method="post" action="/raccrocher" class="clavier">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="raccrocher">{{ textes.telephone_raccrocher }}</button>
+    </form>
+    {% endif %}
+  </div>
+</main>
+</body>
+</html>

@@ -1,0 +1,9 @@
+# Abonnés FICTIFS du service *226# (démonstration) : numéro de téléphone -> usager et code PIN.
+# En production : le numéro est fourni par l'opérateur (il n'est pas saisi) et le PIN est géré
+# par le fournisseur d'identité, jamais dans un fichier (voir LIMITES.md).
+"70000001": {sujet_ref: BF-0001, pin: "1234"}    # Aminata Kaboré, adulte
+"70000003": {sujet_ref: BF-0003, pin: "1234"}    # Fatimata Sawadogo, mineure
+"70000005": {sujet_ref: BF-0005, pin: "1234"}    # Salif Compaoré (homonyme de BF-0006)
+"70000006": {sujet_ref: BF-0006, pin: "1234"}    # Salif Compaoré (homonyme de BF-0005)
+"70000009": {sujet_ref: BF-0009, pin: "1234"}    # Rasmata Nikiéma, 18 ans le 20/11/2026
+"70000012": {sujet_ref: BF-0012, pin: "1234"}    # Aïssata Diallo : démo « bourse » avec consentement

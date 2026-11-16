@@ -142,6 +142,23 @@ services:
       timeout: 5s
       retries: 10
 
+  # USSD simulé *226# (usager.griot.test) : l'usager voit avant, vérifie après.
+  # Il parle au médiateur par l'API usager, authentifiée par le secret du canal.
+  ussd_sim:
+    build: ./ussd_sim
+    image: griot-ussd:local
+    restart: unless-stopped
+    secrets: [canal_usager]
+    volumes:
+      - ./ussd_sim/abonnes.yaml:/app/abonnes.yaml:ro
+      - ./traduction-moore/phrases-ussd.csv:/app/phrases-ussd.csv:ro
+    networks: [interne]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # Caddy : seul service joignable depuis l'ordinateur, en HTTPS (CA interne)
   caddy:
     image: caddy:2.11.7-alpine

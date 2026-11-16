@@ -4,6 +4,8 @@ Utilisation (le journal est dans le volume du médiateur) :
     docker compose exec mediateur python /journal/verifier.py
     docker compose exec mediateur python /journal/verifier.py --recu "9035 47b3 1c2e 9f04"
     docker compose exec mediateur python /journal/verifier.py --registres     (double trace)
+    docker compose exec mediateur python /journal/verifier.py /donnees/mediateur-archive-<date>.sqlite3 --registres
+        (une ARCHIVE faite par scripts/remise_a_zero.py, comparée aux traces signées archivées en même temps)
 
 Pour chaque ligne, dans l'ordre : recalcule hash = SHA-256(prev_hash + JSON canonique de la ligne
 sans « hash ») et vérifie que prev_hash est bien l'empreinte de la ligne précédente.
@@ -17,8 +19,10 @@ du journal = une consultation cachée par le médiateur, même si la chaîne a �
 import argparse
 import hashlib
 import json
+import re
 import sqlite3
 import sys
+from pathlib import Path
 
 ZEROS = "0" * 64
 
@@ -49,18 +53,32 @@ def verifier(chemin: str) -> tuple[bool, str, list[dict]]:
 REGISTRES = ("etat-civil", "nationalite", "casier")
 
 
-def traces_des_registres() -> dict[str, dict | str]:
+def date_archive(chemin: str) -> str | None:
+    """« /donnees/mediateur-archive-20261116T170000Z.sqlite3 » → « 20261116T170000Z » ; journal courant → None."""
+    trouve = re.fullmatch(r"mediateur-archive-(\w+)\.sqlite3", Path(chemin).name)
+    return trouve.group(1) if trouve else None
+
+
+def traces_des_registres(chemin: str) -> dict[str, dict | str]:
     """Trace SIGNÉE de chaque registre, vérifiée avec sa clé publique (volume du registre, lecture seule).
+    Journal courant : la trace est demandée au registre. Archive : on lit l'export signé archivé en même temps
+    (« trace-<registre>-archive-<date>.jwt », à côté de l'archive du journal).
     Renvoie {registre: {"debut": ..., "trace": [...]}} ou {registre: "motif de l'échec"}."""
     import httpx       # importés ici : la vérification simple du journal n'a besoin que de la bibliothèque standard
     import jwt
+    date = date_archive(chemin)
     traces = {}
     for registre in REGISTRES:
         try:
-            r = httpx.get(f"http://registre-{registre}:8000/trace", timeout=5)
+            if date:
+                jeton = (Path(chemin).parent / f"trace-{registre}-archive-{date}.jwt").read_text().strip()
+            else:
+                jeton = httpx.get(f"http://registre-{registre}:8000/trace", timeout=5).json()["jeton"]
             cle = open(f"/publiques/{registre}/cle.pem", "rb").read()
-            traces[registre] = jwt.decode(r.json()["jeton"], cle, algorithms=["EdDSA"], audience="verification",
-                                          issuer=f"registre-{registre}")
+            # Signature, émetteur et destinataire toujours vérifiés. Pour une archive, l'export (valable 60 s)
+            # a expiré depuis : on ne vérifie pas « exp », la signature suffit à prouver qui l'a écrit.
+            traces[registre] = jwt.decode(jeton, cle, algorithms=["EdDSA"], audience="verification",
+                                          issuer=f"registre-{registre}", options={"verify_exp": not date})
         except (httpx.HTTPError, OSError, ValueError, KeyError, jwt.PyJWTError) as e:
             traces[registre] = f"trace illisible ou non signée ({type(e).__name__}) : comparaison impossible"
     return traces
@@ -114,7 +132,7 @@ def main():
             print("ERREUR  Reçu introuvable : le journal a été réécrit ou le reçu est faux")
             integre = False
     if args.registres:
-        traces = traces_des_registres()
+        traces = traces_des_registres(args.chemin)
         ecarts = comparer(traces, lignes)
         for registre, export in traces.items():
             if not isinstance(export, str):

@@ -67,6 +67,71 @@ services:
       retries: 30
       start_period: 30s
 
+  # Registre simulé de l'état civil : calcule l'attribut minimal et le SIGNE avec sa propre clé.
+  # Uniquement sur le réseau « registres » : seul le médiateur peut l'appeler.
+  registre-etat-civil:
+    build: ./registres_sim
+    image: griot-registre:local
+    restart: unless-stopped
+    environment:
+      ADAPTATEUR: /adaptateurs/etat-civil.yaml
+    volumes:
+      - ./adaptateurs:/adaptateurs:ro
+      - ./registres_sim/donnees_fictives:/donnees:ro
+      - cles_etat_civil:/cles              # clé PRIVÉE de ce registre : aucun autre service ne la monte
+      - cles_publiques:/publiques          # y dépose sa clé publique
+    networks: [registres]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Médiateur : règles, appel des registres, vérification, consentement, journal chaîné.
+  # API JSON jamais publiée par Caddy.
+  mediateur:
+    build: ./mediateur
+    image: griot-mediateur:local
+    restart: unless-stopped
+    environment:
+      DELAI_REGISTRE: "3"                  # secondes avant de déclarer un registre indisponible
+      DUREE_CONSENTEMENT: "600"            # 10 minutes pour confirmer
+    secrets: [sujet_hmac, canal_usager]
+    volumes:
+      - ./mediateur/regles.yaml:/app/regles.yaml:ro
+      - ./journal:/journal:ro              # verifier.py
+      - mediateur_donnees:/donnees         # journal chaîné + demandes en attente (SQLite)
+      - cles_publiques:/publiques:ro
+    networks: [interne, registres]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Guichet des agents (guichet.griot.test). Pas sur le réseau « registres » : il ne peut pas
+  # contourner le médiateur.
+  guichet:
+    build: ./guichet
+    image: griot-guichet:local
+    restart: unless-stopped
+    environment:
+      # Échange du code OIDC en http://keycloak:8080 : réseau Docker interne, jamais exposé
+      AUTHLIB_INSECURE_TRANSPORT: "1"
+    secrets: [guichet_oidc]
+    volumes:
+      - ./mediateur/regles.yaml:/app/regles.yaml:ro
+      - cles_publiques:/publiques:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    networks: [interne]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # Caddy : seul service joignable depuis l'ordinateur, en HTTPS (CA interne)
   caddy:
     image: caddy:2.11.7-alpine
@@ -79,14 +144,29 @@ services:
       - caddy_donnees:/data              # contient la CA interne : à conserver
     networks: [interne, externe]
 
+# Secrets montés en fichiers dans /run/secrets/, lus depuis le fichier .env
+secrets:
+  guichet_oidc:
+    environment: GUICHET_OIDC_SECRET
+  sujet_hmac:
+    environment: MEDIATEUR_HMAC_SECRET
+  canal_usager:
+    environment: CANAL_USAGER_SECRET
+
 volumes:
   postgres_donnees:
   caddy_donnees:
+  mediateur_donnees:
+  cles_etat_civil:
+  cles_publiques:
 
 networks:
-  # Réseau sans aucune sortie vers Internet : Keycloak, PostgreSQL, le médiateur et les registres
+  # Réseau sans aucune sortie vers Internet : Keycloak, PostgreSQL, le guichet et le médiateur
   # ne peuvent physiquement contacter aucun service extérieur.
   interne:
+    internal: true
+  # Réseau des registres, lui aussi sans Internet : seul le médiateur y est relié.
+  registres:
     internal: true
   # Réseau ordinaire, utilisé uniquement par Caddy pour publier les ports 80 et 443
   externe: {}

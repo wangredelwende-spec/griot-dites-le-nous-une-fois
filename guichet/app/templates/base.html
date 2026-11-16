@@ -13,7 +13,7 @@
       {% if agent %}
       <form method="post" action="/deconnexion" class="deconnexion">
         <input type="hidden" name="csrf" value="{{ csrf }}">
-        <span class="connecte">{{ agent }}</span>
+        <span class="connecte">{{ agent }} · {{ service }}</span>
         <button>Se déconnecter</button>
       </form>
       {% endif %}

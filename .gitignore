@@ -27,3 +27,6 @@ CLAUDE.md
 
 # Données fournies par le jury : hors du dépôt public sauf autorisation explicite
 donnees_jury/
+
+# Secrets locaux des tests de bout en bout (TOTP du compte de test, CA de Caddy)
+tests/.secrets/

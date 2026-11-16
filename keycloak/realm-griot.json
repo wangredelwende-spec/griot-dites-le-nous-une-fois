@@ -170,6 +170,18 @@
             "userinfo.token.claim": "true",
             "introspection.token.claim": "true"
           }
+        },
+        {
+          "name": "audience-mediateur",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.custom.audience": "mediateur",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
         }
       ]
     }
@@ -295,6 +307,34 @@
       "groups": [
         "/Service des bourses"
       ]
+    },
+    {
+      "username": "agent.banc",
+      "enabled": true,
+      "firstName": "Banc",
+      "lastName": "Automatique",
+      "attributes": {
+        "fonction": [
+          "Compte des tests automatiques (banc de pannes)"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026!",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "agent-guichet"
+      ],
+      "groups": [
+        "/Direction des concours de la fonction publique"
+      ]
     }
-  ]
+  ],
+  "accessTokenLifespan": 900
 }

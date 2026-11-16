@@ -9,7 +9,9 @@ GUICHET_URL = "https://guichet.griot.test"
 
 CLIENT_ID = "guichet"
 ROLE_AGENT = "agent-guichet"
-DONNEES = Path("/donnees")
+MEDIATEUR = "http://mediateur:8000"
+CLES_PUBLIQUES = Path("/publiques")
+FICHIER_REGLES = Path("/app/regles.yaml")
 
 
 def lire_secret(nom: str) -> str:

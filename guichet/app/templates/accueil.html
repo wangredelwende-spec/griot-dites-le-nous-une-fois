@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block titre %}Nouvelle demande{% endblock %}
+{% block contenu %}
+<h1>Nouvelle demande</h1>
+<p class="aide">Service demandeur : <strong>{{ service }}</strong> (déterminé par votre compte, pas par ce formulaire).
+L'usager n'apporte aucune pièce : le registre répond seulement à la question posée.</p>
+
+{% if erreur %}<div class="erreur" role="alert"><p>{{ erreur }}</p></div>{% endif %}
+
+<form method="post" action="/demandes" class="bloc">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <fieldset>
+    <legend>Démarche</legend>
+    {% for code, d in demarches.items() %}
+    <p><label><input type="radio" name="demarche" value="{{ code }}" required {% if loop.first %}checked{% endif %}>
+      <strong>{{ d.libelle }}</strong> : vérifier « {{ d.attribut }} », pour « {{ d.finalite }} »
+      ({% if d.base == "consentement" %}avec l'accord de l'usager{% else %}base légale{% endif %})</label></p>
+    {% endfor %}
+  </fieldset>
+  <p><label for="sujet_ref">Identifiant de l'usager</label><br>
+     <input id="sujet_ref" name="sujet_ref" required maxlength="64" placeholder="BF-0001" autocomplete="off"></p>
+  <details>
+    <summary>Autre finalité (test du refus)</summary>
+    <p><label for="autre_finalite">Finalité différente de celle déclarée</label><br>
+       <input id="autre_finalite" name="autre_finalite" maxlength="200"></p>
+  </details>
+  <p><button>Envoyer la demande</button></p>
+</form>
+{% endblock %}

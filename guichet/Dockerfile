@@ -5,7 +5,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app ./app
-# Utilisateur sans privilège ; /donnees contient les données du guichet
-RUN useradd --system --uid 10001 guichet && mkdir /donnees && chown guichet /donnees
-USER guichet
+# Utilisateur sans privilège (même uid que les autres images) ; /publiques : clés publiques des registres
+RUN useradd --system --uid 10001 griot && mkdir /publiques && chown griot /publiques
+USER griot
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

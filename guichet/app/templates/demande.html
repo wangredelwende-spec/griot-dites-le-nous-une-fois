@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block titre %}Demande{% endblock %}
+{% block contenu %}
+<h1>{{ regle.libelle }}</h1>
+<p class="aide">Usager : <code>{{ suivi.sujet_ref }}</code> · finalité : {{ regle.finalite }}</p>
+
+{% if resultat %}
+<div class="bloc succes" role="status">
+  <p class="resultat"><strong>{{ resultat.attribut }} : {{ resultat.valeur }}</strong></p>
+  <p>Signé par le {{ resultat.registre }}, signature vérifiée, valable jusqu'à {{ resultat.jusqu_a }}.</p>
+  <p class="aide">Le guichet n'a reçu que cette réponse : aucune date de naissance, aucune fiche.</p>
+</div>
+{% elif etat.statut in ("en_attente", "confirmee") %}
+<div class="bloc attente" role="status">
+  <p><strong>En attente de l'usager.</strong> Il voit exactement ce qui sera transmis et doit confirmer
+  (délai : jusqu'à {{ expire }}).</p>
+  <p><a class="bouton" href="{{ request.url.path }}">Actualiser</a></p>
+</div>
+{% else %}
+<div class="erreur" role="alert">
+  <p><strong>{% if etat.statut == "indisponible" %}Registre indisponible{% elif etat.statut == "expiree" %}Délai dépassé{% else %}Refusé{% endif %}</strong></p>
+  <p>{{ etat.motif }}</p>
+</div>
+{% endif %}
+
+<p><a href="/">Nouvelle demande</a></p>
+{% endblock %}

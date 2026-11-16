@@ -175,3 +175,8 @@ table.journal tbody td:nth-child(3) { display: inline-block; margin: .55rem .5re
   .fiche dd { margin-bottom: .5rem; }
   .entete nav a { padding: .5rem .6rem; }
 }
+
+/* --- Guichet : résultat d'une demande --- */
+.succes { border-left: 6px solid var(--vert); }
+.attente { border-left: 6px solid var(--orange); }
+.resultat { font-size: 1.6rem; margin: 0 0 .5rem; }

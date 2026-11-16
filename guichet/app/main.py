@@ -305,11 +305,12 @@ def noter(suivi: dict, etat: dict, session: dict, id_demande: str):
 
 
 def conclusion(lignes: list[dict]) -> str:
-    """Jamais de « oui » global sur un résultat partiel."""
+    """Jamais de « oui » global sur un résultat partiel. Une condition est remplie quand la réponse signée
+    vaut la réponse « attendu » du catalogue (oui par défaut ; « non » pour une interdiction de sortie)."""
     valeurs = [l["resultat"].get("valeur") for l in lignes]
-    if all(v is True for v in valeurs):
+    if all(v is not None and v == l["attendu"] for v, l in zip(valeurs, lignes)):
         return "oui"
-    if any(v is False for v in valeurs):
+    if any(v is not None and v != l["attendu"] for v, l in zip(valeurs, lignes)):
         return "non"
     return "incomplet"
 
@@ -329,7 +330,8 @@ async def suivre(request: Request, id_demande: uuid.UUID, session: dict = Depend
             return page(request, "erreur.html", 502, message="Médiateur injoignable : rien n'a été deviné. "
                         "Réessayez dans un instant.")
     etat = suivi["etat"]
-    lignes = [{"code": a["attribut"], "libelle": a["libelle"], "resultat": suivi["volets"].get(a["attribut"], {})}
+    lignes = [{"code": a["attribut"], "libelle": a["libelle"], "resultat": suivi["volets"].get(a["attribut"], {}),
+               "attendu": a.get("attendu", True), "si_non": a.get("si_non", "")}
               for a in demarche["attributs"]]
     return page(request, "demande.html", suivi=suivi, demarche=demarche, etat=etat, lignes=lignes,
                 conclusion=conclusion(lignes), expire=heure(etat["expire_le"]) if etat.get("expire_le") else None)

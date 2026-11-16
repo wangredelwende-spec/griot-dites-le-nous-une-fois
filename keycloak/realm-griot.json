@@ -72,6 +72,14 @@
           "mairie"
         ]
       }
+    },
+    {
+      "name": "Division de la Migration – Police nationale",
+      "attributes": {
+        "code": [
+          "service-passeport"
+        ]
+      }
     }
   ],
   "browserFlow": "navigateur-otp-obligatoire",
@@ -283,6 +291,33 @@
       ],
       "groups": [
         "/Mairie"
+      ]
+    },
+    {
+      "username": "moussa.kone",
+      "enabled": true,
+      "firstName": "Moussa",
+      "lastName": "Koné",
+      "attributes": {
+        "fonction": [
+          "Agent des passeports (Division de la Migration, Gounghin)"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026!",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "agent-guichet"
+      ],
+      "groups": [
+        "/Division de la Migration – Police nationale"
       ]
     },
     {

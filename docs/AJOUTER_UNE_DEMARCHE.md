@@ -24,7 +24,10 @@ Ajouter un bloc à la fin de `catalogue/demarches.yaml`, par exemple :
 - `base: base_legale` exige `texte:`, c'est-à-dire le texte qui autorise la consultation sans accord.
 - Les attributs possibles sont ceux que **les registres déclarent** dans `adaptateurs/<registre>.yaml` :
   `age_entre` (paramètres `min`, `max` facultatif, `date_reference` : une date ou `aujourd'hui`),
-  `nationalite_burkinabe` et `casier_judiciaire_vierge`.
+  `nationalite_burkinabe`, `casier_judiciaire_vierge` et `interdiction_sortie_territoire`.
+- Facultatif, pour le guichet : `attendu: false` quand la bonne réponse est « non » (interdiction de sortie du
+  territoire), et `si_non:` pour le texte montré quand la réponse est « non » (passeport : « mineur : autorisation
+  parentale requise »). Une réponse « non » n'est jamais un refus : c'est une réponse signée.
 - On ne peut pas demander « la date de naissance » : aucun registre ne la déclare.
 
 ## 2. Recharger (30 secondes)

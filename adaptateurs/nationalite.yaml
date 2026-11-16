@@ -19,6 +19,7 @@ groupes:
   Direction des concours de la fonction publique: direction-concours
   Service des bourses: service-bourses
   Mairie: mairie
+  Division de la Migration – Police nationale: service-passeport
 
 attributs:
   nationalite_burkinabe:
@@ -26,4 +27,4 @@ attributs:
     champ: nationalite
     valeur: burkinabe
     claim: nationalite_burkinabe    # réponse : {"nationalite_burkinabe": true}
-    services: [direction-concours, service-bourses]   # double clé : la mairie n'y a pas droit
+    services: [direction-concours, service-bourses, service-passeport]   # double clé : la mairie n'y a pas droit

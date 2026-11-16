@@ -74,6 +74,10 @@ def valider(demarches: dict, services: dict, attributs: dict) -> list[str]:
                 problemes.append(f"attribut « {nom} » sans libellé")
             if probleme := parametres_invalides(attributs[nom]["regle"], a.get("parametres") or {}):
                 problemes.append(f"attribut « {nom} » : {probleme}")
+            if type(a.get("attendu", True)) is not bool:
+                problemes.append(f"attribut « {nom} » : « attendu » doit valoir true ou false")
+            if not isinstance(a.get("si_non", ""), str):
+                problemes.append(f"attribut « {nom} » : « si_non » doit être un texte")
         if len(codes) != len(set(codes)):
             problemes.append("un même attribut est demandé deux fois")
         erreurs += [f"démarche « {code} » : {p}" for p in problemes]

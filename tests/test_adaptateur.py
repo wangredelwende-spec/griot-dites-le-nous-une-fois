@@ -109,6 +109,7 @@ def test_casier_absence_vierge(tmp_path):
     casier = adaptateur.Adaptateur(chemin)
     assert casier.calculer("casier_judiciaire_vierge", "BF-0003") == {"casier_judiciaire_vierge": True}
     assert casier.calculer("casier_judiciaire_vierge", "BF-0008") == {"casier_judiciaire_vierge": False}
+    assert casier.calculer("interdiction_sortie_territoire", "BF-0003") == {"interdiction_sortie_territoire": False}
     chemin.write_text(texte.replace("absence: refus", "absence: peut-etre"), encoding="utf-8")
     with pytest.raises(ValueError, match="absence"):
         adaptateur.Adaptateur(chemin)
@@ -146,3 +147,28 @@ def test_double_cle_declaree_par_le_registre():
     assert not REGISTRE.autorise("personne_connue", "mairie")
     assert CASIER.autorise("casier_judiciaire_vierge", "direction-concours")
     assert not CASIER.autorise("casier_judiciaire_vierge", "service-bourses")
+
+
+# --- Passeport : interdiction de sortie du territoire (peine complémentaire), plus minimal que « casier vierge » ---
+
+def casier_du_depot(tmp_path):
+    chemin = tmp_path / "casier.yaml"
+    chemin.write_text((RACINE / "adaptateurs/casier.yaml").read_text(encoding="utf-8").replace(
+        "/donnees/casier.csv", (RACINE / "registres_sim/donnees_fictives/casier.csv").as_posix()), encoding="utf-8")
+    return adaptateur.Adaptateur(chemin)
+
+
+@pytest.mark.parametrize("sujet, interdiction", [
+    ("BF-0001", False),
+    ("BF-0005", False),     # condamné pour vol, SANS interdiction : la Police n'en apprend rien
+    ("BF-0008", True),      # interdiction de sortie du territoire inscrite
+])
+def test_interdiction_sortie_territoire(tmp_path, sujet, interdiction):
+    reponse = casier_du_depot(tmp_path).calculer("interdiction_sortie_territoire", sujet)
+    assert reponse == {"interdiction_sortie_territoire": interdiction}
+
+
+@pytest.mark.parametrize("sujet, motif", [("BF-0015", "donnée insuffisante"), ("BF-0003", "introuvable")])
+def test_interdiction_sortie_territoire_refus(tmp_path, sujet, motif):
+    with pytest.raises(adaptateur.Refus, match=motif):
+        casier_du_depot(tmp_path).calculer("interdiction_sortie_territoire", sujet)

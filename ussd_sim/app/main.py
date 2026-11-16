@@ -87,10 +87,13 @@ async def mediateur(methode: str, chemin: str, **kwargs):
 # --- Écrans ---
 
 def nom_attribut(s: dict, a: dict, court: bool = False) -> str:
-    """Libellé d'un attribut : texte traduit s'il existe (phrases-ussd.csv), sinon libellé du catalogue."""
+    """Libellé d'un attribut. Version longue en français : le libellé du catalogue, propre à chaque démarche
+    (« burkinabè » pour le passeport). Autres langues : texte traduit (phrases-ussd.csv) s'il existe."""
     textes = TEXTES[s["langue"]]
     if court:
         return textes.get(f"attribut_court_{a['code']}", a["code"][:8])
+    if s["langue"] == "fr":         # le catalogue est écrit en français
+        return a["libelle"]
     return textes.get(f"attribut_{a['code']}", a["libelle"])
 
 

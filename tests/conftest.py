@@ -46,7 +46,8 @@ from app.agents import agent_connecte  # noqa: E402
 
 
 EMETTEURS = {"age_entre": "registre-etat-civil", "personne_connue": "registre-etat-civil",
-             "nationalite_burkinabe": "registre-nationalite", "casier_judiciaire_vierge": "registre-casier"}
+             "nationalite_burkinabe": "registre-nationalite", "casier_judiciaire_vierge": "registre-casier",
+             "interdiction_sortie_territoire": "registre-casier"}
 
 
 def claims_attribut(corps: dict) -> dict:
@@ -91,6 +92,7 @@ AGENTS = {
     "awa.ouedraogo": ["Service des bourses"],
     "issa.sawadogo": ["Direction des concours de la fonction publique"],
     "agent.curieux": ["Service des bourses"],
+    "moussa.kone": ["Division de la Migration – Police nationale"],
 }
 
 

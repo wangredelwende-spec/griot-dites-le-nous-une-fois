@@ -18,13 +18,17 @@ Personnes inventées, sans lien avec des personnes réelles. Les colonnes `pere`
 
 ## Nationalité (`nationalite.csv`) et casier (`casier.csv`)
 
-| nip | Nationalité burkinabè | Casier vierge |
-|---|---|---|
-| BF-0001 | oui | oui |
-| BF-0003 | oui | refus : absente du casier (absent ≠ vierge) |
-| BF-0005 | oui | non (1 condamnation) |
-| BF-0006 | oui (naturalisation) | oui |
-| BF-0008 | oui | **non** (2 condamnations : le détail ne sort jamais du registre) |
-| BF-0013 | refus : nationalité non renseignée | oui |
-| BF-0015 | oui | refus : nombre de condamnations vide |
-| BF-0018 | **non** (ivoirienne) | oui |
+Colonne `peines_complementaires` du casier : « aucune » est écrit explicitement ; une case vide veut dire
+« inconnu » et donne un refus (on ne devine pas).
+
+| nip | Nationalité burkinabè | Casier vierge | Interdiction de sortie du territoire (passeport) |
+|---|---|---|---|
+| BF-0001 | oui | oui | non |
+| BF-0003 | oui | refus : absente du casier (absent ≠ vierge) | refus : absente du casier |
+| BF-0005 | oui | non (1 condamnation) | **non** (condamné, mais sans interdiction) |
+| BF-0006 | oui (naturalisation) | oui | non |
+| BF-0008 | oui | **non** (2 condamnations : le détail ne sort jamais du registre) | **oui** |
+| BF-0009 | oui | oui | non (mais mineure jusqu'au 19/11 : autorisation parentale) |
+| BF-0013 | refus : nationalité non renseignée | oui | non |
+| BF-0015 | oui | refus : nombre de condamnations vide | refus : case vide |
+| BF-0018 | **non** (ivoirienne) | oui | non |

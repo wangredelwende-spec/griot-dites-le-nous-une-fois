@@ -13,12 +13,36 @@
 #   texte     : texte qui autorise la consultation (obligatoire en base légale)
 #   attributs : ce qui est demandé, et RIEN d'autre. Chaque attribut est déclaré par un registre
 #               (adaptateurs/<registre>.yaml), qui vérifie de son côté que le service y a droit.
+#               Facultatif, pour l'affichage au guichet : « attendu » (réponse qui remplit la condition,
+#               true par défaut) et « si_non » (texte montré à l'agent quand la réponse est « non »).
 #
 # Attributs disponibles :
 #   age_entre                 parametres : min, max (facultatif), date_reference (date ou aujourd'hui)
 #   nationalite_burkinabe     sans paramètre
 #   casier_judiciaire_vierge  sans paramètre
+#   interdiction_sortie_territoire  sans paramètre (peine complémentaire inscrite au casier)
 demarches:
+
+  # Scénario principal. Aujourd'hui, l'usager apporte acte de naissance, certificat de nationalité, CNIB
+  # et extrait de casier (copies légalisées). Ici, c'est LUI qui demande que les preuves soient récupérées
+  # à sa place : consentement, avec l'aperçu exact de ce qui partira.
+  passeport-ordinaire:
+    libelle: Passeport ordinaire
+    services: [service-passeport]
+    finalite: établissement d'un passeport ordinaire
+    base: consentement
+    attributs:
+      - attribut: age_entre
+        parametres: {min: 18, date_reference: aujourd'hui}
+        libelle: majeur
+        # « non » n'est pas un refus : c'est une réponse signée. Le dossier continue avec l'autorisation
+        # parentale (consentement par le représentant légal : feuille de route).
+        si_non: "mineur : autorisation parentale requise"
+      - attribut: nationalite_burkinabe
+        libelle: burkinabè
+      - attribut: interdiction_sortie_territoire
+        libelle: interdiction de sortie du territoire
+        attendu: false
 
   concours-adjoints:
     libelle: Concours direct adjoints administratifs

@@ -86,8 +86,8 @@ class Adaptateur:
         self.absence = conf.get("absence", "refus")
         if self.absence not in ("refus", "vierge"):
             raise ValueError(f"{chemin.name} : absence doit valoir « refus » ou « vierge »")
-        if self.absence == "vierge" and any(r["regle"] != "nombre_nul" for r in self.attributs.values()):
-            raise ValueError(f"{chemin.name} : « absence: vierge » n'a de sens que pour la règle nombre_nul")
+        if self.absence == "vierge" and any(r["regle"] not in ("nombre_nul", "contient") for r in self.attributs.values()):
+            raise ValueError(f"{chemin.name} : « absence: vierge » n'a de sens que pour les règles nombre_nul et contient")
         self.lignes = lire_source(conf["source"])
 
     def valeur(self, ligne: dict, nom: str) -> str:
@@ -125,7 +125,9 @@ class Adaptateur:
         if regle is None:
             raise Refus("attribut non disponible dans ce registre")
         if self.absence == "vierge" and not self.fiches(sujet_ref):
-            return {regle["claim"]: True}       # jamais condamné = absent du casier (existence vérifiée avant)
+            # jamais condamné = absent du casier (existence vérifiée avant) : casier vierge = oui ;
+            # aucune mention possible (ex. interdiction de sortie du territoire) = non
+            return {regle["claim"]: regle["regle"] == "nombre_nul"}
         fiche = self.trouver(sujet_ref)
         if self.refuser_si_decede and "date_deces" in self.champs and self.valeur(fiche, "date_deces"):
             raise Refus("personne décédée")
@@ -139,6 +141,10 @@ class Adaptateur:
         if regle["regle"] == "egal":
             # ex. nationalité : « burkinabe » -> true ; toute autre nationalité renseignée -> false
             return {regle["claim"]: valeur.lower() == str(regle["valeur"]).lower()}
+        if regle["regle"] == "contient":
+            # ex. peines complémentaires : « interdiction de sortie du territoire (5 ans) » -> true ;
+            # « aucune » ou une autre peine -> false ; vide -> refus (plus haut)
+            return {regle["claim"]: regle["mention"].lower() in valeur.lower()}
         if regle["regle"] == "nombre_nul":
             # ex. casier : nombre de condamnations « 0 » -> vierge ; « 2 » -> non vierge ; autre -> refus
             if not valeur.isdigit():

@@ -11,6 +11,7 @@ source:
 identite: nip
 champs:
   nombre_condamnations: nombre_condamnations
+  peines_complementaires: peines_complementaires
 refuser_si_decede: false
 # Personne absente du casier :
 #   refus  (par défaut) : « réponse impossible » : absent n'est pas vierge, on ne devine pas ;
@@ -26,6 +27,7 @@ groupes:
   Direction des concours de la fonction publique: direction-concours
   Service des bourses: service-bourses
   Mairie: mairie
+  Division de la Migration – Police nationale: service-passeport
 
 attributs:
   casier_judiciaire_vierge:
@@ -33,3 +35,12 @@ attributs:
     champ: nombre_condamnations
     claim: casier_judiciaire_vierge # réponse : {"casier_judiciaire_vierge": true}
     services: [direction-concours]                    # double clé : seul ce service interroge le casier
+  # Passeport : la Police n'a pas besoin de savoir si le casier est vierge, seulement s'il existe une
+  # INTERDICTION DE SORTIE DU TERRITOIRE (peine complémentaire). Plus minimal que « casier vierge » :
+  # une condamnation pour vol, sans interdiction, ne regarde pas le service des passeports.
+  interdiction_sortie_territoire:
+    regle: contient                 # champ vide -> refus ; contient la mention -> true ; sinon (« aucune »…) -> false
+    champ: peines_complementaires
+    mention: interdiction de sortie du territoire
+    claim: interdiction_sortie_territoire   # réponse : {"interdiction_sortie_territoire": false}
+    services: [service-passeport]

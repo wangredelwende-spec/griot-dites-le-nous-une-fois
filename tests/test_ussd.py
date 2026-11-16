@@ -193,3 +193,50 @@ def test_apercu_de_plusieurs_attributs_tient_en_160():
     assert apercu.startswith("(1/2) Le service des bourses recevra : âge = oui ; nation. = oui ; casier = oui. "
                              "Rien d'autre.")
     assert "…" not in apercu and "1. Confirmer 2. Refuser" in apercu
+
+
+ACCORDS = [{"id_demande": "d-7", "code_service": "service-bourses", "service": "Le service des bourses",
+            "demarche": "Bourse nationale", "transmis": False,
+            "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"}]},
+           {"id_demande": "d-8", "code_service": "service-bourses", "service": "Le service des bourses",
+            "demarche": "Bourse nationale", "transmis": True,
+            "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"}]}]
+
+
+@respx.mock
+def test_retirer_un_accord_pas_encore_transmis():
+    respx.get(f"{M}/usagers/BF-0012/accords").mock(return_value=httpx.Response(200, json=ACCORDS))
+    retirer = respx.post(f"{M}/demandes/d-7/retirer").mock(return_value=httpx.Response(200, json={
+        "statut": "retiree", "transmis": False, "empreinte": "77aa" * 16}))
+    tel = Telephone()
+    tel.connecter()
+    assert "3. Retirer un accord" in tel.ecran()
+    liste = tel.taper("3")
+    assert liste.splitlines()[:3] == ["Vos accords :", "1. Bourses nation. en cours", "2. Bourses nation. transmis"]
+    assert tel.taper("1").startswith("Retirer votre accord ? Le service des bourses : nation.")
+    assert tel.taper("1") == "Accord retiré. Rien n'a été transmis. Reçu : 77aa 77aa 77aa 77aa\n0. Menu"
+    assert b'"sujet_ref":"BF-0012"' in retirer.calls[0].request.content.replace(b" ", b"")
+
+
+@respx.mock
+def test_retirer_un_accord_deja_transmis():
+    respx.get(f"{M}/usagers/BF-0012/accords").mock(return_value=httpx.Response(200, json=ACCORDS))
+    respx.post(f"{M}/demandes/d-8/retirer").mock(return_value=httpx.Response(200, json={
+        "statut": "retiree_apres_remise", "transmis": True, "empreinte": "5b5b" * 16}))
+    tel = Telephone()
+    tel.connecter()
+    tel.taper("3")
+    tel.taper("2")
+    assert tel.taper("1").startswith("Accord retiré. Déjà transmis : le service ne doit plus l'utiliser.")
+
+
+@respx.mock
+def test_alerte_montre_son_motif():
+    alerte = ligne(4, "alerte", "service-bourses", "refuse") | {
+        "motif": "agent bloqué : plus de 5 citoyens différents consultés en 60 minutes, consultation à contrôler"}
+    respx.get(f"{M}/usagers/BF-0012/historique").mock(return_value=httpx.Response(200, json=[alerte]))
+    tel = Telephone()
+    tel.connecter()
+    assert "ALERTE" in tel.taper("2")
+    detail = tel.taper("1")
+    assert "agent bloqué" in detail and "Reçu : 0000 0004" in detail

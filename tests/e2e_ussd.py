@@ -5,6 +5,7 @@
 3. Le guichet actualise : « nationalité burkinabè : oui », signature vérifiée.
 4. L'usager consulte « Qui a consulté mes données » : le reçu y figure, sans la valeur.
 5. Une seconde demande est refusée par l'usager : le guichet n'obtient rien.
+6. Une troisième est confirmée puis l'accord est retiré avant la remise : le guichet n'obtient rien.
 
 Utilisation :  .venv/Scripts/python tests/e2e_ussd.py
 """
@@ -95,6 +96,20 @@ def main():
         resultats.append(verifier("refus de l'usager : le guichet n'obtient rien",
                                   "refusé par l'usager : rien n'a été transmis" in page and "nationalité burkinabè : oui" not in page,
                                   refus + " | " + page[-200:]))
+        # 6. Retrait de l'accord AVANT que le guichet ne récupère la réponse : rien ne part
+        tel.taper("0")
+        adresse = demander(guichet, csrf)
+        tel.taper("1")
+        tel.taper("1")                 # confirme
+        tel.taper("0")
+        tel.taper("3")                 # Retirer un accord (le plus récent en premier)
+        tel.taper("1")
+        retrait = tel.taper("1")
+        page = texte(guichet.get(adresse).text)
+        resultats.append(verifier("retrait de l'accord avant la remise : le guichet n'obtient rien",
+                                  "Accord retiré. Rien n'a été transmis" in retrait
+                                  and "accord retiré par l'usager" in page and "nationalité burkinabè : oui" not in page,
+                                  retrait + " | " + page[-200:]))
     sys.exit(0 if all(resultats) else 1)
 
 

@@ -23,8 +23,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from . import catalogue, registres
 from .agents import agent_connecte
-from .config import (CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, LIMITE_EXEMPTES,
-                     LIMITE_PAR_CITOYEN, lire_secret)
+from .config import (CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FENETRE_LIMITE,
+                     LIMITE_EXEMPTES, LIMITE_PAR_CITOYEN, LIMITE_SUJETS, lire_secret)
 from .journal import Journal
 
 # Catalogue validé au démarrage : s'il est incomplet, le médiateur ne démarre pas (on ne devine pas une règle)
@@ -61,7 +61,7 @@ with VERROU:
             attributs TEXT NOT NULL,     -- codes des attributs demandés, séparés par « + »
             registres TEXT NOT NULL,     -- registres correspondants, séparés par « + »
             statut TEXT NOT NULL,        -- en_cours | en_attente | confirmee | remise | refuse | indisponible
-                                         -- | expiree | bloquee
+                                         -- | expiree | retiree | retiree_apres_remise | bloquee
             motif TEXT NOT NULL DEFAULT '',
             expire_le REAL NOT NULL DEFAULT 0,
             cree_le REAL NOT NULL DEFAULT 0   -- pour les limites de débit
@@ -272,6 +272,33 @@ def trop_de_demandes_sur_ce_citoyen(demande: dict) -> bool:
     return True
 
 
+# --- Limite de débit : un agent qui consulte trop de citoyens DIFFÉRENTS est bloqué ---
+
+def trop_de_citoyens(demande: dict) -> bool:
+    """Au-delà de LIMITE_SUJETS citoyens distincts en FENETRE_LIMITE secondes, la demande est bloquée
+    (registres jamais appelés) et une ALERTE entre dans l'historique de chaque citoyen concerné.
+    Reconsulter un citoyen déjà consulté reste possible (ex. actualiser une demande)."""
+    if demande["agent"] in LIMITE_EXEMPTES:
+        return False
+    depuis = time.time() - FENETRE_LIMITE
+    with VERROU:
+        deja = {l["sujet"] for l in base.execute(
+            "SELECT DISTINCT sujet FROM demandes WHERE agent = ? AND cree_le > ? AND statut != 'bloquee' "
+            "AND id_demande != ?", (demande["agent"], depuis, demande["id_demande"]))}
+        bloque_avant = base.execute("SELECT 1 FROM demandes WHERE agent = ? AND cree_le > ? AND statut = 'bloquee' "
+                                    "AND id_demande != ?", (demande["agent"], depuis, demande["id_demande"])).fetchone()
+    if demande["sujet"] in deja or len(deja) < LIMITE_SUJETS:
+        return False
+    motif = (f"agent bloqué : plus de {LIMITE_SUJETS} citoyens différents consultés en "
+             f"{FENETRE_LIMITE // 60} minutes, consultation à contrôler")
+    # Au premier blocage, tous les citoyens déjà consultés par cet agent sont prévenus
+    for sujet in ([] if bloque_avant else sorted(deja)):
+        tracer(demande, "alerte", "refuse", motif, sujet=sujet)
+    tracer(demande, "alerte", "refuse", motif)
+    changer(demande, statut="bloquee", motif=motif)
+    return True
+
+
 # --- Côté guichet ---
 
 UUID4 = r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -326,7 +353,7 @@ async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
                             "cette démarche peut demander"))
     if d.finalite != demarche["finalite"]:
         return etat(refuser(demande, "refuse", "demande", "finalité non autorisée"))
-    if trop_de_demandes_sur_ce_citoyen(demande):
+    if trop_de_demandes_sur_ce_citoyen(demande) or trop_de_citoyens(demande):
         return etat(demande)
     tracer(demande, "demande", "ok")
 
@@ -432,6 +459,54 @@ def refuser_par_usager(id_demande: str, usager: Usager):
     demande = demande_de_l_usager(id_demande, usager)
     refuser(demande, "refuse", "refus-usager", "refusé par l'usager : rien n'a été transmis")
     return {"id_demande": id_demande, "statut": "refuse"}
+
+
+@app.get("/usagers/{sujet_ref}/accords", dependencies=[Depends(canal_usager)])
+def accords(sujet_ref: str):
+    """Accords donnés par l'usager, qu'il peut retirer : pas encore remis (« en cours ») ou déjà remis."""
+    with VERROU:
+        ids = base.execute("SELECT id_demande FROM demandes WHERE sujet = ? AND base = 'consentement' "
+                           "AND statut IN ('confirmee', 'remise') ORDER BY rowid DESC LIMIT 9",
+                           (pseudonyme(sujet_ref),)).fetchall()
+    resultat = []
+    for i in ids:
+        demande = rafraichir(lire(i["id_demande"]))
+        if demande["statut"] not in ("confirmee", "remise"):
+            continue
+        connus = libelles(demande["demarche"])
+        resultat.append({
+            "id_demande": demande["id_demande"], "code_service": demande["demandeur"],
+            "service": CAT["services"].get(demande["demandeur"], {}).get("nom", demande["demandeur"]),
+            "demarche": CAT["demarches"].get(demande["demarche"], {}).get("libelle", demande["demarche"]),
+            "attributs": [{"code": v["attribut"], "libelle": connus.get(v["attribut"], {}).get("libelle", v["attribut"])}
+                          for v in demande["volets"] if v["statut"] == "ok"],
+            "transmis": demande["statut"] == "remise"})
+    return resultat
+
+
+@app.post("/demandes/{id_demande}/retirer", dependencies=[Depends(canal_usager)])
+def retirer(id_demande: str, usager: Usager):
+    """Retrait de l'accord. Pas encore remis : plus rien ne partira. Déjà remis : on ne peut pas rappeler une
+    réponse transmise, mais le retrait est écrit au journal (le service ne doit plus l'utiliser)."""
+    demande = lire(id_demande)
+    if demande is None or not hmac.compare_digest(demande["sujet"], pseudonyme(usager.sujet_ref)):
+        raise HTTPException(404, "demande introuvable")
+    rafraichir(demande)
+    if demande["base"] != "consentement":
+        raise HTTPException(409, "base légale : il n'y a pas d'accord à retirer")
+    if demande["statut"] in ("en_attente", "confirmee"):
+        motif = "accord retiré par l'usager : rien n'a été transmis"
+        ligne = tracer(demande, "retrait", "ok", motif, **transmis(demande))
+        changer(demande, statut="retiree", motif=motif)
+        effacer_reponses(demande)
+        return {"id_demande": id_demande, "statut": "retiree", "transmis": False, "empreinte": ligne["hash"]}
+    if demande["statut"] == "remise":
+        motif = "accord retiré après la transmission : le service ne doit plus utiliser la réponse"
+        ligne = tracer(demande, "retrait", "ok", motif, **transmis(demande))
+        changer(demande, statut="retiree_apres_remise", motif=motif)
+        return {"id_demande": id_demande, "statut": "retiree_apres_remise", "transmis": True,
+                "empreinte": ligne["hash"]}
+    raise HTTPException(409, f"rien à retirer (statut : {demande['statut']})")
 
 
 @app.get("/usagers/{sujet_ref}/historique", dependencies=[Depends(canal_usager)])

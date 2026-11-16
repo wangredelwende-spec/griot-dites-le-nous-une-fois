@@ -25,7 +25,7 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 | `issa.sawadogo` | `Agent-Demo-2026!` | Direction des concours | **Concours direct adjoints administratifs** (âge 18–37 ans au 31/12/2026 + nationalité + casier, base légale), Vérifier la majorité |
 | `awa.ouedraogo` | `Agent-Demo-2026!` | Service des bourses | **Bourse nationale** (nationalité, **avec l'accord de l'usager**), Vérifier la majorité |
 | `mariam.kabore` | `Agent-Demo-2026!` | Mairie | Vérifier la majorité (base légale : loi n°012-2025/ALT) |
-| `agent.curieux` | `Agent-Demo-2026!` | Service des bourses | (limite de débit : à venir) |
+| `agent.curieux` | `Agent-Demo-2026!` | Service des bourses | Vérifier la majorité : **démo de la limite de débit** (scène 2 bis) |
 
 À la **première connexion**, Keycloak montre un QR code : le scanner avec FreeOTP/Aegis, taper le code à
 6 chiffres. Ensuite, chaque connexion demande mot de passe + code. (`agent.banc` et `agent.banc.bourses` sont
@@ -85,6 +85,23 @@ Au guichet, chaque résultat a aussi un bouton « réponse signée reçue (conte
 6. Guichet d'Awa → **Actualiser**. Attendu : « nationalité burkinabè : oui », signature vérifiée.
 7. Variante refus : refaire les étapes 1 à 4, puis taper `2` → « Refusé. Rien n'a été transmis. » ; au guichet :
    « nationalité burkinabè : refusé. refusé par l'usager : rien n'a été transmis ».
+8. Variante **retrait** : refaire 1 à 5 (confirmer), puis AVANT qu'Awa actualise : `0` → `3` (Retirer un accord)
+   → `1` → `1`. Attendu : « Accord retiré. Rien n'a été transmis. Reçu : … ». Awa actualise :
+   « accord retiré par l'usager : rien n'a été transmis ». Si Awa avait déjà reçu la réponse, le téléphone dit
+   « Accord retiré. Déjà transmis : le service ne doit plus l'utiliser » (écrit au journal, on ne peut pas rappeler
+   une réponse déjà remise).
+9. Variante **expiration** : ne rien faire pendant 10 minutes ; Awa actualise : « Délai dépassé ».
+
+## Scène 2 bis : l'agent curieux est bloqué
+
+1. Guichet → `agent.curieux`. **Vérifier la majorité** pour `BF-0001`, `BF-0002`, `BF-0005`, `BF-0006`, `BF-0011`
+   (5 citoyens différents) : tout passe.
+2. Un 6e citoyen, `BF-0012` → « **bloqué** : agent bloqué : plus de 5 citoyens différents consultés en 60 minutes,
+   consultation à contrôler ». Le registre n'est même pas appelé.
+3. Téléphone `70000001` (Aminata, BF-0001) → `2` : « … Bourses âge ALERTE » ; le détail donne le motif.
+   Chaque citoyen consulté par cet agent a reçu l'alerte.
+4. Autre limite : un même service ne peut pas faire plus de 5 demandes sur la même personne en 24 h.
+(Limites réglables dans `docker-compose.yml` : `LIMITE_SUJETS`, `FENETRE_LIMITE`, `LIMITE_PAR_CITOYEN`.)
 
 ## Scène 3 : « Vous vérifiez après » (historique et reçu)
 

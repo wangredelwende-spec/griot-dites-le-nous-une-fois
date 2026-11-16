@@ -482,3 +482,81 @@ def test_comptes_de_test_exemptes(client, monkeypatch):
     monkeypatch.setattr(mediateur, "LIMITE_EXEMPTES", {"issa.sawadogo"})
     respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
     assert [client.post("/demandes", json=demande(sujet="BF-0014")).json()["statut"] for _ in range(3)] == ["remise"] * 3
+
+
+# --- Retrait du consentement ---
+
+def demande_confirmee(client, sujet: str, confirmer: bool = True) -> dict:
+    client.agent["nom"] = "awa.ouedraogo"
+    d = demande(demarche="bourse-nationale", sujet=sujet)
+    assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
+    if confirmer:
+        client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": sujet}, headers=CANAL)
+    return d
+
+
+@respx.mock
+def test_retrait_avant_la_remise_rien_ne_part(client):
+    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    d = demande_confirmee(client, "BF-0010")
+    accords = client.get("/usagers/BF-0010/accords", headers=CANAL).json()
+    assert accords[0]["id_demande"] == d["id_demande"] and accords[0]["transmis"] is False
+    r = client.post(f"/demandes/{d['id_demande']}/retirer", json={"sujet_ref": "BF-0010"}, headers=CANAL).json()
+    assert r["statut"] == "retiree" and r["transmis"] is False and len(r["empreinte"]) == 64
+    guichet = client.get(f"/demandes/{d['id_demande']}").json()       # l'agent actualise : rien
+    assert guichet["statut"] == "retiree" and "jeton" not in guichet["volets"][0]
+    assert journal_de()[-1]["evenement"] == "retrait"
+    assert client.get("/usagers/BF-0010/accords", headers=CANAL).json() == []
+
+
+@respx.mock
+def test_retrait_avant_meme_la_confirmation(client):
+    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    d = demande_confirmee(client, "BF-0011", confirmer=False)
+    r = client.post(f"/demandes/{d['id_demande']}/retirer", json={"sujet_ref": "BF-0011"}, headers=CANAL).json()
+    assert r["statut"] == "retiree"
+
+
+@respx.mock
+def test_retrait_apres_la_remise_ecrit_au_journal(client):
+    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    d = demande_confirmee(client, "BF-0017")
+    assert client.get(f"/demandes/{d['id_demande']}").json()["statut"] == "remise"
+    assert client.get("/usagers/BF-0017/accords", headers=CANAL).json()[0]["transmis"] is True
+    r = client.post(f"/demandes/{d['id_demande']}/retirer", json={"sujet_ref": "BF-0017"}, headers=CANAL).json()
+    assert r["statut"] == "retiree_apres_remise" and r["transmis"] is True
+    ligne = journal_de()[-1]
+    assert ligne["evenement"] == "retrait" and "ne doit plus utiliser" in ligne["motif"]
+    again = client.post(f"/demandes/{d['id_demande']}/retirer", json={"sujet_ref": "BF-0017"}, headers=CANAL)
+    assert again.status_code == 409
+
+
+@respx.mock
+def test_retrait_impossible_en_base_legale_ou_pour_un_autre(client):
+    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    d = demande(sujet="BF-0016")
+    client.post("/demandes", json=d)
+    r = client.post(f"/demandes/{d['id_demande']}/retirer", json={"sujet_ref": "BF-0016"}, headers=CANAL)
+    assert r.status_code == 409 and "base légale" in r.json()["detail"]
+    r = client.post(f"/demandes/{d['id_demande']}/retirer", json={"sujet_ref": "BF-0015"}, headers=CANAL)
+    assert r.status_code == 404
+
+
+# --- Limite par agent : trop de citoyens DIFFÉRENTS ---
+
+@respx.mock
+def test_agent_curieux_bloque_et_citoyens_alertes(client, monkeypatch):
+    monkeypatch.setattr(mediateur, "LIMITE_SUJETS", 3)
+    client.agent["nom"] = "agent.curieux"
+    route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    statuts = [client.post("/demandes", json=demande(sujet=f"CUR-{i}")).json()["statut"] for i in range(1, 5)]
+    assert statuts == ["remise", "remise", "remise", "bloquee"] and route.call_count == 3
+    # Alerte dans l'historique de CHAQUE citoyen concerné (les 3 consultés + celui qui a déclenché le blocage)
+    for i in range(1, 5):
+        historique = client.get(f"/usagers/CUR-{i}/historique", headers=CANAL).json()
+        assert historique[0]["evenement"] == "alerte" and "agent bloqué" in historique[0]["motif"], i
+    # Reconsulter un citoyen déjà consulté reste possible ; un nouveau est encore bloqué, sans réalerter les autres
+    assert client.post("/demandes", json=demande(sujet="CUR-1")).json()["statut"] == "remise"
+    assert client.post("/demandes", json=demande(sujet="CUR-5")).json()["statut"] == "bloquee"
+    alertes = [l for l in journal_de() if l["evenement"] == "alerte" and "agent bloqué" in l["motif"]]
+    assert len(alertes) == 5

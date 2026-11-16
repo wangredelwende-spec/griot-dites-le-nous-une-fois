@@ -25,7 +25,7 @@ for dossier in ("secrets", "donnees", "publiques"):
 os.environ.update(GRIOT_SECRETS=str(TMP / "secrets"), GRIOT_DONNEES=str(TMP / "donnees"),
                   GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_CATALOGUE=str(RACINE / "catalogue"),
                   GRIOT_ADAPTATEURS=str(RACINE / "adaptateurs"),
-                  LIMITE_PAR_CITOYEN="1000",       # les tests interrogent souvent BF-0001 ; un test dédié baisse la limite
+                  LIMITE_PAR_CITOYEN="1000", LIMITE_SUJETS="1000",   # des tests dédiés baissent les limites
                   DELAI_REGISTRE="0.5")
 
 CLE_REGISTRE = Ed25519PrivateKey.generate()
@@ -90,6 +90,7 @@ JETON_AGENT = "jeton-keycloak-de-test"     # transmis tel quel aux registres (qu
 AGENTS = {
     "awa.ouedraogo": ["Service des bourses"],
     "issa.sawadogo": ["Direction des concours de la fonction publique"],
+    "agent.curieux": ["Service des bourses"],
 }
 
 

@@ -47,6 +47,24 @@ composer l'écran dans une autre langue (mooré).
 | `404` | demande inconnue **ou** appartenant à un autre usager (on ne distingue pas) |
 | `409 {"detail": "demande déjà traitée (statut : …)"}` | déjà confirmée, refusée ou expirée |
 
+## 2 bis. Retirer un accord
+
+`GET /usagers/{sujet_ref}/accords` → accords donnés (base consentement), du plus récent au plus ancien (9 au plus) :
+
+```json
+[{"id_demande": "8c1f…", "code_service": "service-bourses", "service": "Le service des bourses",
+  "demarche": "Bourse nationale", "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"}],
+  "transmis": false}]
+```
+
+`POST /demandes/{id_demande}/retirer`, corps `{"sujet_ref": "BF-0012"}` :
+
+| Réponse | Sens |
+|---|---|
+| `200 {"statut": "retiree", "transmis": false, "empreinte": "…"}` | pas encore remis : plus rien ne partira |
+| `200 {"statut": "retiree_apres_remise", "transmis": true, "empreinte": "…"}` | déjà remis : retrait écrit au journal, le service ne doit plus utiliser la réponse |
+| `404` / `409` | demande inconnue ou d'un autre usager / base légale ou déjà retirée |
+
 ## 3. Historique : qui a consulté mes données
 
 `GET /usagers/{sujet_ref}/historique` → `200`, du plus récent au plus ancien (100 lignes au plus) :
@@ -67,7 +85,7 @@ composer l'écran dans une autre langue (mooré).
 - **Jamais la valeur** de l'attribut : le journal ne la contient pas.
 - `base` : `consentement` ou `base_legale` (alors `texte_base` donne le texte qui l'autorise).
 - `attributs` : ce que concerne la ligne (une ligne `reponse-registre` ne concerne qu'un attribut).
-- `evenement` : `demande` | `reponse-registre` | `confirmation` | `refus-usager` | `remise` | `expiration` | `alerte`.
+- `evenement` : `demande` | `reponse-registre` | `confirmation` | `refus-usager` | `remise` | `expiration` | `alerte` | `retrait`.
 - `resultat` : `ok` | `refuse` | `indisponible`. `motif` explique un refus.
 - **Reçu** = 16 premiers caractères de `empreinte` (64 bits), affichés « 9035 47b3 1c2e 9f04 ». Il se vérifie avec
   `docker compose exec mediateur python /journal/verifier.py --recu "9035 47b3 1c2e 9f04"`.

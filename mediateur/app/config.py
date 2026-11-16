@@ -19,7 +19,10 @@ DUREE_CONSENTEMENT = int(os.environ.get("DUREE_CONSENTEMENT", "600"))   # 10 min
 # Limite par (service, citoyen) : un même service ne peut pas interroger sans fin la même personne
 # (sinon, avec des questions répétées, il pourrait reconstituer des données)
 LIMITE_PAR_CITOYEN = int(os.environ.get("LIMITE_PAR_CITOYEN", "5"))     # demandes par 24 heures
-# Comptes des tests automatiques de bout en bout, qui interrogent beaucoup les citoyens fictifs (démo seulement)
+# Limite de débit : nombre de citoyens DIFFÉRENTS qu'un agent peut consulter dans la fenêtre (bas pour la démo)
+LIMITE_SUJETS = int(os.environ.get("LIMITE_SUJETS", "5"))
+FENETRE_LIMITE = int(os.environ.get("FENETRE_LIMITE", "3600"))          # 1 heure
+# Comptes des tests automatiques de bout en bout, qui consultent beaucoup de citoyens fictifs (démo seulement)
 LIMITE_EXEMPTES = {n.strip() for n in os.environ.get("LIMITE_EXEMPTES", "").split(",") if n.strip()}
 
 

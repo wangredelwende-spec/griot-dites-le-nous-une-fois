@@ -35,7 +35,7 @@ BLOCAGE = 300           # 5 minutes de blocage après 3 PIN faux
 # Événements montrés dans « Qui a consulté mes données » (les étapes internes sont omises)
 # « confirmation » y figure : c'est la ligne dont l'usager a reçu le reçu au moment de confirmer.
 EVENEMENTS = {"confirmation": "etat_confirmation", "remise": "etat_remise", "refus-usager": "etat_refuse",
-              "expiration": "etat_expiration", "alerte": "etat_alerte"}
+              "expiration": "etat_expiration", "alerte": "etat_alerte", "retrait": "etat_retrait"}
 
 
 def charger_textes(chemin: Path) -> dict[str, dict[str, str]]:
@@ -75,7 +75,7 @@ def ecran(*lignes: str) -> str:
 
 def menu(s: dict) -> str:
     s["etape"] = "menu"
-    return ecran(t(s, "menu_attente"), t(s, "menu_historique"),
+    return ecran(t(s, "menu_attente"), t(s, "menu_historique"), t(s, "menu_retrait"),
                  t(s, "menu_langue") if len(TEXTES) > 1 else "", t(s, "menu_quitter"))
 
 
@@ -110,6 +110,21 @@ def ecran_attente(s: dict) -> str:
         if len("\n".join(lignes)) <= LIMITE:
             break
     return ecran(*lignes)
+
+
+def ecran_accords(s: dict) -> str:
+    """Accords que l'usager peut retirer (3 au plus) : « 1. Bourses nation. transmis »."""
+    if not s["liste"]:
+        s["etape"] = "info"
+        return ecran(t(s, "aucun_accord"), t(s, "retour_menu"))
+    s["etape"] = "accords"
+    lignes = []
+    for i, a in enumerate(s["liste"][:PAR_ECRAN], start=1):
+        service = TEXTES[s["langue"]].get(f"service_court_{a['code_service']}", a["code_service"][:8])
+        quoi = (nom_attribut(s, a["attributs"][0], court=True) if len(a["attributs"]) == 1
+                else t(s, "n_infos", n=len(a["attributs"])))
+        lignes.append(f"{i}. {service} {quoi} {t(s, 'etat_remise' if a['transmis'] else 'accord_en_cours')}")
+    return ecran(t(s, "accords_titre"), *lignes, t(s, "retour"))
 
 
 def format_recu(empreinte: str) -> str:
@@ -194,6 +209,11 @@ async def traiter(s: dict, reponse: str) -> str:
                 r.raise_for_status()
                 s.update(etape="attente", liste=r.json(), index=0)
                 return ecran_attente(s)
+            if reponse == "3":
+                r = await mediateur("GET", f"/usagers/{s['sujet_ref']}/accords")
+                r.raise_for_status()
+                s["liste"] = r.json()
+                return ecran_accords(s)
             if reponse == "2":
                 r = await mediateur("GET", f"/usagers/{s['sujet_ref']}/historique")
                 r.raise_for_status()
@@ -204,7 +224,7 @@ async def traiter(s: dict, reponse: str) -> str:
         except httpx.HTTPError:
             s["etape"] = "info"
             return ecran(t(s, "indisponible"), t(s, "retour_menu"))
-        if reponse == "3" and len(TEXTES) > 1:
+        if reponse == "4" and len(TEXTES) > 1:
             s["etape"] = "langue"
             choix = [f"{i}. {TEXTES[code]['nom_langue']}" for i, code in enumerate(TEXTES, start=1)]
             return ecran(t(s, "langue"), *choix, t(s, "retour"))
@@ -234,6 +254,31 @@ async def traiter(s: dict, reponse: str) -> str:
                 return ecran(t(s, "confirme", recu=format_recu(r.json()["empreinte"])), t(s, "retour_menu"))
             return ecran(t(s, "refuse"), t(s, "retour_menu"))
         return ecran(t(s, "choix_invalide"), ecran_attente(s))
+
+    if etape == "accords":
+        if reponse in ("1", "2", "3") and int(reponse) <= min(len(s["liste"]), PAR_ECRAN):
+            a = s["liste"][int(reponse) - 1]
+            s.update(etape="retrait", choix=a)
+            service = TEXTES[s["langue"]].get(f"service_long_{a['code_service']}", a["service"])
+            quoi = ", ".join(nom_attribut(s, x, court=True) for x in a["attributs"])
+            return ecran(t(s, "retrait_question", service=service, attributs=quoi), t(s, "retrait_confirmer"),
+                         t(s, "retour"))
+        return menu(s)
+
+    if etape == "retrait":
+        if reponse != "1":
+            return menu(s)
+        try:
+            r = await mediateur("POST", f"/demandes/{s['choix']['id_demande']}/retirer",
+                                json={"sujet_ref": s["sujet_ref"]})
+        except httpx.HTTPError:
+            s["etape"] = "info"
+            return ecran(t(s, "indisponible"), t(s, "retour_menu"))
+        s["etape"] = "info"
+        if r.status_code != 200:
+            return ecran(t(s, "deja_traitee"), t(s, "retour_menu"))
+        cle = "retrait_apres" if r.json()["transmis"] else "retrait_fait"
+        return ecran(t(s, cle, recu=format_recu(r.json()["empreinte"])), t(s, "retour_menu"))
 
     if etape == "historique":
         if reponse == "9" and (s["page"] + 1) * PAR_ECRAN < len(s["liste"]):

@@ -204,6 +204,12 @@ Couper le wifi (et débrancher le câble), puis rejouer la scène 1 ou 2 : tout 
 besoin d'Internet (réseaux Docker internes, certificats locaux, aucune ressource externe).
 **À répéter une fois en vrai avant la présentation** (pas encore testé physiquement).
 
+## Demande en ligne de commande (vrai agent)
+
+`.venv\Scripts\python scripts\demande.py --demarche concours-adjoints --usager BF-0001` : le script demande
+l'identifiant, le mot de passe (caché) et le code TOTP d'un vrai agent, passe par le guichet (mêmes règles, même
+journal) et affiche le résultat. Rien n'est enregistré. API pour les intégrateurs : `docs/API.md`.
+
 ## Banc de pannes automatique (avant la démo, PAS devant le jury)
 
 1. `OUTILS_TEST=1` dans `.env`, puis `python scripts/outils_test.py` (crée 3 comptes de service de TEST,

@@ -68,6 +68,12 @@ aucune réponse ni aucun identifiant de citoyen n'y apparaît.</p>
 service sur une même personne en 24 heures.</p>
 
 <h2>Catalogue en vigueur</h2>
+{% set refus = etat.catalogue.refus %}
+{% if refus %}
+<div class="erreur" role="alert"><p><strong>Nouvelle version du catalogue REFUSÉE</strong> ({{ refus.date }},
+  empreinte <code>{{ refus.empreinte[:16] }}</code>). Le catalogue en vigueur reste appliqué ; rien n'a été deviné.</p>
+  <pre class="raison">{{ refus.raison }}</pre></div>
+{% endif %}
 <p class="aide">Empreinte SHA-256 (écrite au journal à chaque chargement) : <code>{{ etat.catalogue.empreinte }}</code></p>
 <div class="defile"><table>
   <thead><tr><th>Démarche</th><th>Qui peut demander</th><th>Ce qui est vérifié</th><th>Base et finalité</th></tr></thead>
@@ -90,5 +96,6 @@ service sur une même personne en 24 heures.</p>
   {% endfor %}
   </tbody>
 </table></div>
-<p class="aide">Le catalogue se modifie uniquement par fichier YAML (validé au démarrage du médiateur).</p>
+<p class="aide">Le catalogue se modifie uniquement par fichier YAML (validé par le médiateur à chaque modification ;
+une version invalide est refusée et l'ancienne reste en vigueur).</p>
 {% endblock %}

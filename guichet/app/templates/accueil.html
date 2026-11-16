@@ -5,6 +5,11 @@
 <p class="aide">Service demandeur : <strong>{{ service }}</strong> (déterminé par votre compte, pas par ce formulaire).
 L'usager n'apporte aucune pièce : chaque registre répond seulement aux questions prévues par la démarche (catalogue).</p>
 
+{% if refus %}
+<div class="erreur" role="alert"><p><strong>Nouvelle version du catalogue REFUSÉE</strong> ({{ refus.date }},
+  empreinte <code>{{ refus.empreinte[:16] }}</code>). Le catalogue en vigueur reste appliqué ; rien n'a été deviné.</p>
+  <pre class="raison">{{ refus.raison }}</pre></div>
+{% endif %}
 {% if erreur %}<div class="erreur" role="alert"><p>{{ erreur }}</p></div>{% endif %}
 
 <form method="post" action="/demandes" class="bloc">

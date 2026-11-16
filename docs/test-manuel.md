@@ -195,21 +195,24 @@ connecté en `awa.ouedraogo` (service des bourses) ; PowerShell dans le dossier 
 1. (20 s) Copier les lignes de `docs\demarche_a_coller.yaml` (sans l'entête `#`) et les coller **à la fin** de
    `catalogue\demarches.yaml`. Enregistrer. À dire : « aide au transport des étudiants : majeur + burkinabè, avec
    l'accord de l'usager ; rien d'autre ne peut être demandé ».
-2. (15 s) Redémarrer **le seul médiateur**, qui valide le catalogue au démarrage :
-   ```powershell
-   docker compose restart mediateur
-   docker compose logs mediateur --tail 3
-   ```
-   Attendu : aucune erreur. Le journal reçoit une ligne « catalogue chargé : 5 démarches, sha256 … ».
-3. (15 s) Guichet d'Awa → **actualiser la page** : « Aide au transport des étudiants » apparaît (le guichet relit
-   le catalogue tout seul). Envoyer pour `BF-0012` → « En attente de l'usager ».
+2. (5 s) **Rien à redémarrer** : le médiateur relit le fichier tout seul et le valide. Pour le montrer :
+   `docker compose logs mediateur --tail 2` → « Catalogue rechargé : 5 démarches, sha256 … » (même ligne au journal).
+3. (15 s) Guichet d'Awa → **actualiser la page** : « Aide au transport des étudiants » apparaît (le guichet affiche
+   le catalogue que le médiateur applique). Envoyer pour `BF-0012` → « En attente de l'usager ».
 4. (30 s) Téléphone `70000012` → `*226#` → `1234` → `1` : « Le service des bourses recevra : majeur = oui ;
    burkinabè = oui. Rien d'autre. » → `1` (Confirmer). Guichet : Actualiser → deux réponses signées.
-5. Variante « le médiateur refuse » (30 s) : supprimer la ligne `finalite:` de la démarche collée, enregistrer,
-   `docker compose restart mediateur`, puis `docker compose logs mediateur --tail 5` : « CATALOGUE INVALIDE … démarche
-   « aide-transport-etudiant » : finalité manquante ». Remettre la ligne, relancer.
-6. **Après la démo** : retirer la démarche collée (`git checkout catalogue\demarches.yaml`) puis
-   `docker compose restart mediateur`.
+5. **Essai raté volontaire** (45 s) : « et si quelqu'un demandait la date de naissance ? ». Copier les lignes de
+   `docs\demarche_refusee.yaml` (sans l'entête `#`), les coller à la fin de `catalogue\demarches.yaml`, enregistrer.
+   - Guichet d'Awa → actualiser : bandeau rouge « **Nouvelle version du catalogue REFUSÉE** … démarche
+     « curiosite-date-naissance » : attribut inconnu « date_naissance » (aucun registre ne le déclare) ». La démarche
+     n'apparaît pas ; « Aide au transport des étudiants » et les autres restent utilisables.
+   - `docker compose ps mediateur` : toujours « healthy ». Le médiateur ne s'est **jamais** arrêté.
+   - Page Contrôle (`controle.cil`) : même bandeau. Journal : ligne « catalogue refusé (sha256 …), le catalogue sha256 …
+     reste en vigueur : … ».
+   - Retirer les lignes collées, enregistrer : le bandeau disparaît.
+   Autres refus possibles (même comportement) : YAML cassé, finalité manquante, seuil d'âge non déclaré par l'état
+   civil (ex. `min: 21`), service que le registre n'autorise pas (ex. la mairie qui demande la nationalité).
+6. **Après la démo** : retirer la démarche collée (`git checkout catalogue\demarches.yaml`), rien à redémarrer.
 
 Pourquoi ça marche sans code : la démarche n'utilise que des attributs et des seuils que les registres autorisent
 déjà au service des bourses (double clé, `adaptateurs\*.yaml`). Testé : `tests\test_catalogue.py`.

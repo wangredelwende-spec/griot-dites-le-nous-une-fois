@@ -7,6 +7,7 @@ Le guichet ne reçoit que la réponse minimale SIGNÉE par le registre, et revé
 import hashlib
 import re
 import secrets
+import time
 import uuid
 from datetime import date, datetime, timezone
 from urllib.parse import urlencode
@@ -29,24 +30,23 @@ SECRET_OIDC = lire_secret("guichet_oidc")
 # Mêmes fichiers que le médiateur, en lecture seule : annuaire, catalogue des démarches,
 # et attributs déclarés par chaque registre (adaptateurs/<registre>.yaml).
 ANNUAIRE = yaml.safe_load((CATALOGUE / "annuaire.yaml").read_text(encoding="utf-8"))
-# Catalogue des démarches : relu dès que le fichier change (ajouter une démarche = redémarrer le seul médiateur,
-# qui la VALIDE ; le guichet suit tout seul). Fichier illisible : on garde la dernière version lue.
-_CATALOGUE_LU = {"date": None, "demarches": {}}
+# Catalogue des démarches : celui que le MÉDIATEUR applique (GET /catalogue), jamais le fichier brut.
+# Ainsi une démarche que le médiateur a refusée (invalide) n'apparaît jamais au guichet.
+# Relu au plus toutes les 2 secondes ; médiateur injoignable : on garde la dernière version reçue.
+_CATALOGUE_LU = {"lu_le": 0.0, "demarches": {}, "refus": {}}
 
 
-def catalogue_courant() -> dict:
-    chemin = CATALOGUE / "demarches.yaml"
-    date = chemin.stat().st_mtime
-    if date != _CATALOGUE_LU["date"]:
+async def catalogue_courant() -> dict:
+    if time.monotonic() - _CATALOGUE_LU["lu_le"] > 2:
         try:
-            _CATALOGUE_LU["demarches"] = yaml.safe_load(chemin.read_text(encoding="utf-8"))["demarches"]
-            _CATALOGUE_LU["date"] = date
-        except (yaml.YAMLError, KeyError, TypeError) as e:
-            print(f"catalogue illisible, version précédente gardée : {type(e).__name__}", flush=True)
-    return _CATALOGUE_LU["demarches"]
+            async with httpx.AsyncClient(base_url=MEDIATEUR, timeout=3) as client:
+                r = await client.get("/catalogue")
+            r.raise_for_status()
+            _CATALOGUE_LU.update(r.json() | {"lu_le": time.monotonic()})
+        except (httpx.HTTPError, ValueError) as e:
+            print(f"catalogue du médiateur illisible, version précédente gardée : {type(e).__name__}", flush=True)
+    return _CATALOGUE_LU
 
-
-catalogue_courant()
 # Format de l'identifiant de l'usager (réglable pour les données du jury), le même que celui du médiateur
 IDENTIFIANT = ANNUAIRE.get("identifiant_usager") or {"format": r"^[A-Za-z0-9-]{1,64}$", "exemple": "BF-0001"}
 ATTRIBUTS = {}
@@ -201,9 +201,9 @@ async def deconnexion(request: Request, csrf: str = Form(...)):
 
 # --- Demandes ---
 
-def demarches_du_service(service: str) -> dict:
+async def demarches_du_service(service: str) -> dict:
     """Le guichet ne propose QUE les démarches du catalogue ouvertes au service de l'agent."""
-    return {code: d for code, d in catalogue_courant().items() if service in d["services"]}
+    return {code: d for code, d in (await catalogue_courant())["demarches"].items() if service in d["services"]}
 
 
 async def mediateur(methode: str, chemin: str, session: dict, **kwargs) -> dict:
@@ -274,14 +274,15 @@ def lire_valeur(infos: dict, attribut: dict, parametres: dict) -> bool:
 
 @app.get("/")
 async def accueil(request: Request, session: dict = Depends(exiger_agent)):
-    return page(request, "accueil.html", demarches=demarches_du_service(session["service"]), identifiant=IDENTIFIANT)
+    return page(request, "accueil.html", demarches=await demarches_du_service(session["service"]),
+                identifiant=IDENTIFIANT, refus=_CATALOGUE_LU["refus"])
 
 
 @app.post("/demandes")
 async def envoyer(request: Request, csrf: str = Form(...), demarche: str = Form(""), sujet_ref: str = Form(""),
                   session: dict = Depends(exiger_agent)):
     verifier_csrf(request, csrf)
-    demarches = demarches_du_service(session["service"])
+    demarches = await demarches_du_service(session["service"])
     if demarche not in demarches or not sujet_ref.strip():
         return page(request, "accueil.html", 400, demarches=demarches, identifiant=IDENTIFIANT,
                     erreur="Choisissez une démarche et indiquez l'identifiant de l'usager.")

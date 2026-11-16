@@ -186,3 +186,5 @@ input::placeholder { color: #8a8a8a; font-style: italic; opacity: 1; }
 
 /* Page Contrôle */
 .sous-titre { margin-top: 1.5rem; }
+/* Raison d'un catalogue refusé (texte du médiateur, une raison par ligne) */
+.erreur pre.raison { white-space: pre-wrap; font-weight: 400; font-size: .9rem; margin: .5rem 0 0; }

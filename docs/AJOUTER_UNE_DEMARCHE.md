@@ -30,15 +30,22 @@ Ajouter un bloc à la fin de `catalogue/demarches.yaml`, par exemple :
   non vierge : dossier à instruire »). Une réponse « non » n'est jamais un refus : c'est une réponse signée.
 - On ne peut pas demander « la date de naissance » : aucun registre ne la déclare.
 
-## 2. Recharger (30 secondes)
+## 2. Recharger : rien à faire (quelques secondes)
+
+Enregistrer le fichier suffit : le médiateur le relit dès la requête suivante (au plus une fois par seconde),
+**sans redémarrage**, et le guichet affiche le catalogue que le médiateur applique. Pour voir ce qui s'est passé :
 
 ```powershell
-docker compose restart mediateur guichet
 docker compose logs mediateur --tail 5
 ```
 
-- Si le catalogue est **incomplet** (finalité, base ou texte manquant, attribut inconnu, paramètres faux), le médiateur
-  **refuse de démarrer** et liste chaque erreur. Exemple : `démarche « inscription-universite » : base légale sans texte cité`.
+- Si la nouvelle version est **invalide** (YAML cassé ; finalité, base ou texte manquant ; attribut inconnu comme la
+  date de naissance ; service ou seuil refusé par la double clé d'un registre), elle est **refusée** : le médiateur
+  **garde l'ancien catalogue et continue de tourner**. La raison s'affiche en haut du guichet et sur la page Contrôle,
+  et une ligne « catalogue refusé » entre au journal. Exemple : `démarche « inscription-universite » : base légale sans
+  texte cité`. Corriger et enregistrer : la version corrigée est prise.
+- Le dernier catalogue valide est aussi copié dans le volume du médiateur : même un redémarrage avec un fichier
+  invalide repart de cette copie au lieu de s'arrêter.
 - Sinon, la démarche apparaît au guichet des agents du service. L'**empreinte SHA-256** du nouveau catalogue est écrite
   dans le journal chaîné : on peut prouver quelles règles étaient en vigueur lors de chaque consultation.
 
@@ -58,8 +65,8 @@ l'état civil doit ajouter les seuils du service des bourses :
 
 puis `docker compose restart registre-etat-civil`.
 
-Sans cet ajout, le médiateur affiche un avertissement au démarrage (`docker compose logs mediateur`) et le
-registre **refuse lui-même**, par une réponse signée : « paramètres non autorisés par le registre pour ce service »
+Sans cet ajout, le médiateur **refuse la nouvelle version du catalogue** (raison affichée au guichet) ; et si
+quelqu'un passait outre, le registre **refuserait lui-même**, par une réponse signée : « paramètres non autorisés par le registre pour ce service »
 (ou « service non autorisé par le registre à demander cet attribut »). Pourquoi les paramètres ? Sans cette règle,
 un service pourrait poser « 25 ans ? 26 ans ? 27 ans ?… » et reconstituer la date de naissance.
 

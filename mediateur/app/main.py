@@ -33,13 +33,35 @@ from .config import (CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT
                      lire_secret)
 from .journal import Journal
 
-# Catalogue validé au démarrage : s'il est incomplet, le médiateur ne démarre pas (on ne devine pas une règle)
-try:
-    CAT = catalogue.charger()
-except catalogue.CatalogueInvalide as e:
-    raise SystemExit(f"CATALOGUE INVALIDE : le médiateur ne démarre pas.\n{e}")
-for avertissement in CAT["avertissements"]:
-    print(f"Attention, {avertissement}", flush=True)
+# Catalogue validé au démarrage. Copie du dernier catalogue VALIDE gardée dans le volume du médiateur :
+# si le fichier est invalide au démarrage, on repart de cette copie au lieu de s'arrêter devant le jury.
+COPIE_VALIDE = DONNEES / "catalogue-en-vigueur.yaml"
+# Dernière version refusée : {"empreinte", "raison", "date"} (affichée au guichet et sur la page Contrôle)
+REFUS_CATALOGUE: dict = {}
+
+
+def essayer_catalogue(brut: bytes) -> tuple[dict | None, str]:
+    """(catalogue, "") si valide, sinon (None, toutes les raisons). Ne lève jamais d'exception."""
+    try:
+        return catalogue.charger(brut), ""
+    except catalogue.CatalogueInvalide as e:
+        return None, str(e)
+    except Exception as e:                       # forme inattendue (ex. un nombre à la place d'une liste)
+        return None, f"  - fichier mal formé ({type(e).__name__} : {e})"
+
+
+_brut = (catalogue.CATALOGUE / "demarches.yaml").read_bytes()
+CAT, _raison = essayer_catalogue(_brut)
+if CAT is None:
+    print(f"CATALOGUE INVALIDE, refusé :\n{_raison}", flush=True)
+    REFUS_CATALOGUE = {"empreinte": hashlib.sha256(_brut).hexdigest(), "raison": _raison,
+                       "date": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    CAT, _ = essayer_catalogue(COPIE_VALIDE.read_bytes()) if COPIE_VALIDE.exists() else (None, "")
+    if CAT is None:          # tout premier démarrage, aucune version valide connue : rien à garder
+        raise SystemExit("CATALOGUE INVALIDE et aucune version valide précédente : le médiateur ne démarre pas.")
+    print(f"Dernier catalogue valide gardé (sha256 {CAT['empreinte']})", flush=True)
+else:
+    COPIE_VALIDE.write_bytes(_brut)
 
 # Format de l'identifiant de l'usager (annuaire.yaml, réglable pour les données du jury)
 FORMAT_IDENTIFIANT = re.compile(CAT["identifiant"]["format"])
@@ -121,8 +143,70 @@ if ARCHIVE:
 # on peut prouver quelles règles étaient en vigueur au moment d'une consultation.
 journal.ecrire(agent="systeme", evenement="catalogue", resultat="ok",
                motif=f"catalogue chargé : {len(CAT['demarches'])} démarches, sha256 {CAT['empreinte']}")
+if REFUS_CATALOGUE:
+    journal.ecrire(agent="systeme", evenement="catalogue", resultat="refuse",
+                   motif=f"catalogue refusé (sha256 {REFUS_CATALOGUE['empreinte']}), le dernier catalogue valide "
+                         f"reste en vigueur : {REFUS_CATALOGUE['raison'].strip()[:900]}")
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+# --- Catalogue en direct : le fichier est relu dès qu'il change, sans redémarrer le médiateur ---
+_VU = {"date": 0.0, "verification": 0.0}
+
+
+def surveiller_catalogue():
+    """Appelée avant chaque requête (au plus une fois par seconde). Fichier modifié :
+    - valide   -> il remplace l'ancien catalogue ; sa nouvelle empreinte est écrite au journal ;
+    - invalide -> REFUSÉ : l'ancien catalogue reste en vigueur, la raison est écrite au journal et affichée.
+    Jamais d'arrêt du médiateur."""
+    global CAT, FORMAT_IDENTIFIANT, REFUS_CATALOGUE
+    maintenant = time.monotonic()
+    if maintenant - _VU["verification"] < 1:
+        return
+    _VU["verification"] = maintenant
+    chemins = [catalogue.CATALOGUE / "demarches.yaml", catalogue.CATALOGUE / "annuaire.yaml"]
+    try:
+        date = max(c.stat().st_mtime for c in chemins)
+        if date == _VU["date"]:
+            return
+        brut = chemins[0].read_bytes()
+    except OSError:
+        return                                  # fichier en cours d'écriture : on regardera à la requête suivante
+    _VU["date"] = date
+    empreinte = hashlib.sha256(brut).hexdigest()
+    if empreinte == REFUS_CATALOGUE.get("empreinte"):
+        return                                  # même version déjà refusée : rien de nouveau
+    nouveau, raison = essayer_catalogue(brut)
+    with VERROU:
+        if nouveau is None:
+            REFUS_CATALOGUE = {"empreinte": empreinte, "raison": raison,
+                               "date": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+            print(f"CATALOGUE REFUSÉ (sha256 {empreinte}), l'ancien reste en vigueur :\n{raison}", flush=True)
+            journal.ecrire(agent="systeme", evenement="catalogue", resultat="refuse",
+                           motif=f"catalogue refusé (sha256 {empreinte}), le catalogue sha256 {CAT['empreinte']} "
+                                 f"reste en vigueur : {raison.strip()[:900]}")
+            return
+        REFUS_CATALOGUE = {}
+        if nouveau["empreinte"] == CAT["empreinte"] and nouveau["services"] == CAT["services"]:
+            return                              # retour à la version en vigueur : rien à recharger
+        CAT, FORMAT_IDENTIFIANT = nouveau, re.compile(nouveau["identifiant"]["format"])
+        COPIE_VALIDE.write_bytes(brut)
+        print(f"Catalogue rechargé : {len(CAT['demarches'])} démarches, sha256 {CAT['empreinte']}", flush=True)
+        journal.ecrire(agent="systeme", evenement="catalogue", resultat="ok",
+                       motif=f"catalogue rechargé : {len(CAT['demarches'])} démarches, sha256 {CAT['empreinte']}")
+
+
+@app.middleware("http")
+async def catalogue_a_jour(requete, suite):
+    surveiller_catalogue()
+    return await suite(requete)
+
+
+@app.get("/catalogue")
+def catalogue_public() -> dict:
+    """Catalogue EN VIGUEUR (celui que le médiateur applique), pour le guichet. Ce sont des règles publiques :
+    aucune donnée de citoyen. « refus » : dernière version refusée et sa raison (vide si aucune)."""
+    return {"empreinte": CAT["empreinte"], "demarches": CAT["demarches"], "refus": REFUS_CATALOGUE}
 
 
 def pseudonyme(sujet_ref: str) -> str:
@@ -642,7 +726,8 @@ def catalogue_en_vigueur() -> dict:
             detail = [nom_service(s) for s in services]
         autorisations.append({"attribut": code, "registre": CAT["registres"][a["registre"]]["nom"],
                               "services": detail})
-    return {"empreinte": CAT["empreinte"], "demarches": demarches, "autorisations": autorisations}
+    return {"empreinte": CAT["empreinte"], "demarches": demarches, "autorisations": autorisations,
+            "refus": REFUS_CATALOGUE}
 
 
 @app.get("/controle")

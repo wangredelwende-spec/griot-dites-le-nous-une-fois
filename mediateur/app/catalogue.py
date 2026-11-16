@@ -1,10 +1,12 @@
-"""Catalogue des démarches : chargé et VALIDÉ au démarrage. Aucune démarche n'est écrite dans le code.
+"""Catalogue des démarches : chargé et VALIDÉ au démarrage, puis à chaque modification du fichier.
+Aucune démarche n'est écrite dans le code.
 
 Trois sources, toutes en lecture seule :
 - catalogue/annuaire.yaml  : les services demandeurs et les registres ;
 - adaptateurs/<registre>.yaml : les attributs que chaque registre DÉCLARE savoir calculer ;
 - catalogue/demarches.yaml : les démarches (service, finalité, base, attributs et leurs paramètres).
-Un catalogue incomplet arrête le médiateur avec un message clair : on ne devine pas une règle manquante.
+Un catalogue invalide est REFUSÉ avec toutes ses raisons : on ne devine pas une règle manquante. Le médiateur
+garde alors le dernier catalogue valide et continue de tourner (main.surveiller_catalogue).
 """
 import hashlib
 import re
@@ -85,13 +87,21 @@ def valider(demarches: dict, services: dict, attributs: dict) -> list[str]:
     return erreurs
 
 
-def charger() -> dict:
-    annuaire = yaml.safe_load((CATALOGUE / "annuaire.yaml").read_text(encoding="utf-8"))
-    brut = (CATALOGUE / "demarches.yaml").read_bytes()
+def charger(brut: bytes | None = None) -> dict:
+    """Charge et valide le catalogue. « brut » : contenu de demarches.yaml déjà lu (sinon, lu sur le disque).
+    Lève CatalogueInvalide avec TOUTES les raisons trouvées."""
+    try:
+        annuaire = yaml.safe_load((CATALOGUE / "annuaire.yaml").read_text(encoding="utf-8"))
+    except yaml.YAMLError as e:
+        raise CatalogueInvalide(f"  - annuaire.yaml illisible : {e}")
+    if brut is None:
+        brut = (CATALOGUE / "demarches.yaml").read_bytes()
     try:
         demarches = (yaml.safe_load(brut) or {}).get("demarches") or {}
-    except yaml.YAMLError as e:
-        raise CatalogueInvalide(f"demarches.yaml illisible : {e}")
+    except (yaml.YAMLError, AttributeError) as e:
+        raise CatalogueInvalide(f"  - demarches.yaml illisible (YAML cassé) : {str(e)[:300]}")
+    if not isinstance(demarches, dict):
+        raise CatalogueInvalide("  - demarches.yaml : « demarches » doit contenir des blocs nommés")
 
     # Attributs déclarés par les registres (et règle d'absence du casier)
     attributs, absence_vierge = {}, set()
@@ -113,24 +123,26 @@ def charger() -> dict:
     if erreurs:
         raise CatalogueInvalide("\n".join(f"  - {e}" for e in erreurs))
 
-    avertissements = []
+    # Double clé (services ET paramètres) : une démarche que le REGISTRE refuserait est refusée dès le
+    # chargement, au lieu d'apparaître au guichet puis d'échouer à chaque demande.
     for code, d in demarches.items():
         for a in d["attributs"]:
             a["parametres"] = {k: v.isoformat() if isinstance(v, date) else v
                                for k, v in (a.get("parametres") or {}).items()}
-            # Double clé (services ET paramètres) : le médiateur prévient, mais c'est le REGISTRE qui refusera
             autorisations = attributs[a["attribut"]]["services"]
             registre = attributs[a["attribut"]]["registre"]
             for service in d["services"]:
                 if service not in autorisations:
-                    avertissements.append(f"démarche « {code} » : le registre {registre} n'autorise pas {service} "
-                                          f"à demander « {a['attribut']} » : il refusera")
+                    erreurs.append(f"démarche « {code} » : le registre {registre} n'autorise pas {service} "
+                                   f"à demander « {a['attribut']} » (double clé)")
                 elif isinstance(autorisations, dict) and not any(
                         comparable(p) == comparable(a["parametres"]) for p in autorisations[service] or []):
-                    avertissements.append(f"démarche « {code} » : le registre {registre} n'autorise pas ces "
-                                          f"paramètres pour {service} : il refusera")
+                    erreurs.append(f"démarche « {code} » : le registre {registre} n'autorise pas ces paramètres "
+                                   f"pour {service} (seuil ou date non déclaré, double clé)")
+    if erreurs:
+        raise CatalogueInvalide("\n".join(f"  - {e}" for e in erreurs))
     return {"services": annuaire["services"], "registres": annuaire["registres"], "attributs": attributs,
-            "demarches": demarches, "absence_vierge": absence_vierge, "avertissements": avertissements,
+            "demarches": demarches, "absence_vierge": absence_vierge,
             "identifiant": identifiant,
             "empreinte": hashlib.sha256(brut).hexdigest()}
 

@@ -1,8 +1,9 @@
 # Catalogue des démarches : AUCUNE démarche n'est écrite dans le code.
-# Ajouter une démarche = ajouter un bloc ici, puis `docker compose restart mediateur guichet`
-# (voir docs/AJOUTER_UNE_DEMARCHE.md). Le médiateur VALIDE ce fichier au démarrage et refuse de démarrer
-# s'il manque une finalité, une base, un texte (base légale) ou si un attribut est inconnu.
-# Son empreinte SHA-256 est écrite dans le journal chaîné à chaque chargement.
+# Ajouter une démarche = ajouter un bloc ici et enregistrer : le médiateur relit le fichier tout seul, sans
+# redémarrage (voir docs/AJOUTER_UNE_DEMARCHE.md). Il VALIDE chaque nouvelle version : finalité, base, texte
+# (base légale), attributs déclarés par un registre, double clé (service et seuils autorisés par le registre).
+# Version invalide : REFUSÉE, l'ancienne reste en vigueur, la raison s'affiche au guichet ; le médiateur
+# continue de tourner. Chaque chargement ou refus est écrit au journal chaîné avec l'empreinte SHA-256.
 #
 # Pour chaque démarche :
 #   libelle   : nom montré à l'agent et à l'usager

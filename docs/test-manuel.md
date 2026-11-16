@@ -139,7 +139,13 @@ Les tentatives hors catalogue (mauvaise finalité, attribut en plus, champ « da
 (`docs/API.md` et `scripts/demande.py`, à venir). Réponses attendues : « finalité non autorisée » ; « attributs non
 autorisés : le catalogue fixe ce que cette démarche peut demander » ; rejet immédiat d'un champ inconnu.
 **Double clé** : même si le catalogue laissait la mairie demander le casier, le registre du casier refuserait
-lui-même, avec une réponse signée (voir `docs/AJOUTER_UNE_DEMARCHE.md`, § 3).
+lui-même, avec une réponse signée (voir `docs/AJOUTER_UNE_DEMARCHE.md`, § 3). Idem pour un seuil d'âge non déclaré
+par le registre (« 25 ans ? 26 ans ? … ») : « paramètres non autorisés par le registre pour ce service ».
+**Médiateur compromis** : un appel direct au registre sans jeton d'agent valide est refusé par le registre :
+`docker compose exec mediateur python -c "import httpx; print(httpx.post('http://registre-casier:8000/attributs', json={'id_demande': 'x', 'attribut': 'casier_judiciaire_vierge', 'sujet_ref': 'BF-0008', 'destinataire': 'direction-concours'}).json())"`
+→ un jeton signé dont le contenu est « refus : jeton d'agent absent ».
+**Trop de demandes sur une même personne** : au-delà de 5 demandes d'un même service en 24 h → « bloqué » au guichet
+et « ALERTE » dans l'historique USSD du citoyen (motif affiché dans le détail).
 
 ## Scène 8 : quelqu'un modifie le journal
 

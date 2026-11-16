@@ -13,6 +13,13 @@ champs:
 refuser_si_decede: false            # ce registre ne connaît pas les décès (c'est l'état civil)
 motif_refus_public: "réponse impossible, s'adresser au service de la nationalité"
 
+# Groupes Keycloak que CE registre reconnaît (nom du groupe dans le jeton de l'agent -> code du service).
+# Le registre vérifie lui-même le jeton de l'agent : le service n'est plus une simple déclaration du médiateur.
+groupes:
+  Direction des concours de la fonction publique: direction-concours
+  Service des bourses: service-bourses
+  Mairie: mairie
+
 attributs:
   nationalite_burkinabe:
     regle: egal                     # champ renseigné et égal à la valeur -> true ; autre valeur -> false ; vide -> refus

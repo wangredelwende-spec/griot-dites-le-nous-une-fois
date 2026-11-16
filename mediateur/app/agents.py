@@ -27,4 +27,5 @@ def agent_connecte(authorization: str = Header("")) -> dict:
         raise HTTPException(401, "jeton d'agent invalide ou expiré")
     if ROLE_AGENT not in infos.get("roles", []):
         raise HTTPException(403, "rôle agent-guichet absent")
-    return {"nom": infos.get("preferred_username", infos["sub"]), "groupes": infos.get("groups", [])}
+    # « jeton » : transmis tel quel au registre, qui le revérifie LUI-MÊME (jamais stocké)
+    return {"nom": infos.get("preferred_username", infos["sub"]), "groupes": infos.get("groups", []), "jeton": jeton}

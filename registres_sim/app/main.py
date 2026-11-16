@@ -11,12 +11,13 @@ import json
 import os
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from fastapi import FastAPI
+from fastapi import FastAPI, Header
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 
@@ -59,6 +60,33 @@ class NonAutorise(Exception):
     """Le service demandeur n'est pas dans la liste « services » de l'attribut (double clé)."""
 
 
+# Jeton de l'agent : vérifié ICI avec les clés PUBLIQUES de Keycloak (réseau « cles-agents », sans Internet)
+KEYCLOAK_CLES = os.environ.get("KEYCLOAK_CLES", "http://keycloak:8080/realms/griot/protocol/openid-connect/certs")
+KEYCLOAK_EMETTEUR = os.environ.get("KEYCLOAK_EMETTEUR", "https://auth.griot.test/realms/griot")
+CLES_KEYCLOAK = jwt.PyJWKClient(KEYCLOAK_CLES)
+
+
+def service_de_l_agent(authorization: str) -> str:
+    """Le registre vérifie LUI-MÊME le jeton Keycloak de l'agent (signature, émetteur, audience, expiration,
+    rôle) et en déduit le service par le groupe. Le médiateur ne peut donc plus inventer le demandeur."""
+    if not authorization.startswith("Bearer "):
+        raise NonAutorise("jeton d'agent absent")
+    jeton = authorization.removeprefix("Bearer ")
+    try:
+        cle = CLES_KEYCLOAK.get_signing_key_from_jwt(jeton)
+        infos = jwt.decode(jeton, cle.key, algorithms=["RS256"], audience="mediateur", issuer=KEYCLOAK_EMETTEUR)
+    except jwt.PyJWKClientConnectionError:
+        raise NonAutorise("clés de Keycloak injoignables : agent non vérifiable")
+    except jwt.PyJWTError:
+        raise NonAutorise("jeton d'agent invalide ou expiré")
+    if "agent-guichet" not in infos.get("roles", []):
+        raise NonAutorise("jeton sans le rôle agent-guichet")
+    services = {ADAPTATEUR.groupes[g] for g in infos.get("groups", []) if g in ADAPTATEUR.groupes}
+    if len(services) != 1:
+        raise NonAutorise("service de l'agent non reconnu par ce registre")
+    return services.pop()
+
+
 CLE = charger_cle()
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 
@@ -77,18 +105,25 @@ def sante():
 
 
 @app.post("/attributs")
-def attribut(d: DemandeAttribut):
+def attribut(d: DemandeAttribut, authorization: str = Header("")):
     """Réponse TOUJOURS signée : {"statut": "ok", <attribut>} ou {"statut": "refus", "motif": <motif public>}."""
     maintenant = int(time.time())
     charge = {"iss": ADAPTATEUR.emetteur, "aud": d.destinataire, "sub": d.sujet_ref, "demande": d.id_demande,
               "iat": maintenant, "exp": maintenant + DUREE_VALIDITE, "jti": str(uuid.uuid4())}
     try:
+        # 1. Qui demande ? Le registre le vérifie lui-même dans le jeton de l'agent
+        if service_de_l_agent(authorization) != d.destinataire:
+            raise NonAutorise("le service déclaré ne correspond pas au jeton de l'agent")
+        # 2. Double clé : ce service a-t-il droit à cet attribut, AVEC ces paramètres ?
         if not ADAPTATEUR.autorise(d.attribut, d.destinataire):
-            # Double clé : motif public précis, car il ne dit rien du citoyen
             raise NonAutorise("service non autorisé par le registre à demander cet attribut")
+        aujourdhui = datetime.now(timezone.utc).date()
+        if not ADAPTATEUR.parametres_autorises(d.attribut, d.destinataire, d.parametres, aujourdhui):
+            raise NonAutorise("paramètres non autorisés par le registre pour ce service")
         charge |= {"statut": "ok", **ADAPTATEUR.calculer(d.attribut, d.sujet_ref, d.parametres)}
     except NonAutorise as motif:
-        print(f"demande {d.id_demande} : refus ({d.destinataire} n'est pas autorisé pour {d.attribut})", flush=True)
+        # Motif public précis : il concerne le DEMANDEUR, il ne dit rien du citoyen
+        print(f"demande {d.id_demande} : refus ({motif})", flush=True)
         charge |= {"statut": "refus", "motif": str(motif)}
     except Refus as motif:
         # Le motif précis (décédé, homonyme…) reste ici : le guichet n'apprend rien de plus que « impossible ».

@@ -27,12 +27,15 @@ class ReponseCorrompue(Exception):
     pass
 
 
-async def appeler(url: str, corps: dict, delai: float) -> str:
+async def appeler(url: str, corps: dict, delai: float, jeton_agent: str = "") -> str:
     """Renvoie le jeton signé du registre. Le délai est appliqué à chaque étape par httpx ET au total
     (asyncio.wait_for) : un registre qui répond goutte à goutte ne bloque jamais le guichet."""
     try:
         async with httpx.AsyncClient(timeout=delai, verify=CONTEXTE_TLS) as client:
-            r = await asyncio.wait_for(client.post(f"{url}/attributs", json=corps), timeout=delai)
+            # Le jeton de l'agent accompagne la demande : le registre vérifie lui-même qui demande
+            r = await asyncio.wait_for(client.post(f"{url}/attributs", json=corps,
+                                                   headers={"Authorization": f"Bearer {jeton_agent}"}),
+                                       timeout=delai)
     except (asyncio.TimeoutError, httpx.TimeoutException):
         raise Indisponible(f"délai dépassé ({delai:g} s)")
     except httpx.HTTPError:

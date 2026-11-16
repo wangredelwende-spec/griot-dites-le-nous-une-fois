@@ -107,14 +107,26 @@ def charger() -> dict:
         for a in d["attributs"]:
             a["parametres"] = {k: v.isoformat() if isinstance(v, date) else v
                                for k, v in (a.get("parametres") or {}).items()}
-            # Double clé : le médiateur prévient, mais c'est le REGISTRE qui refusera
-            interdits = [s for s in d["services"] if s not in attributs[a["attribut"]]["services"]]
-            if interdits:
-                avertissements.append(f"démarche « {code} » : le registre {attributs[a['attribut']]['registre']} "
-                                      f"n'autorise pas {interdits} à demander « {a['attribut']} » : il refusera")
+            # Double clé (services ET paramètres) : le médiateur prévient, mais c'est le REGISTRE qui refusera
+            autorisations = attributs[a["attribut"]]["services"]
+            registre = attributs[a["attribut"]]["registre"]
+            for service in d["services"]:
+                if service not in autorisations:
+                    avertissements.append(f"démarche « {code} » : le registre {registre} n'autorise pas {service} "
+                                          f"à demander « {a['attribut']} » : il refusera")
+                elif isinstance(autorisations, dict) and not any(
+                        comparable(p) == comparable(a["parametres"]) for p in autorisations[service] or []):
+                    avertissements.append(f"démarche « {code} » : le registre {registre} n'autorise pas ces "
+                                          f"paramètres pour {service} : il refusera")
     return {"services": annuaire["services"], "registres": annuaire["registres"], "attributs": attributs,
             "demarches": demarches, "absence_vierge": absence_vierge, "avertissements": avertissements,
             "empreinte": hashlib.sha256(brut).hexdigest()}
+
+
+def comparable(parametres: dict) -> dict:
+    reference = parametres.get("date_reference")
+    return {"min": parametres.get("min"), "max": parametres.get("max"),
+            "date_reference": reference.isoformat() if isinstance(reference, date) else str(reference)}
 
 
 def resoudre(parametres: dict) -> dict:

@@ -57,7 +57,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    networks: [interne]
+    networks: [interne, cles-agents]
     healthcheck:
       # L'image n'a pas curl : on interroge /health/ready (port de gestion 9000) avec bash.
       # Réponse « 200 » = prêt ; « 503 » = encore en démarrage.
@@ -76,11 +76,13 @@ services:
     environment:
       ADAPTATEUR: /adaptateurs/etat-civil.yaml
     volumes:
-      - ./adaptateurs:/adaptateurs:ro
+      # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
+      - ./adaptateurs/etat-civil.yaml:/adaptateurs/etat-civil.yaml:ro
       - ./registres_sim/donnees_fictives:/donnees:ro
       - cle_privee_etat_civil:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_etat_civil:/publique  # sa clé publique : seul ce registre peut l'écrire
-    networks: [registres]
+    # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
+    networks: [registres, cles-agents]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
       interval: 10s
@@ -94,11 +96,13 @@ services:
     environment:
       ADAPTATEUR: /adaptateurs/nationalite.yaml
     volumes:
-      - ./adaptateurs:/adaptateurs:ro
+      # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
+      - ./adaptateurs/nationalite.yaml:/adaptateurs/nationalite.yaml:ro
       - ./registres_sim/donnees_fictives:/donnees:ro
       - cle_privee_nationalite:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_nationalite:/publique  # sa clé publique : seul ce registre peut l'écrire
-    networks: [registres]
+    # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
+    networks: [registres, cles-agents]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
       interval: 10s
@@ -112,11 +116,13 @@ services:
     environment:
       ADAPTATEUR: /adaptateurs/casier.yaml
     volumes:
-      - ./adaptateurs:/adaptateurs:ro
+      # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
+      - ./adaptateurs/casier.yaml:/adaptateurs/casier.yaml:ro
       - ./registres_sim/donnees_fictives:/donnees:ro
       - cle_privee_casier:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_casier:/publique  # sa clé publique : seul ce registre peut l'écrire
-    networks: [registres]
+    # « cles-agents » : pour lire les clés PUBLIQUES de Keycloak et vérifier lui-même le jeton de l'agent
+    networks: [registres, cles-agents]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
       interval: 10s
@@ -132,6 +138,8 @@ services:
     environment:
       DELAI_REGISTRE: "3"                  # secondes avant de déclarer un registre indisponible
       DUREE_CONSENTEMENT: "600"            # 10 minutes pour confirmer
+      LIMITE_PAR_CITOYEN: "5"              # demandes d'un même service sur une même personne, par 24 h
+      LIMITE_EXEMPTES: "agent.banc,agent.banc.bourses"   # tests automatiques seulement (voir LIMITES.md)
     secrets: [sujet_hmac, canal_usager]
     volumes:
       - ./catalogue:/catalogue:ro          # annuaire + catalogue des démarches
@@ -241,6 +249,10 @@ networks:
     internal: true
   # Réseau des registres, lui aussi sans Internet : seul le médiateur y est relié.
   registres:
+    internal: true
+  # Réseau Keycloak <-> registres, sans Internet : chaque registre y lit les clés publiques de Keycloak
+  # pour vérifier LUI-MÊME le jeton de l'agent (le service demandeur n'est plus une déclaration du médiateur).
+  cles-agents:
     internal: true
   # Réseau ordinaire, utilisé uniquement par Caddy pour publier les ports 80 et 443
   externe: {}

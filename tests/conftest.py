@@ -25,6 +25,7 @@ for dossier in ("secrets", "donnees", "publiques"):
 os.environ.update(GRIOT_SECRETS=str(TMP / "secrets"), GRIOT_DONNEES=str(TMP / "donnees"),
                   GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_CATALOGUE=str(RACINE / "catalogue"),
                   GRIOT_ADAPTATEURS=str(RACINE / "adaptateurs"),
+                  LIMITE_PAR_CITOYEN="1000",       # les tests interrogent souvent BF-0001 ; un test dédié baisse la limite
                   DELAI_REGISTRE="0.5")
 
 CLE_REGISTRE = Ed25519PrivateKey.generate()
@@ -85,6 +86,7 @@ ADAPTATEUR_TEST.write_text((RACINE / "adaptateurs/etat-civil.yaml").read_text(en
     encoding="utf-8")
 
 
+JETON_AGENT = "jeton-keycloak-de-test"     # transmis tel quel aux registres (qui le vérifient eux-mêmes)
 AGENTS = {
     "awa.ouedraogo": ["Service des bourses"],
     "issa.sawadogo": ["Direction des concours de la fonction publique"],
@@ -95,7 +97,7 @@ AGENTS = {
 def client():
     from fastapi.testclient import TestClient
     agent = {"nom": "issa.sawadogo"}
-    mediateur.app.dependency_overrides[agent_connecte] = lambda: {"nom": agent["nom"],
+    mediateur.app.dependency_overrides[agent_connecte] = lambda: {"nom": agent["nom"], "jeton": JETON_AGENT,
                                                                  "groupes": AGENTS[agent["nom"]]}
     with TestClient(mediateur.app) as c:
         c.agent = agent     # c.agent["nom"] = "awa.ouedraogo" pour changer d'agent

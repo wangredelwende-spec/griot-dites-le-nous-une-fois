@@ -151,7 +151,9 @@ def ecran_detail(s: dict, l: dict) -> str:
         attribut = ", ".join(nom_attribut(s, a, court=True) for a in l["attributs"])
     etat = t(s, EVENEMENTS.get(l["evenement"], "etat_refuse"))
     base = t(s, "base_legale" if l["base"] == "base_legale" else "base_consentement")
-    lignes = [f"{service} : {attribut} {etat}", t(s, "pour", finalite=l["finalite"]), base,
+    # Une alerte dit POURQUOI (ex. « bloqué : … ») ; les autres lignes disent pour quelle finalité
+    pourquoi = l["motif"] if l["evenement"] == "alerte" and l["motif"] else t(s, "pour", finalite=l["finalite"])
+    lignes = [f"{service} : {attribut} {etat}", pourquoi, base,
               t(s, "recu", recu=format_recu(l["empreinte"])), t(s, "retour")]
     # Si l'écran déborde, on raccourcit la finalité : le reçu n'est JAMAIS coupé
     place = LIMITE - len("\n".join(lignes[:1] + lignes[2:])) - 1

@@ -25,8 +25,9 @@ demarches:
     services: [direction-concours]
     finalite: vérification des conditions d'inscription au concours direct des adjoints administratifs
     base: base_legale
-    # Référence à valider par l'équipe (numéro d'article, communiqué d'ouverture du concours)
-    texte: Loi n°081-2015/CNT portant statut général de la fonction publique d'État, conditions d'accès aux emplois (nationalité, âge, moralité)
+    # C'est le communiqué du concours qui fixe 18–37 ans au 31/12/2026 ; la loi est le cadre général.
+    # Référence exacte du communiqué à compléter par l'équipe.
+    texte: Communiqué d'ouverture du concours direct de recrutement d'adjoints administratifs (session 2026, âge de 18 à 37 ans au 31/12/2026) ; cadre général - loi n°081-2015/CNT portant statut général de la fonction publique d'État
     attributs:
       - attribut: age_entre
         parametres: {min: 18, max: 37, date_reference: "2026-12-31"}

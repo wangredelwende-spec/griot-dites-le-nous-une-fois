@@ -60,6 +60,14 @@ def age_minimum_atteint(texte_naissance: str, age: int, jour: date) -> bool:
     raise Refus("donnée insuffisante : la date de naissance ne permet pas de conclure")
 
 
+def normaliser(parametres: dict, aujourdhui: date) -> dict:
+    """Forme comparable : « aujourd'hui » devient la date du jour, max absent devient None."""
+    reference = str(parametres.get("date_reference"))
+    if reference == "aujourd'hui":
+        reference = aujourdhui.isoformat()
+    return {"min": parametres.get("min"), "max": parametres.get("max"), "date_reference": reference}
+
+
 class Adaptateur:
     def __init__(self, chemin: Path):
         conf = yaml.safe_load(chemin.read_text(encoding="utf-8"))
@@ -71,6 +79,7 @@ class Adaptateur:
         # Seul motif de refus envoyé hors du registre (signé) : il ne révèle rien de la fiche
         self.motif_refus_public = conf["motif_refus_public"]
         self.attributs = conf["attributs"]
+        self.groupes = conf.get("groupes", {})     # groupe Keycloak -> code du service
         # Personne absente du registre : « refus » (par défaut) ou « vierge » (casier réel : une personne jamais
         # condamnée n'y figure pas). Avec « vierge », le MÉDIATEUR vérifie d'abord à l'état civil que la
         # personne existe : sinon, un identifiant inventé obtiendrait « casier vierge ».
@@ -97,8 +106,17 @@ class Adaptateur:
 
     def autorise(self, attribut: str, service: str) -> bool:
         """Double clé : le registre décide LUI-MÊME quels services peuvent demander quel attribut
-        (liste « services » de l'attribut), même si le médiateur a laissé passer la demande."""
+        (« services » de l'attribut), même si le médiateur a laissé passer la demande."""
         return service in self.attributs.get(attribut, {}).get("services", [])
+
+    def parametres_autorises(self, attribut: str, service: str, parametres: dict, aujourdhui: date) -> bool:
+        """Double clé sur les PARAMÈTRES : seuls les seuils et dates déclarés pour CE service sont acceptés
+        (empêche de reconstituer une date de naissance avec des seuils différents)."""
+        autorisations = self.attributs.get(attribut, {}).get("services", [])
+        if isinstance(autorisations, list):              # attribut sans paramètre
+            return not parametres
+        demande = normaliser(parametres, aujourdhui)
+        return any(normaliser(p, aujourdhui) == demande for p in autorisations.get(service) or [])
 
     def calculer(self, attribut: str, sujet_ref: str, parametres: dict | None = None) -> dict:
         """Renvoie UNIQUEMENT la réponse minimale, par exemple {"nationalite_burkinabe": True}."""

@@ -39,13 +39,31 @@ docker compose logs mediateur --tail 5
 - Sinon, la démarche apparaît au guichet des agents du service. L'**empreinte SHA-256** du nouveau catalogue est écrite
   dans le journal chaîné : on peut prouver quelles règles étaient en vigueur lors de chaque consultation.
 
-## 3. La double clé
+## 3. La double clé : l'accord du registre
 
-Le catalogue ne suffit pas : **chaque registre décide lui-même** quels services peuvent lui demander quel attribut
-(liste `services:` de l'attribut, dans `adaptateurs/<registre>.yaml`).
-Si la mairie ajoute une démarche qui demande le casier, le médiateur la laisse passer, mais affiche un avertissement
-au démarrage (`docker compose logs mediateur`). Le registre du casier refuse alors lui-même, avec une réponse signée :
-« service non autorisé par le registre à demander cet attribut ».
+Le catalogue ne suffit pas : **chaque registre décide lui-même**, dans `adaptateurs/<registre>.yaml`,
+quels services peuvent lui demander quel attribut, **et avec quels paramètres**. Pour l'exemple ci-dessus,
+l'état civil doit ajouter les seuils du service des bourses :
 
-Pour autoriser un nouveau service, il faut donc l'accord des deux côtés : le catalogue (le médiateur)
-**et** l'adaptateur du registre (l'administration qui détient la donnée).
+```yaml
+# adaptateurs/etat-civil.yaml, attribut age_entre
+    services:
+      service-bourses:
+        - {min: 18, date_reference: aujourd'hui}
+        - {min: 17, max: 25, date_reference: "2026-10-01"}    # bourse d'études (ajout)
+```
+
+puis `docker compose restart registre-etat-civil`.
+
+Sans cet ajout, le médiateur affiche un avertissement au démarrage (`docker compose logs mediateur`) et le
+registre **refuse lui-même**, par une réponse signée : « paramètres non autorisés par le registre pour ce service »
+(ou « service non autorisé par le registre à demander cet attribut »). Pourquoi les paramètres ? Sans cette règle,
+un service pourrait poser « 25 ans ? 26 ans ? 27 ans ?… » et reconstituer la date de naissance.
+
+Le registre vérifie aussi **lui-même** qui demande : le médiateur lui transmet le jeton Keycloak de l'agent, et le
+registre en contrôle la signature (clés publiques de Keycloak), l'expiration et le groupe (= le service).
+Un médiateur compromis ne peut donc pas se faire passer pour un autre service.
+
+Pour autoriser un nouveau service, il faut l'accord des deux côtés : le catalogue (le médiateur)
+**et** l'adaptateur du registre (l'administration qui détient la donnée). Chaque registre ne monte que SON
+adaptateur ; le médiateur et le guichet les lisent en lecture seule et ne peuvent pas les modifier.

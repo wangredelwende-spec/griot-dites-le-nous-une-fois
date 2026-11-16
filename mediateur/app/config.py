@@ -16,6 +16,11 @@ ROLE_AGENT = "agent-guichet"
 
 DELAI_REGISTRE = float(os.environ.get("DELAI_REGISTRE", "3"))           # secondes
 DUREE_CONSENTEMENT = int(os.environ.get("DUREE_CONSENTEMENT", "600"))   # 10 minutes
+# Limite par (service, citoyen) : un même service ne peut pas interroger sans fin la même personne
+# (sinon, avec des questions répétées, il pourrait reconstituer des données)
+LIMITE_PAR_CITOYEN = int(os.environ.get("LIMITE_PAR_CITOYEN", "5"))     # demandes par 24 heures
+# Comptes des tests automatiques de bout en bout, qui interrogent beaucoup les citoyens fictifs (démo seulement)
+LIMITE_EXEMPTES = {n.strip() for n in os.environ.get("LIMITE_EXEMPTES", "").split(",") if n.strip()}
 
 
 def lire_secret(nom: str) -> str:

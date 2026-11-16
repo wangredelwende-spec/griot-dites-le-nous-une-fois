@@ -18,6 +18,23 @@
   Limite de `vierge` : on suppose que l'identifiant du casier est le même que celui de l'état civil.
 - **Double nationalité** : la façon dont le registre de la nationalité l'écrit est inconnue (voir `docs/A_TRANCHER_DONNEES_JURY.md`).
 
+## Limites de débit (démonstration)
+
+- Un même service ne peut pas faire plus de 5 demandes sur une même personne en 24 h (`LIMITE_PAR_CITOYEN`) :
+  au-delà, refus + alerte dans l'historique du citoyen.
+- Les comptes des tests automatiques (`agent.banc`, `agent.banc.bourses`) en sont exemptés (`LIMITE_EXEMPTES` dans
+  `docker-compose.yml`) : ils interrogent des dizaines de fois les mêmes citoyens fictifs. **En production : aucune exemption.**
+
+## Confiance entre composants
+
+- Chaque registre vérifie lui-même le jeton Keycloak de l'agent (signature, expiration, rôle, groupe). Il fait donc
+  confiance à **Keycloak** (ses clés publiques, lues sur le réseau interne `cles-agents`). Un Keycloak compromis
+  pourrait fabriquer de faux agents : c'est le point de confiance commun.
+- Le jeton présenté au registre est celui émis pour le médiateur (audience `mediateur`) : un jeton par registre
+  (échange de jeton) serait plus strict (voir FEUILLE_DE_ROUTE).
+- Le médiateur lit les adaptateurs des registres (lecture seule) pour valider le catalogue ; en production, chaque
+  registre publierait sa description signée.
+
 ## Ce que voit le médiateur
 
 - La réponse minimale signée (ex. « nationalité burkinabè : oui »), gardée en attente jusqu'au consentement, puis effacée.

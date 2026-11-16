@@ -3,8 +3,13 @@ import importlib.util
 import json
 import os
 import sys
+import time
+from datetime import datetime, timezone
+from types import SimpleNamespace
 
 import jwt
+import pytest
+from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
 from conftest import ADAPTATEUR_TEST, RACINE, TMP
@@ -21,12 +26,38 @@ from registre_app import main as registre  # noqa: E402
 
 client = TestClient(registre.app)
 CLE_PUBLIQUE = (TMP / "publique/cle.pem").read_bytes()
+AUJOURDHUI = datetime.now(timezone.utc).date().isoformat()
+MAJORITE = {"min": 18, "date_reference": AUJOURDHUI}
+
+# Faux Keycloak : une clé RSA de test. Le registre vérifie le jeton de l'agent avec SA clé publique.
+CLE_KEYCLOAK = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+GROUPES = {"service-bourses": "Service des bourses", "direction-concours": "Direction des concours de la fonction publique",
+           "mairie": "Mairie"}
 
 
-def demander(sujet: str, attribut: str = "age_entre", service: str = "service-bourses") -> dict:
-    r = client.post("/attributs", json={"id_demande": "d-1", "attribut": attribut, "sujet_ref": sujet,
-                                        "parametres": {"min": 18, "date_reference": "2026-11-16"},
-                                        "destinataire": service})
+class FauxKeycloak:
+    def get_signing_key_from_jwt(self, _jeton):
+        return SimpleNamespace(key=CLE_KEYCLOAK.public_key())
+
+
+registre.CLES_KEYCLOAK = FauxKeycloak()
+
+
+def jeton_agent(service: str = "service-bourses", cle=CLE_KEYCLOAK, **modifs) -> str:
+    maintenant = int(time.time())
+    charge = {"iss": "https://auth.griot.test/realms/griot", "aud": "mediateur", "exp": maintenant + 300,
+              "iat": maintenant, "preferred_username": "agent.test", "roles": ["agent-guichet"],
+              "groups": [GROUPES[service]]} | modifs
+    return jwt.encode(charge, cle, algorithm="RS256")
+
+
+def demander(sujet: str, attribut: str = "age_entre", service: str = "service-bourses", parametres=None,
+             jeton: str | None = None) -> dict:
+    parametres = MAJORITE if parametres is None and attribut == "age_entre" else (parametres or {})
+    # jeton="" : AUCUN en-tête Authorization (appel direct au registre, sans agent)
+    entetes = {} if jeton == "" else {"Authorization": f"Bearer {jeton if jeton is not None else jeton_agent(service)}"}
+    r = client.post("/attributs", headers=entetes, json={"id_demande": "d-1", "attribut": attribut, "sujet_ref": sujet,
+                                                         "parametres": parametres, "destinataire": service})
     assert set(r.json()) == {"jeton"}          # TOUJOURS une réponse signée, jamais du texte en clair
     return jwt.decode(r.json()["jeton"], CLE_PUBLIQUE, algorithms=["EdDSA"], audience=service)
 
@@ -34,7 +65,7 @@ def demander(sujet: str, attribut: str = "age_entre", service: str = "service-bo
 def test_reponse_signee_minimale():
     infos = demander("BF-0001")
     assert infos["statut"] == "ok" and infos["age_equal_or_over"] == {"18": True}
-    assert infos["date_reference"] == "2026-11-16"
+    assert infos["date_reference"] == AUJOURDHUI
     assert set(infos) == {"iss", "aud", "sub", "demande", "iat", "exp", "jti", "statut", "age_equal_or_over",
                           "date_reference"}
 
@@ -61,12 +92,61 @@ def test_double_cle_le_registre_refuse_un_service_non_autorise():
 
 
 def test_mode_corrompu_casse_la_signature():
-    jeton = client.post("/attributs", json={"id_demande": "d-1", "attribut": "age_entre", "sujet_ref": "BF-0003",
-                                            "parametres": {"min": 18, "date_reference": "2026-11-16"},
-                                            "destinataire": "mairie"}).json()["jeton"]
+    jeton = client.post("/attributs", headers={"Authorization": f"Bearer {jeton_agent('mairie')}"},
+                        json={"id_demande": "d-1", "attribut": "age_entre", "sujet_ref": "BF-0003",
+                              "parametres": MAJORITE, "destinataire": "mairie"}).json()["jeton"]
     falsifie = registre.falsifier(jeton)
-    import pytest
     with pytest.raises(jwt.InvalidSignatureError):
         jwt.decode(falsifie, CLE_PUBLIQUE, algorithms=["EdDSA"], audience="mairie")
     infos = jwt.decode(falsifie, options={"verify_signature": False})
     assert infos["age_equal_or_over"] == {"18": True}        # « non » devenu « oui », sans re-signer
+
+
+# --- A. Le registre vérifie LUI-MÊME le jeton de l'agent ---
+
+@pytest.mark.parametrize("jeton, motif", [
+    ("", "jeton d'agent absent"),
+    ("pas-un-jeton", "jeton d'agent invalide"),
+    (jeton_agent(cle=rsa.generate_private_key(public_exponent=65537, key_size=2048)), "jeton d'agent invalide"),
+    (jeton_agent(exp=int(time.time()) - 60), "jeton d'agent invalide ou expiré"),
+    (jeton_agent(roles=[]), "rôle agent-guichet"),
+    (jeton_agent(groups=["Groupe inconnu"]), "service de l'agent non reconnu"),
+])
+def test_appel_sans_jeton_d_agent_valide_refuse(jeton, motif):
+    """Sans jeton d'agent valide, le registre refuse (réponse signée), même si le médiateur a laissé passer."""
+    infos = demander("BF-0001", jeton=jeton)
+    assert infos["statut"] == "refus" and motif in infos["motif"] and "age_equal_or_over" not in infos
+
+
+def test_service_declare_different_du_jeton_refuse():
+    """Le médiateur déclare « direction-concours », mais le jeton est celui d'un agent des bourses."""
+    infos = demander("BF-0001", service="direction-concours", jeton=jeton_agent("service-bourses"))
+    assert infos["statut"] == "refus" and "ne correspond pas au jeton" in infos["motif"]
+
+
+# --- B. Double clé sur les paramètres : impossible de reconstituer une date de naissance ---
+
+def test_parametres_declares_acceptes():
+    infos = demander("BF-0001", service="direction-concours",
+                     parametres={"min": 18, "max": 37, "date_reference": "2026-12-31"})
+    assert infos["statut"] == "ok" and infos["age_equal_or_over"] == {"18": True, "38": False}
+
+
+@pytest.mark.parametrize("service, parametres", [
+    ("direction-concours", {"min": 18, "max": 36, "date_reference": "2026-12-31"}),    # autre seuil
+    ("direction-concours", {"min": 18, "max": 37, "date_reference": "2026-06-30"}),    # autre date
+    ("service-bourses", {"min": 25, "date_reference": AUJOURDHUI}),                    # seuil de 25 ans
+    ("service-bourses", {"min": 18, "date_reference": "2019-03-14"}),                  # autre jour
+    ("service-bourses", {"min": 18, "max": 37, "date_reference": "2026-12-31"}),       # seuils d'un autre service
+])
+def test_autres_seuils_refuses(service, parametres):
+    infos = demander("BF-0001", service=service, parametres=parametres)
+    assert infos["statut"] == "refus" and infos["motif"] == "paramètres non autorisés par le registre pour ce service"
+    assert "age_equal_or_over" not in infos
+
+
+def test_reconstitution_de_la_date_de_naissance_impossible():
+    """Balayer les seuils 19, 20, … 40 pour encadrer l'âge : TOUS refusés, aucune information."""
+    reponses = [demander("BF-0001", service="direction-concours",
+                         parametres={"min": n, "date_reference": AUJOURDHUI}) for n in range(19, 41)]
+    assert all(r["statut"] == "refus" for r in reponses)

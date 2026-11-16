@@ -10,7 +10,7 @@ import respx
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from conftest import (CANAL, CHEMIN_JOURNAL, RACINE, URL_CASIER, URL_NATIONALITE, URL_REGISTRE, demande,
-                      jeton_registre, mediateur, refus_registre)
+                      JETON_AGENT, jeton_registre, mediateur, refus_registre)
 
 
 def registre_qui_signe(**modifs):
@@ -435,3 +435,50 @@ def test_catalogue_invalide_refuse_de_demarrer():
     }
     for nom, demarche in cas.items():
         assert catalogue.valider({"d": demarche}, services, attributs), f"{nom} : aurait dû être refusé"
+
+
+# --- A. Le jeton de l'agent accompagne chaque demande au registre ---
+
+@respx.mock
+def test_jeton_de_l_agent_transmis_au_registre(client):
+    route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    client.post("/demandes", json=demande())
+    assert route.calls[0].request.headers["Authorization"] == f"Bearer {JETON_AGENT}"
+    # Il n'est jamais stocké par le médiateur
+    assert JETON_AGENT.encode() not in CHEMIN_JOURNAL.read_bytes()
+
+
+@respx.mock
+def test_refus_du_registre_faute_de_jeton_valide(client):
+    """Le registre refuse (signé) un jeton d'agent qu'il ne peut pas vérifier : le guichet voit ce refus."""
+    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_refuse(motif="jeton d'agent invalide ou expiré"))
+    r = client.post("/demandes", json=demande()).json()
+    assert r["statut"] == "refuse" and r["volets"][0]["motif"] == "jeton d'agent invalide ou expiré"
+    assert r["volets"][0]["jeton"]
+
+
+# --- B. Limite par (service, citoyen) ---
+
+@respx.mock
+def test_limite_par_service_et_par_citoyen(client, monkeypatch):
+    monkeypatch.setattr(mediateur, "LIMITE_PAR_CITOYEN", 3)
+    route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    statuts = [client.post("/demandes", json=demande(sujet="BF-0020")).json()["statut"] for _ in range(4)]
+    assert statuts == ["remise", "remise", "remise", "bloquee"]
+    assert route.call_count == 3                            # le registre n'est pas appelé la 4e fois
+    # L'alerte apparaît dans l'historique du citoyen, avec son motif
+    alerte = client.get("/usagers/BF-0020/historique", headers=CANAL).json()[0]
+    assert alerte["evenement"] == "alerte" and "plus de 3 demandes du même service" in alerte["motif"]
+    # Un AUTRE service peut toujours interroger cette personne ; le même service, une autre personne aussi
+    client.agent["nom"] = "awa.ouedraogo"
+    assert client.post("/demandes", json=demande(sujet="BF-0020")).json()["statut"] == "remise"
+    client.agent["nom"] = "issa.sawadogo"
+    assert client.post("/demandes", json=demande(sujet="BF-0016")).json()["statut"] == "remise"
+
+
+@respx.mock
+def test_comptes_de_test_exemptes(client, monkeypatch):
+    monkeypatch.setattr(mediateur, "LIMITE_PAR_CITOYEN", 1)
+    monkeypatch.setattr(mediateur, "LIMITE_EXEMPTES", {"issa.sawadogo"})
+    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    assert [client.post("/demandes", json=demande(sujet="BF-0014")).json()["statut"] for _ in range(3)] == ["remise"] * 3

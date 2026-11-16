@@ -23,7 +23,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from . import catalogue, registres
 from .agents import agent_connecte
-from .config import CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, lire_secret
+from .config import (CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, LIMITE_EXEMPTES,
+                     LIMITE_PAR_CITOYEN, lire_secret)
 from .journal import Journal
 
 # Catalogue validé au démarrage : s'il est incomplet, le médiateur ne démarre pas (on ne devine pas une règle)
@@ -59,9 +60,11 @@ with VERROU:
             base TEXT NOT NULL, sujet TEXT NOT NULL,
             attributs TEXT NOT NULL,     -- codes des attributs demandés, séparés par « + »
             registres TEXT NOT NULL,     -- registres correspondants, séparés par « + »
-            statut TEXT NOT NULL,        -- en_cours | en_attente | confirmee | remise | refuse | indisponible | expiree
+            statut TEXT NOT NULL,        -- en_cours | en_attente | confirmee | remise | refuse | indisponible
+                                         -- | expiree | bloquee
             motif TEXT NOT NULL DEFAULT '',
-            expire_le REAL NOT NULL DEFAULT 0
+            expire_le REAL NOT NULL DEFAULT 0,
+            cree_le REAL NOT NULL DEFAULT 0   -- pour les limites de débit
         );
         -- Un volet = un attribut demandé à un registre
         CREATE TABLE IF NOT EXISTS volets (
@@ -75,6 +78,8 @@ with VERROU:
         -- Identifiants (jti) des réponses déjà acceptées : une réponse ne sert qu'une fois
         CREATE TABLE IF NOT EXISTS jti_vus (jti TEXT PRIMARY KEY);
     """)
+    if "cree_le" not in [c["name"] for c in base.execute("PRAGMA table_info(demandes)")]:
+        base.execute("ALTER TABLE demandes ADD COLUMN cree_le REAL NOT NULL DEFAULT 0")
 # À chaque chargement, l'empreinte du catalogue entre dans le journal chaîné :
 # on peut prouver quelles règles étaient en vigueur au moment d'une consultation.
 journal.ecrire(agent="systeme", evenement="catalogue", resultat="ok",
@@ -179,7 +184,8 @@ def remettre(demande: dict) -> dict:
 
 # --- Appel des registres ---
 
-async def interroger(demande: dict, code: str, parametres: dict, sujet_ref: str) -> tuple[str, bool | str, str]:
+async def interroger(demande: dict, code: str, parametres: dict, sujet_ref: str,
+                     jeton_agent: str) -> tuple[str, bool | str, str]:
     """Demande UN attribut à son registre et vérifie TOUTE la réponse signée.
     Renvoie (« ok », oui/non, jeton) ou (« refus », motif public, jeton).
     Lève Indisponible (rien n'est deviné) ou ReponseCorrompue (ligne d'alerte)."""
@@ -188,7 +194,7 @@ async def interroger(demande: dict, code: str, parametres: dict, sujet_ref: str)
     corps = {"id_demande": demande["id_demande"], "attribut": code, "parametres": parametres,
              "sujet_ref": sujet_ref, "destinataire": demande["demandeur"]}
     try:
-        jeton = await registres.appeler(registre["url"], corps, DELAI_REGISTRE)
+        jeton = await registres.appeler(registre["url"], corps, DELAI_REGISTRE, jeton_agent)
         # La clé publique vient du volume du registre, monté en LECTURE SEULE ici
         cle_publique = (CLES_PUBLIQUES / attribut["registre"] / "cle.pem").read_bytes()
     except registres.Indisponible as e:
@@ -205,7 +211,7 @@ async def interroger(demande: dict, code: str, parametres: dict, sujet_ref: str)
     return statut, contenu, jeton
 
 
-async def traiter_volet(demande: dict, demande_attribut: dict, sujet_ref: str) -> dict:
+async def traiter_volet(demande: dict, demande_attribut: dict, sujet_ref: str, jeton_agent: str) -> dict:
     """Un volet = un attribut demandé à son registre. Renvoie toujours un volet, jamais une exception :
     un registre en panne n'empêche pas les autres de répondre."""
     code = demande_attribut["attribut"]
@@ -217,14 +223,14 @@ async def traiter_volet(demande: dict, demande_attribut: dict, sujet_ref: str) -
             # Casier « absence: vierge » : on vérifie D'ABORD à l'état civil que la personne existe
             # (sinon un identifiant inventé obtiendrait « casier vierge »)
             ou = {"attribut": "personne_connue", "registre": CAT["attributs"]["personne_connue"]["registre"]}
-            connue, _, _ = await interroger(demande, "personne_connue", {}, sujet_ref)
+            connue, _, _ = await interroger(demande, "personne_connue", {}, sujet_ref, jeton_agent)
             tracer(demande, "reponse-registre", "ok" if connue == "ok" else "refuse", **ou)
             if connue != "ok":
                 volet["motif"] = "identité non confirmée par l'état civil"
                 tracer(demande, "reponse-registre", "refuse", volet["motif"], attribut=code, registre=registre)
                 return volet
         statut, contenu, jeton = await interroger(demande, code, catalogue.resoudre(demande_attribut["parametres"]),
-                                                  sujet_ref)
+                                                  sujet_ref, jeton_agent)
     except registres.Indisponible as e:
         motif = f"{e}, rien n'a été deviné"
         volet.update(statut="indisponible", motif=motif[0].upper() + motif[1:])
@@ -242,6 +248,28 @@ async def traiter_volet(demande: dict, demande_attribut: dict, sujet_ref: str) -
         return volet
     tracer(demande, "reponse-registre", "ok", attribut=code, registre=registre)
     return volet | {"statut": "ok", "valeur": int(contenu), "jeton": jeton}
+
+
+# --- Limites de débit ---
+
+def trop_de_demandes_sur_ce_citoyen(demande: dict) -> bool:
+    """Un même service ne peut pas interroger sans fin la même personne : au-delà de LIMITE_PAR_CITOYEN
+    demandes en 24 heures, la demande est bloquée (registres jamais appelés) et une ALERTE entre dans
+    l'historique du citoyen (« Qui a consulté mes données »)."""
+    if demande["agent"] in LIMITE_EXEMPTES:
+        return False
+    with VERROU:
+        nombre = base.execute(
+            "SELECT COUNT(*) FROM demandes WHERE demandeur = ? AND sujet = ? AND cree_le > ? "
+            "AND statut != 'bloquee' AND id_demande != ?",
+            (demande["demandeur"], demande["sujet"], time.time() - 86400, demande["id_demande"])).fetchone()[0]
+    if nombre < LIMITE_PAR_CITOYEN:
+        return False
+    motif = (f"bloqué : plus de {LIMITE_PAR_CITOYEN} demandes du même service sur vous en 24 h, "
+             "consultation à contrôler")
+    tracer(demande, "alerte", "refuse", motif)
+    changer(demande, statut="bloquee", motif=motif)
+    return True
 
 
 # --- Côté guichet ---
@@ -273,7 +301,7 @@ async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
                "finalite": d.finalite, "base": demarche["base"] if demarche else "", "sujet": pseudonyme(d.sujet_ref),
                "attributs": "+".join(prevus),
                "registres": "+".join(CAT["attributs"][a]["registre"] for a in prevus),
-               "statut": "en_cours", "motif": "", "expire_le": 0}
+               "statut": "en_cours", "motif": "", "expire_le": 0, "cree_le": time.time()}
     demande["requete"] = hashlib.sha256(json.dumps(
         [agent["nom"], d.model_dump()], sort_keys=True).encode()).hexdigest()
 
@@ -298,10 +326,13 @@ async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
                             "cette démarche peut demander"))
     if d.finalite != demarche["finalite"]:
         return etat(refuser(demande, "refuse", "demande", "finalité non autorisée"))
+    if trop_de_demandes_sur_ce_citoyen(demande):
+        return etat(demande)
     tracer(demande, "demande", "ok")
 
     # 2. Un appel par attribut, tous EN PARALLÈLE : chaque registre a son délai, sa clé, son résultat
-    volets = await asyncio.gather(*(traiter_volet(demande, a, d.sujet_ref) for a in demarche["attributs"]))
+    volets = await asyncio.gather(*(traiter_volet(demande, a, d.sujet_ref, agent["jeton"])
+                                    for a in demarche["attributs"]))
     demande["volets"] = volets
     with VERROU:
         for v in volets:

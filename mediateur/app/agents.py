@@ -2,16 +2,18 @@
 
 Le jeton est vérifié avec les clés publiques de Keycloak (signature, émetteur, audience « mediateur »,
 expiration). Le service demandeur vient du GROUPE de l'agent dans ce jeton, jamais d'un formulaire.
+Le contrôleur (rôle « controleur », lecture seule) passe par la même vérification.
 """
 import jwt
 from fastapi import Header, HTTPException
 
-from .config import AUDIENCE, KEYCLOAK_CLES, KEYCLOAK_EMETTEUR, OUTILS_TEST, ROLE_AGENT
+from .config import AUDIENCE, KEYCLOAK_CLES, KEYCLOAK_EMETTEUR, OUTILS_TEST, ROLE_AGENT, ROLE_CONTROLEUR
 
 _cles_keycloak = jwt.PyJWKClient(KEYCLOAK_CLES)
 
 
-def agent_connecte(authorization: str = Header("")) -> dict:
+def infos_du_jeton(authorization: str) -> tuple[str, dict]:
+    """Vérifie le jeton Keycloak (signature, émetteur, audience, expiration) ; renvoie (jeton, contenu)."""
     if not authorization.startswith("Bearer "):
         raise HTTPException(401, "jeton d'agent manquant")
     jeton = authorization.removeprefix("Bearer ")
@@ -25,6 +27,11 @@ def agent_connecte(authorization: str = Header("")) -> dict:
         infos = jwt.decode(jeton, cle.key, algorithms=["RS256"], audience=AUDIENCE, issuer=KEYCLOAK_EMETTEUR)
     except jwt.PyJWTError:
         raise HTTPException(401, "jeton d'agent invalide ou expiré")
+    return jeton, infos
+
+
+def agent_connecte(authorization: str = Header("")) -> dict:
+    jeton, infos = infos_du_jeton(authorization)
     if ROLE_AGENT not in infos.get("roles", []):
         raise HTTPException(403, "rôle agent-guichet absent")
     # Comptes de test (banc de pannes) : seulement si OUTILS_TEST=1. Leur nom (« service-account-outil-test-… »)
@@ -33,3 +40,12 @@ def agent_connecte(authorization: str = Header("")) -> dict:
         raise HTTPException(403, "comptes de test désactivés (OUTILS_TEST=0)")
     # « jeton » : transmis tel quel au registre, qui le revérifie LUI-MÊME (jamais stocké)
     return {"nom": infos.get("preferred_username", infos["sub"]), "groupes": infos.get("groups", []), "jeton": jeton}
+
+
+def controleur_connecte(authorization: str = Header("")) -> str:
+    """Contrôleur : rôle « controleur » obligatoire. Il ne peut que LIRE (aucune route d'écriture ne l'accepte,
+    et sans le rôle agent-guichet il ne peut faire aucune demande)."""
+    _jeton, infos = infos_du_jeton(authorization)
+    if ROLE_CONTROLEUR not in infos.get("roles", []):
+        raise HTTPException(403, "rôle controleur absent")
+    return infos.get("preferred_username", infos["sub"])

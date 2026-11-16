@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block titre %}Contrôle{% endblock %}
+{% block contenu %}
+<h1>Contrôle (lecture seule)</h1>
+<p class="aide">Comme le responsable de la sécurité de X-Road ou un délégué à la protection des données : vous voyez
+les alertes, l'état des registres et les règles en vigueur. Aucune action n'est possible depuis cette page, et
+aucune réponse ni aucun identifiant de citoyen n'y apparaît.</p>
+
+<ul class="resume">
+  <li><span class="nombre">{{ etat.alertes | sum(attribute="nombre") }}</span> alertes et refus récents</li>
+  <li><span class="nombre">{{ etat.registres | selectattr("joignable") | list | length }} / {{ etat.registres | length }}</span>
+    registres joignables</li>
+  <li>Comptes de test actifs :
+    {% if etat.comptes_de_test_actifs %}<span class="statut suspendu">oui</span>
+    {% else %}<span class="statut actif">non</span>{% endif %}</li>
+</ul>
+{% if etat.comptes_de_test_actifs %}
+<div class="erreur" role="alert"><p>Comptes de test actifs (OUTILS_TEST=1) : à désactiver avant la démonstration.</p></div>
+{% endif %}
+
+<h2>Intégrité du journal</h2>
+<form method="get" action="/controle">
+  <input type="hidden" name="verifier" value="1">
+  <p><button class="bouton">Vérifier le journal</button>
+    <span class="aide">Même vérification que <code>journal/verifier.py --registres</code> : chaîne des empreintes,
+    puis comparaison avec la trace signée de chaque registre.</span></p>
+</form>
+{% if verification %}
+  {% if verification.integre and not verification.ecarts %}
+  <div class="message" role="status"><p>{{ verification.message }}. Double trace concordante.</p></div>
+  {% else %}
+  <div class="erreur" role="alert"><p>{{ verification.message }}</p>
+    {% if verification.ecarts %}<ul>{% for e in verification.ecarts %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+  </div>
+  {% endif %}
+  <ul class="aide">{% for registre, t in verification.traces.items() %}<li>Trace du registre {{ registre }} : {{ t }}</li>{% endfor %}</ul>
+{% endif %}
+
+<h2>État des registres</h2>
+<div class="defile"><table>
+  <thead><tr><th>Registre</th><th>État</th><th>Dernier incident vu au journal</th></tr></thead>
+  <tbody>
+  {% for r in etat.registres %}
+  <tr><td>{{ r.nom }}</td>
+    <td>{% if r.joignable %}<span class="statut actif">joignable</span>{% else %}<span class="statut revoque">en panne</span>{% endif %}</td>
+    <td>{% if r.dernier_incident %}{{ r.dernier_incident.ts | date_lisible }} : {{ r.dernier_incident.motif }}{% else %}aucun{% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+<h2>Alertes et refus des registres</h2>
+{% if etat.alertes %}
+<div class="defile"><table>
+  <thead><tr><th>Date</th><th>Agent</th><th>Service</th><th>Registre</th><th>Motif</th></tr></thead>
+  <tbody>
+  {% for a in etat.alertes %}
+  <tr><td>{{ a.ts | date_lisible }}</td><td>{{ a.agent }}</td><td>{{ a.service }}</td><td>{{ a.registre or "—" }}</td>
+    <td>{% if a.evenement == "alerte" %}<strong>Alerte</strong>{% else %}Refus du registre{% endif %} : {{ a.motif }}
+      {% if a.nombre > 1 %}({{ a.nombre }} {{ "citoyens concernés" if a.evenement == "alerte" else "réponses" }}){% endif %}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{% else %}
+<p>Aucune alerte.</p>
+{% endif %}
+<p class="aide">Limites en vigueur : {{ etat.limites.citoyens_par_agent }} citoyens différents par agent en
+{{ etat.limites.fenetre_minutes }} minutes ; {{ etat.limites.demandes_par_service_et_citoyen_24h }} demandes d'un même
+service sur une même personne en 24 heures.</p>
+
+<h2>Catalogue en vigueur</h2>
+<p class="aide">Empreinte SHA-256 (écrite au journal à chaque chargement) : <code>{{ etat.catalogue.empreinte }}</code></p>
+<div class="defile"><table>
+  <thead><tr><th>Démarche</th><th>Qui peut demander</th><th>Ce qui est vérifié</th><th>Base et finalité</th></tr></thead>
+  <tbody>
+  {% for d in etat.catalogue.demarches %}
+  <tr><td><strong>{{ d.libelle }}</strong></td><td>{{ d.services | join(", ") }}</td>
+    <td>{{ d.attributs | join(" ; ") }}</td>
+    <td>{% if d.base == "consentement" %}accord de l'usager{% else %}base légale : {{ d.texte }}{% endif %}.
+      Finalité : {{ d.finalite }}.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+
+<h3 class="sous-titre">Ce que chaque registre accepte de répondre (double clé)</h3>
+<div class="defile"><table>
+  <thead><tr><th>Attribut</th><th>Registre</th><th>Services autorisés par le registre</th></tr></thead>
+  <tbody>
+  {% for a in etat.catalogue.autorisations %}
+  <tr><td><code>{{ a.attribut }}</code></td><td>{{ a.registre }}</td><td>{{ a.services | join(" ; ") }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+<p class="aide">Le catalogue se modifie uniquement par fichier YAML (validé au démarrage du médiateur).</p>
+{% endblock %}

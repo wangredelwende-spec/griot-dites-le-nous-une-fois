@@ -9,6 +9,7 @@ GUICHET_URL = "https://guichet.griot.test"
 
 CLIENT_ID = "guichet"
 ROLE_AGENT = "agent-guichet"
+ROLE_CONTROLEUR = "controleur"     # page /controle, lecture seule
 MEDIATEUR = "http://mediateur:8000"
 CLES_PUBLIQUES = Path("/publiques")
 CATALOGUE = Path("/catalogue")          # annuaire.yaml + demarches.yaml (lecture seule)

@@ -26,6 +26,7 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 | `awa.ouedraogo` | `Agent-Demo-2026!` | Service des bourses | **Bourse nationale** (nationalité, **avec l'accord de l'usager**), Vérifier la majorité |
 | `mariam.kabore` | `Agent-Demo-2026!` | Mairie | Vérifier la majorité (base légale : loi n°012-2025/ALT) |
 | `agent.curieux` | `Agent-Demo-2026!` | Service des bourses | Vérifier la majorité : **démo de la limite de débit** (scène 2 bis) |
+| `controle.cil` | `Controle-Demo-2026!` | Contrôle (lecture seule, rôle `controleur`) | Aucune démarche : page **Contrôle** (scène 2 ter) |
 
 À la **première connexion**, Keycloak montre un QR code : le scanner avec FreeOTP/Aegis, taper le code à
 6 chiffres. Ensuite, chaque connexion demande mot de passe + code. (`agent.banc` et `agent.banc.bourses` sont
@@ -102,6 +103,22 @@ Au guichet, chaque résultat a aussi un bouton « réponse signée reçue (conte
    Chaque citoyen consulté par cet agent a reçu l'alerte.
 4. Autre limite : un même service ne peut pas faire plus de 5 demandes sur la même personne en 24 h.
 (Limites réglables dans `docker-compose.yml` : `LIMITE_SUJETS`, `FENETRE_LIMITE`, `LIMITE_PAR_CITOYEN`.)
+
+## Scène 2 ter : le contrôle voit l'alerte (lecture seule)
+
+1. Guichet → se déconnecter, puis `controle.cil` (mot de passe + TOTP) : on arrive sur
+   `https://guichet.griot.test/controle`.
+2. En haut : nombre d'alertes, registres joignables (3 / 3), **comptes de test actifs : non** (doit être « non »
+   pendant la démo).
+3. **Alertes** : « agent.curieux … Alerte : agent bloqué … (6 citoyens concernés) ». On voit l'agent et le
+   service, jamais les citoyens (ni identifiant, ni pseudonyme, ni réponse).
+4. **État des registres** : couper un registre (`python scripts/panne.py casier coupe`), actualiser : « en panne ».
+   Remettre : `python scripts/panne.py casier normal`.
+5. **Vérifier le journal** : même vérification que `verifier.py --registres` (chaîne + double trace).
+6. **Catalogue en vigueur** : démarches, qui peut demander quoi, et ce que chaque registre accepte (double clé),
+   avec l'empreinte SHA-256 écrite au journal.
+7. Le contrôleur ne peut rien faire d'autre : l'adresse `/` le renvoie vers `/controle`, et le médiateur refuse
+   ses demandes (pas de rôle `agent-guichet`).
 
 ## Scène 3 : « Vous vérifiez après » (historique et reçu)
 

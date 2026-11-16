@@ -183,3 +183,6 @@ table.journal tbody td:nth-child(3) { display: inline-block; margin: .55rem .5re
 
 /* Exemple grisé : ce n'est PAS une valeur, le champ est vide */
 input::placeholder { color: #8a8a8a; font-style: italic; opacity: 1; }
+
+/* Page Contrôle */
+.sous-titre { margin-top: 1.5rem; }

@@ -41,6 +41,10 @@
       {
         "name": "agent-guichet",
         "description": "Agent de guichet autorisé à demander un attribut"
+      },
+      {
+        "name": "controleur",
+        "description": "Contrôle en LECTURE SEULE (comme un DPD) : alertes, état des registres, catalogue, vérification du journal"
       }
     ]
   },
@@ -360,6 +364,30 @@
       ],
       "groups": [
         "/Service des bourses"
+      ]
+    },
+    {
+      "username": "controle.cil",
+      "enabled": true,
+      "firstName": "Contrôle",
+      "lastName": "Protection des données",
+      "attributes": {
+        "fonction": [
+          "Contrôleur en lecture seule (aucune demande possible)"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Controle-Demo-2026!",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "controleur"
       ]
     }
   ],

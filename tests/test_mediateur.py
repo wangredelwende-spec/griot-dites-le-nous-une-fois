@@ -616,3 +616,59 @@ def test_les_lignes_du_journal_portent_l_id_de_demande(client):
     d = demande()
     client.post("/demandes", json=d)
     assert {l["id_demande"] for l in journal_de()[-3:]} == {d["id_demande"]}
+
+
+# --- Contrôle (rôle « controleur », lecture seule) ---
+
+def test_controle_exige_le_role_controleur(client, monkeypatch):
+    from app import agents
+    monkeypatch.setattr(agents, "infos_du_jeton", lambda _a: ("j", {"sub": "x", "roles": ["agent-guichet"]}))
+    assert client.get("/controle", headers={"Authorization": "Bearer j"}).status_code == 403
+    monkeypatch.setattr(agents, "infos_du_jeton", lambda _a: ("j", {"sub": "x", "roles": ["controleur"]}))
+    assert agents.controleur_connecte("Bearer j") == "x"
+
+
+@respx.mock
+def test_controle_montre_les_alertes_sans_identifiant_de_citoyen(client):
+    mediateur.app.dependency_overrides[mediateur.controleur_connecte] = lambda: "controle.cil"
+    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe(cle=Ed25519PrivateKey.generate()))  # corrompue
+    respx.get("http://registre-etat-civil:8000/sante").mock(return_value=httpx.Response(200))
+    respx.get("http://registre-nationalite:8000/sante").mock(side_effect=httpx.ConnectError("coupé"))
+    respx.get("http://registre-casier:8000/sante").mock(return_value=httpx.Response(200))
+    client.post("/demandes", json=demande(sujet="BF-0003"))
+    r = client.get("/controle")
+    assert r.status_code == 200
+    c = r.json()
+    assert c["comptes_de_test_actifs"] is False
+    assert any("signature invalide" in a["motif"] for a in c["alertes"])
+    assert {e["code"]: e["joignable"] for e in c["registres"]} == {"etat-civil": True, "nationalite": False,
+                                                                   "casier": True}
+    assert c["catalogue"]["empreinte"] == mediateur.CAT["empreinte"]
+    # Ni l'identifiant du citoyen, ni son pseudonyme, ni l'identifiant de la demande
+    assert "BF-0003" not in r.text and mediateur.pseudonyme("BF-0003") not in r.text
+    assert '"sujet"' not in r.text and "id_demande" not in r.text
+
+
+def test_controle_verifie_le_journal(client):
+    mediateur.app.dependency_overrides[mediateur.controleur_connecte] = lambda: "controle.cil"
+    r = client.get("/controle/verification").json()
+    # Même verdict que journal/verifier.py (le journal de test a pu être falsifié exprès par un test précédent)
+    spec = importlib.util.spec_from_file_location("verifier", RACINE / "journal/verifier.py")
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+    integre, message, _ = verifier.verifier(str(CHEMIN_JOURNAL))
+    assert (r["integre"], r["message"]) == (integre, message)
+    assert message.startswith("Journal intègre") or "modifiée" in message
+
+
+def test_controle_ne_peut_rien_demander(client):
+    """Aucune route d'écriture n'accepte le contrôleur : sans le rôle agent-guichet, POST /demandes est refusé."""
+    mediateur.app.dependency_overrides.pop(mediateur.agent_connecte)
+    from app import agents
+    agents_infos = agents.infos_du_jeton
+    try:
+        agents.infos_du_jeton = lambda _a: ("j", {"sub": "x", "roles": ["controleur"]})
+        r = client.post("/demandes", json=demande(), headers={"Authorization": "Bearer j"})
+        assert r.status_code == 403
+    finally:
+        agents.infos_du_jeton = agents_infos

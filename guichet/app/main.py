@@ -1,7 +1,7 @@
 """Guichet des agents : rendu serveur, aucun JavaScript.
 
-Accès protégé par Keycloak (OIDC, client « guichet », mot de passe + TOTP) : seul le rôle agent-guichet entre.
-Le service de l'agent vient de son jeton, jamais d'un formulaire.
+Accès protégé par Keycloak (OIDC, client « guichet », mot de passe + TOTP) : rôle agent-guichet (demandes)
+ou rôle controleur (page /controle, LECTURE SEULE). Le service de l'agent vient de son jeton, jamais d'un formulaire.
 Le guichet ne reçoit que la réponse minimale SIGNÉE par le registre, et revérifie lui-même la signature.
 """
 import hashlib
@@ -22,7 +22,7 @@ from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
 from .config import (ADAPTATEURS, CATALOGUE, CLES_PUBLIQUES, CLIENT_ID, GUICHET_URL, KEYCLOAK_INTERNE, KEYCLOAK_PUBLIC,
-                     MEDIATEUR, REALM, ROLE_AGENT, lire_secret)
+                     MEDIATEUR, REALM, ROLE_AGENT, ROLE_CONTROLEUR, lire_secret)
 
 SECRET_OIDC = lire_secret("guichet_oidc")
 # Mêmes fichiers que le médiateur, en lecture seule : annuaire, catalogue des démarches,
@@ -65,15 +65,35 @@ class NonConnecte(Exception):
     pass
 
 
+class EspaceControle(Exception):
+    """Le contrôleur n'a pas accès aux demandes : il est renvoyé vers sa page."""
+
+
 @app.exception_handler(NonConnecte)
 async def vers_connexion(_request, _exc):
     return RedirectResponse("/connexion", status_code=303)
+
+
+@app.exception_handler(EspaceControle)
+async def vers_controle(_request, _exc):
+    return RedirectResponse("/controle", status_code=303)
 
 
 def exiger_agent(request: Request) -> dict:
     session = JETONS.get(request.session.get("sid", ""))
     if not session:
         raise NonConnecte()
+    if session["role"] != "agent":
+        raise EspaceControle()
+    return session
+
+
+def exiger_controleur(request: Request) -> dict:
+    session = JETONS.get(request.session.get("sid", ""))
+    if not session:
+        raise NonConnecte()
+    if session["role"] != "controleur":
+        raise HTTPException(403, "Page réservée au contrôle (rôle controleur)")
     return session
 
 
@@ -131,13 +151,21 @@ async def retour_keycloak(request: Request):
     infos = jeton["userinfo"]
     request.session.clear()
     service = service_de(infos.get("groups", []))
-    if ROLE_AGENT not in infos.get("roles", []) or service is None:
-        return page(request, "erreur.html", 403, message="Accès réservé aux agents de guichet rattachés à un service.")
+    roles = infos.get("roles", [])
+    commun = {"nom": infos.get("preferred_username", infos["sub"]), "acces": jeton["access_token"],
+              "id_token": jeton["id_token"]}
+    # En cas de doute, on refuse : un compte ne peut pas être à la fois agent et contrôleur
+    if ROLE_AGENT in roles and ROLE_CONTROLEUR not in roles and service is not None:
+        session, accueil_du_role = commun | {"role": "agent", "service": service[0], "service_nom": service[1]}, "/"
+    elif ROLE_CONTROLEUR in roles and ROLE_AGENT not in roles:
+        session, accueil_du_role = commun | {"role": "controleur", "service_nom": "Contrôle (lecture seule)"}, "/controle"
+    else:
+        return page(request, "erreur.html", 403, message="Accès réservé aux agents de guichet rattachés à un "
+                    "service, et au contrôle.")
     sid = secrets.token_urlsafe(32)
-    JETONS[sid] = {"nom": infos.get("preferred_username", infos["sub"]), "service": service[0],
-                   "service_nom": service[1], "acces": jeton["access_token"], "id_token": jeton["id_token"]}
+    JETONS[sid] = session
     request.session.update(sid=sid, csrf=secrets.token_urlsafe(32))
-    return RedirectResponse("/", status_code=303)
+    return RedirectResponse(accueil_du_role, status_code=303)
 
 
 @app.post("/deconnexion")
@@ -305,3 +333,26 @@ async def suivre(request: Request, id_demande: uuid.UUID, session: dict = Depend
               for a in demarche["attributs"]]
     return page(request, "demande.html", suivi=suivi, demarche=demarche, etat=etat, lignes=lignes,
                 conclusion=conclusion(lignes), expire=heure(etat["expire_le"]) if etat.get("expire_le") else None)
+
+
+# --- Contrôle (rôle « controleur », LECTURE SEULE) ---
+
+def date_lisible(ts: str) -> str:
+    """« 2026-11-16T16:15:15Z » -> « 16/11/2026 16:15 » (heure de Ouagadougou = UTC)."""
+    return f"{ts[8:10]}/{ts[5:7]}/{ts[0:4]} {ts[11:16]}" if len(ts) >= 16 else ts
+
+
+templates.env.filters["date_lisible"] = date_lisible
+
+
+@app.get("/controle")
+async def controle(request: Request, verifier: str = "", session: dict = Depends(exiger_controleur)):
+    """Alertes, état des registres, catalogue en vigueur, vérification du journal. Aucune action possible :
+    le médiateur n'envoie ni valeur, ni identifiant de citoyen."""
+    try:
+        etat = await mediateur("GET", "/controle", session)
+        # Même vérification que journal/verifier.py --registres, seulement si on la demande (bouton)
+        verification = await mediateur("GET", "/controle/verification", session) if verifier else None
+    except httpx.HTTPError:
+        return page(request, "erreur.html", 502, message="Médiateur injoignable : rien à afficher.")
+    return page(request, "controle.html", etat=etat, verification=verification)

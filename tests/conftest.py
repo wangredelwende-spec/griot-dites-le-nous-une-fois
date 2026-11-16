@@ -26,7 +26,7 @@ os.environ.update(GRIOT_SECRETS=str(TMP / "secrets"), GRIOT_DONNEES=str(TMP / "d
                   GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_CATALOGUE=str(RACINE / "catalogue"),
                   GRIOT_ADAPTATEURS=str(RACINE / "adaptateurs"),
                   LIMITE_PAR_CITOYEN="1000", LIMITE_SUJETS="1000",   # des tests dédiés baissent les limites
-                  DELAI_REGISTRE="0.5")
+                  DELAI_REGISTRE="0.5", GRIOT_VERIFIER=str(RACINE / "journal/verifier.py"))
 
 CLE_REGISTRE = Ed25519PrivateKey.generate()
 # Pour simplifier, les trois faux registres signent avec la même clé de test

@@ -4,6 +4,8 @@ API JSON, joignable uniquement par le réseau Docker interne (jamais publiée pa
 - Côté guichet (jeton Keycloak de l'agent) : POST /demandes, GET /demandes/{id}  (docs/API.md)
 - Côté usager (canal authentifié par un secret partagé) : en-attente, confirmer, refuser, historique
   (docs/API_USAGER.md)
+- Côté contrôleur (jeton Keycloak, rôle « controleur ») : GET /controle, GET /controle/verification
+  (LECTURE SEULE)
 
 Une demande = une démarche du catalogue = un ou plusieurs attributs (« volets »), chacun demandé à SON
 registre, en parallèle. Le médiateur ne voit que les réponses minimales signées par les registres ; il les
@@ -12,19 +14,22 @@ garde en attente jusqu'à la confirmation de l'usager, puis les efface dès qu'e
 import asyncio
 import hashlib
 import hmac
+import importlib.util
 import json
 import sqlite3
 import threading
 import time
 
+import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import catalogue, registres
-from .agents import agent_connecte
+from .agents import agent_connecte, controleur_connecte
 from .config import (CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FENETRE_LIMITE,
-                     LIMITE_EXEMPTES, LIMITE_PAR_CITOYEN, LIMITE_SUJETS, OUTILS_TEST, lire_secret)
+                     JOURNAL_VERIFIER, LIMITE_EXEMPTES, LIMITE_PAR_CITOYEN, LIMITE_SUJETS, OUTILS_TEST,
+                     lire_secret)
 from .journal import Journal
 
 # Catalogue validé au démarrage : s'il est incomplet, le médiateur ne démarre pas (on ne devine pas une règle)
@@ -555,3 +560,93 @@ def historique(sujet_ref: str):
             "evenement": l["evenement"], "resultat": l["resultat"],
             "motif": l["motif"], "empreinte": l["hash"]})
     return lignes
+
+
+# --- Contrôle (rôle « controleur », LECTURE SEULE, comme le Security Officer de X-Road ou un DPD) ---
+# Aucune route d'écriture, aucune valeur, aucun identifiant de citoyen (ni en clair ni pseudonymisé).
+
+def nom_service(code: str) -> str:
+    return CAT["services"].get(code, {}).get("nom", code)
+
+
+def alertes() -> list[dict]:
+    """Alertes (agent bloqué, réponse corrompue…) et refus des registres, les plus récents d'abord.
+    Une alerte « agent bloqué » est écrite une fois par citoyen concerné : on les regroupe."""
+    with VERROU:
+        lignes = base.execute(
+            "SELECT n, ts, agent, demandeur, demarche, registre, attribut, evenement, motif FROM journal "
+            "WHERE evenement = 'alerte' OR (evenement = 'reponse-registre' AND resultat = 'refuse') "
+            "ORDER BY n DESC LIMIT 200").fetchall()
+    groupes = []
+    for l in map(dict, lignes):
+        precedente = groupes[-1] if groupes else None
+        if precedente and all(precedente[c] == l[c] for c in ("ts", "agent", "evenement", "registre", "motif")):
+            precedente["nombre"] += 1
+            continue
+        groupes.append(l | {"nombre": 1, "service": nom_service(l["demandeur"]),
+                            "demarche": CAT["demarches"].get(l["demarche"], {}).get("libelle", l["demarche"])})
+    return groupes[:50]
+
+
+async def etat_registre(code: str, registre: dict) -> dict:
+    """Le registre répond-il ? + dernier incident vu au journal (indisponible, réponse corrompue)."""
+    try:
+        async with httpx.AsyncClient(timeout=2) as client:
+            joignable = (await client.get(f"{registre['url']}/sante")).status_code == 200
+    except httpx.HTTPError:
+        joignable = False
+    with VERROU:
+        incident = base.execute(
+            "SELECT ts, motif FROM journal WHERE registre = ? AND (resultat = 'indisponible' "
+            "OR (evenement = 'alerte' AND motif LIKE 'réponse corrompue%')) ORDER BY n DESC LIMIT 1", (code,)).fetchone()
+    return {"code": code, "nom": registre["nom"], "joignable": joignable,
+            "dernier_incident": dict(incident) if incident else None}
+
+
+def seuils(p: dict) -> str:
+    """{min: 18, max: 37, date_reference: 2026-12-31} -> « 18 à 37 ans au 2026-12-31 »."""
+    age = f"{p.get('min')} à {p['max']} ans" if p.get("max") is not None else f"{p.get('min')} ans et plus"
+    return f"{age} au {p.get('date_reference')}"
+
+
+def catalogue_en_vigueur() -> dict:
+    """Démarches (qui peut demander quoi, pourquoi, sur quelle base) et autorisations déclarées par les registres
+    (double clé). L'empreinte est celle écrite au journal au chargement."""
+    demarches = [{"code": code, "libelle": d["libelle"], "services": [nom_service(s) for s in d["services"]],
+                  "finalite": d["finalite"], "base": d["base"], "texte": d.get("texte", ""),
+                  "attributs": [a.get("libelle", a["attribut"]) for a in d["attributs"]]}
+                 for code, d in CAT["demarches"].items()]
+    autorisations = []
+    for code, a in CAT["attributs"].items():
+        services = a["services"]
+        if isinstance(services, dict):     # le registre fixe aussi les paramètres autorisés par service
+            detail = [f"{nom_service(s)} : " + " ou ".join(map(seuils, params or [])) for s, params in services.items()]
+        else:
+            detail = [nom_service(s) for s in services]
+        autorisations.append({"attribut": code, "registre": CAT["registres"][a["registre"]]["nom"],
+                              "services": detail})
+    return {"empreinte": CAT["empreinte"], "demarches": demarches, "autorisations": autorisations}
+
+
+@app.get("/controle")
+async def controle(_controleur: str = Depends(controleur_connecte)):
+    etats = await asyncio.gather(*(etat_registre(code, r) for code, r in CAT["registres"].items()))
+    return {"comptes_de_test_actifs": OUTILS_TEST,
+            "limites": {"citoyens_par_agent": LIMITE_SUJETS, "fenetre_minutes": FENETRE_LIMITE // 60,
+                        "demandes_par_service_et_citoyen_24h": LIMITE_PAR_CITOYEN},
+            "registres": etats, "alertes": alertes(), "catalogue": catalogue_en_vigueur()}
+
+
+@app.get("/controle/verification")
+def verification(_controleur: str = Depends(controleur_connecte)):
+    """MÊME vérification que journal/verifier.py --registres (le même fichier est chargé, rien n'est réécrit)."""
+    spec = importlib.util.spec_from_file_location("verifier", JOURNAL_VERIFIER)
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+    chemin = str(DONNEES / "mediateur.sqlite3")
+    integre, message, lignes = verifier.verifier(chemin)
+    traces = verifier.traces_des_registres(chemin)
+    return {"integre": integre, "message": message,
+            "traces": {r: t if isinstance(t, str) else f"{len(t['trace'])} réponses signées, signature vérifiée"
+                       for r, t in traces.items()},
+            "ecarts": verifier.comparer(traces, lignes)}

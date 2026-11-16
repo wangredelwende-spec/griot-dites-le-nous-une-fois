@@ -69,6 +69,15 @@ Aujourd'hui, pour un passeport ordinaire (passeport AES produit par l'ONI), l'us
 passeports acte de naissance, certificat de nationalité, CNIB et extrait de casier, en copies légalisées (plus une
 autorisation parentale pour un mineur). Ici, c'est **lui qui demande** que les preuves soient récupérées à sa place.
 
+Citoyens prêts pour le passeport (téléphone de l'usager : https://usager.griot.test, puis `*226#`) :
+
+| Citoyen | Identifiant | Numéro USSD | PIN | Résultat attendu au guichet après « Confirmer » |
+|---|---|---|---|---|
+| Aminata Kaboré | `BF-0001` | `70000001` | `1234` | majeur : oui ; burkinabè : oui ; interdiction de sortie : non → **toutes les conditions sont vérifiées** |
+| Salif Compaoré | `BF-0005` | `70000005` | `1234` | idem, **toutes vérifiées** : condamné pour vol mais sans interdiction ; l'ONI n'apprend rien du vol |
+| Rasmata Nikiéma | `BF-0009` | `70000009` | `1234` | **« mineur : autorisation parentale requise »** (18 ans le 20/11) ; burkinabè : oui ; interdiction : non |
+| Karim Tiendrébéogo | `BF-0015` | `70000015` | `1234` | aperçu sans le casier ; interdiction : **refusé par le casier** (case vide = donnée insuffisante) → **résultat incomplet** |
+
 1. Guichet → se connecter `moussa.kone` (mot de passe + code).
 2. Démarche **Passeport ordinaire**, usager `BF-0001`, Envoyer → « **En attente de l'usager** ». Rien n'est encore
    transmis au guichet.

@@ -58,3 +58,10 @@
   n'a pas de seconde trace : seul le reçu, ou une ancre externe (feuille de route), la protège.
 - La trace d'un registre est exportée signée sur le réseau interne `registres`, sans authentification du lecteur : elle
   ne contient ni citoyen ni valeur (numéro de demande, jti, date, service, attribut, ok/refus).
+
+## Mineurs
+
+- **Le consentement d'un mineur par son représentant légal n'est pas traité.** Dans la démo, l'usager mineur
+  confirme lui-même sur son téléphone. Pour le passeport, « majeur = non » est une réponse signée : le guichet
+  affiche « mineur : autorisation parentale requise » et le dossier continue hors du système. La loi n°001-2021
+  confie ce consentement au représentant légal : voir `FEUILLE_DE_ROUTE.md`.

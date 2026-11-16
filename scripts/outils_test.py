@@ -79,7 +79,7 @@ def main():
             for nom, identifiant in presents.items():
                 kcadm("delete", f"clients/{identifiant}", "-r", "griot")
         # Le médiateur et les registres lisent OUTILS_TEST au démarrage : compose les recrée si la valeur a changé
-        subprocess.run(["docker", "compose", "up", "-d", "--wait", "mediateur", "registre-etat-civil",
+        subprocess.run(["docker", "compose", "up", "-d", "--wait", "--no-deps", "mediateur", "registre-etat-civil",
                         "registre-nationalite", "registre-casier"], cwd=RACINE, capture_output=True)
         presents = existants()
     print(f"OUTILS_TEST={'1' if actif else '0'} dans .env ; comptes de test dans Keycloak : "

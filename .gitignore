@@ -38,3 +38,6 @@ hors_ligne/
 # à côté du PDF source, à relire hors du dépôt (donnees_jury/ est déjà ignoré ci-dessus)
 *.provenance.json
 tests/donnees_formats/etat_civil_scanne.csv
+
+# Archives d images Docker : jamais dans le dépôt, où qu elles soient
+*.tar

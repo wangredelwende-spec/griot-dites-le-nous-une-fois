@@ -74,7 +74,7 @@ def main():
 
     # 4. Redémarrage : journal neuf (sa 1re ligne = chargement du catalogue), traces vides
     print("Redémarrage…", flush=True)
-    executer("docker", "compose", "up", "-d", "--wait", "mediateur", *[f"registre-{r}" for r in REGISTRES], *ECRANS)
+    executer("docker", "compose", "up", "-d", "--wait", "--no-deps", "mediateur", *[f"registre-{r}" for r in REGISTRES], *ECRANS)
 
     # 5. Contrôle : l'archive reste vérifiable (chaîne + double trace), le nouveau journal est intègre
     print("

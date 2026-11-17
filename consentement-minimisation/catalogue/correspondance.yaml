@@ -1,0 +1,20 @@
+# CORRESPONDANCE DES CHAMPS : l'UNIQUE endroit où figurent les noms de champs des registres du jury.
+#
+# À remplir à l'arrivée du contrat OpenAPI. À gauche : le nom que la passerelle utilise (ne pas changer) ;
+# à droite : le nom du champ dans la réponse du registre (le contrat). Tant qu'une valeur est vide (null),
+# la minimisation REFUSE (« correspondance non renseignée ») : on ne devine jamais un nom de champ.
+#
+# Rien d'autre à changer pour brancher un registre : le code ne contient aucun nom de champ du contrat.
+registres:
+  etat-civil:
+    nom: null
+    prenoms: null
+    date_naissance: null
+    lieu_naissance: null
+    pere: null
+    mere: null
+    date_deces: null
+  nationalite:
+    nationalite: null
+  casier:
+    nombre_condamnations: null

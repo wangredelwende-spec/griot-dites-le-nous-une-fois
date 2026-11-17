@@ -46,6 +46,34 @@ def rafraichir(demande: dict) -> dict:
     return demande
 
 
+# --- Accord par démarche : une durée, enregistré, retirable ---
+
+def enregistrer_accord(demande: dict):
+    """L'usager vient de confirmer : l'accord vaut pour CETTE démarche et CE service pendant « duree_accord_heures »."""
+    heures = P.CAT["demarches"].get(demande["demarche"], {}).get("duree_accord_heures")
+    if not heures:
+        return
+    maintenant = time.time()
+    with P.VERROU:
+        P.base.execute("INSERT OR REPLACE INTO accords (sujet, demandeur, demarche, donne_le, expire_le, retire_le) "
+                       "VALUES (?, ?, ?, ?, ?, NULL)",
+                       (demande["sujet"], demande["demandeur"], demande["demarche"], maintenant, maintenant + heures * 3600))
+
+
+def accord_valide(demande: dict) -> bool:
+    """Accord donné, pas expiré, pas retiré."""
+    with P.VERROU:
+        ligne = P.base.execute("SELECT expire_le, retire_le FROM accords WHERE sujet = ? AND demandeur = ? AND demarche = ?",
+                               (demande["sujet"], demande["demandeur"], demande["demarche"])).fetchone()
+    return bool(ligne) and ligne["retire_le"] is None and ligne["expire_le"] > time.time()
+
+
+def retirer_accord(demande: dict):
+    with P.VERROU:
+        P.base.execute("UPDATE accords SET retire_le = ? WHERE sujet = ? AND demandeur = ? AND demarche = ?",
+                       (time.time(), demande["sujet"], demande["demandeur"], demande["demarche"]))
+
+
 # --- Aperçu : construit depuis le catalogue, jamais écrit en dur ---
 
 def libelles(code_demarche: str) -> dict:
@@ -112,6 +140,7 @@ def confirmer(id_demande: str, usager: Usager, canal: str = Depends(canal)):
     demande = demande_de_l_usager(id_demande, usager)
     ligne = P.tracer(demande, "confirmation", "ok", canal=canal, **P.transmis(demande))
     P.changer(demande, statut="confirmee")
+    enregistrer_accord(demande)                     # valable pour les prochaines demandes de cette démarche
     return {"id_demande": id_demande, "statut": "confirmee", "empreinte": ligne["hash"]}
 
 
@@ -142,7 +171,9 @@ def accords(sujet_ref: str):
             "demarche": P.CAT["demarches"].get(demande["demarche"], {}).get("libelle", demande["demarche"]),
             "attributs": [{"code": v["attribut"], "libelle": connus.get(v["attribut"], {}).get("libelle", v["attribut"])}
                           for v in demande["volets"] if v["statut"] == "ok"],
-            "transmis": demande["statut"] == "remise"})
+            "transmis": demande["statut"] == "remise",
+            # Tant que l'accord est valable (durée du catalogue, non retiré), les prochaines demandes sont immédiates
+            "accord_valide": accord_valide(demande)})
     return resultat
 
 
@@ -160,12 +191,14 @@ def retirer(id_demande: str, usager: Usager, canal: str = Depends(canal)):
         motif = "accord retiré par l'usager : rien n'a été transmis"
         ligne = P.tracer(demande, "retrait", "ok", motif, canal=canal, **P.transmis(demande))
         P.changer(demande, statut="retiree", motif=motif)
+        retirer_accord(demande)
         P.effacer_reponses(demande)
         return {"id_demande": id_demande, "statut": "retiree", "transmis": False, "empreinte": ligne["hash"]}
     if demande["statut"] == "remise":
         motif = "accord retiré après la transmission : le service ne doit plus utiliser la réponse"
         ligne = P.tracer(demande, "retrait", "ok", motif, canal=canal, **P.transmis(demande))
         P.changer(demande, statut="retiree_apres_remise", motif=motif)
+        retirer_accord(demande)
         return {"id_demande": id_demande, "statut": "retiree_apres_remise", "transmis": True,
                 "empreinte": ligne["hash"]}
     raise HTTPException(409, f"rien à retirer (statut : {demande['statut']})")

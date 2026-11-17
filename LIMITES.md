@@ -34,8 +34,31 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
 | Conversion OCR / PDF / Excel des données du jury | profil docker `ocr`, jamais démarré | `docker compose --profile ocr up` |
 | Relais vers l'API du jury (`relais-api-jury`) | profil docker `api-jury`, jamais démarré | `--profile api-jury` |
 | Mooré | non proposé : aucune langue complète (colonnes vides dans `traduction-moore/`), l'écran reste en français | traduire, puis `integrer.py` |
+| Démarches passeport, bourse nationale, vérification de la majorité (+ services bourses, mairie, passeport, attribut « interdiction de sortie du territoire ») | retirées du catalogue actif le 17/11 : `consentement-minimisation/catalogue/demarches-inactives.yaml` (non chargé) ; les services sont retirés de `annuaire.yaml`, les groupes Keycloak de `realm-griot.json` | recopier le bloc dans `demarches.yaml`, ré-ajouter le service |
 | Signature Ed25519 des réponses des registres + double clé côté registre | **à désactiver à l'adaptation des registres au contrat du jury** (le contrat ne prévoit pas de signature) | — |
 | Double trace des registres (`verifier.py --registres`) | idem, liée à la signature | — |
+
+## Catalogue du cadre, accords et minimisation (17/11)
+
+- Trois démarches actives : concours direct (base légale : majeur, nationalité, casier vierge), entreprise individuelle au
+  CEFORE (consentement 7 jours : identité, casier vierge), certificat de nationalité (consentement 24 h : naissance et
+  filiation, pour le tribunal). **Les durées (168 h et 24 h) sont des choix de l'équipe, à confirmer.** Le concours est en
+  base légale : pas d'accord à donner, la consultation figure dans l'historique avec son texte.
+- Accord par démarche : donné quand l'usager confirme, enregistré (table `accords`, sans valeur), valable
+  `duree_accord_heures`, retirable. Accord valide : la même démarche pour le même service est remise immédiatement
+  (ligne `accord-valide` au journal). Retrait, expiration : l'usager est de nouveau consulté.
+- Identité et naissance/filiation sont des **valeurs précises** (pas un oui/non) : le registre simulé les renvoie par la
+  règle `champs` (exactement les cases déclarées), l'usager les voit mot pour mot dans l'aperçu avant l'envoi.
+- `catalogue/correspondance.yaml` : seul fichier où les noms de champs du jury seront écrits ; **vide tant que le contrat
+  n'est pas arrivé**. `regles_attributs/minimisation.py` calcule majeur, nationalité, casier, identité, naissance et
+  filiation depuis la fiche brute dans la passerelle, mais **n'est pas encore branché** à l'appel des registres (le flux
+  vivant utilise toujours les réponses signées des registres simulés).
+- Keycloak : `realm-griot.json` décrit les nouveaux groupes et comptes (CEFORE, tribunal), mais une pile **déjà
+  installée** ne les a pas : à ajouter dans la console Keycloak (ou réimporter le realm) avant de tester le guichet.
+- Textes mooré : `phrases-ussd.csv` a reçu des lignes françaises pour les nouveaux services et attributs ; les colonnes
+  mooré restent vides (rien n'est inventé). Les anciennes lignes (bourses, passeport…) sont conservées.
+- Le banc de pannes, les scripts de bout en bout (`tests/e2e`) et `scripts/` parlent encore des anciennes démarches :
+  à reprendre avant la prochaine reconstruction de la pile.
 
 ## Appels aux registres et clés API (17/11)
 

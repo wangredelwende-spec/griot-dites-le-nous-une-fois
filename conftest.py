@@ -135,6 +135,14 @@ AGENTS = {
 }
 
 
+@pytest.fixture(autouse=True)
+def accords_vides():
+    """La base de test est partagée : un accord donné dans un test ne doit pas rendre immédiate la demande d'un autre."""
+    with mediateur.VERROU:
+        mediateur.base.execute("DELETE FROM accords")
+    yield
+
+
 @pytest.fixture
 def client():
     from fastapi.testclient import TestClient

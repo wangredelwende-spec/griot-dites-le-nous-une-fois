@@ -145,6 +145,14 @@ with VERROU:
             jeton TEXT,                  -- réponse signée en attente, effacée dès la remise ou l'expiration
             PRIMARY KEY (id_demande, attribut)
         );
+        -- Accord de l'usager PAR DÉMARCHE : donné quand il confirme, valable « duree_accord_heures » (catalogue),
+        -- retirable à tout moment. Tant qu'il est valable, la même démarche pour le même service est remise tout de
+        -- suite. Aucune valeur, jamais : seulement qui (pseudonyme), pour quelle démarche, jusqu'à quand.
+        CREATE TABLE IF NOT EXISTS accords (
+            sujet TEXT NOT NULL, demandeur TEXT NOT NULL, demarche TEXT NOT NULL,
+            donne_le REAL NOT NULL, expire_le REAL NOT NULL, retire_le REAL,
+            PRIMARY KEY (sujet, demandeur, demarche)
+        );
         -- Identifiants (jti) des réponses déjà acceptées : une réponse ne sert qu'une fois
         CREATE TABLE IF NOT EXISTS jti_vus (jti TEXT PRIMARY KEY);
     """)
@@ -588,6 +596,10 @@ async def traiter_demande(d: Demande, agent: dict) -> dict:
     # 4. Base légale : remise immédiate. Consentement : en attente de l'usager (aperçu exact).
     changer(demande, expire_le=time.time() + DUREE_CONSENTEMENT)
     if demarche["base"] == "base_legale":
+        return remettre(demande)
+    if usager.accord_valide(demande):
+        # L'usager a déjà donné son accord pour cette démarche, et il n'est ni expiré ni retiré : réponse immédiate
+        tracer(demande, "accord-valide", "ok", "accord de l'usager encore valable : réponse remise sans nouvelle confirmation")
         return remettre(demande)
     changer(demande, statut="en_attente")
     return etat(demande)

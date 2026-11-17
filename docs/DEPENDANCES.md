@@ -2,9 +2,12 @@
 
 Notre code est sous **AGPL-3.0** ([LICENSE](../LICENSE)). Cette page liste tout ce qu'il utilise.
 
-**D'où viennent les informations (relevé du 17/11/2026, `main` au commit `053d043`)**
+**D'où viennent les informations (relevé du 17/11/2026, `main` au commit `2e2b4e4`)**
 
-- **Versions** : lues dans les fichiers du projet (`*/requirements.txt`, `docker-compose.yml`, `*/Dockerfile`).
+La colonne « Utilisée par » donne les **couches** du sujet ([ARCHITECTURE.md](ARCHITECTURE.md)). Les fichiers où
+chaque version est écrite : [Où trouver quoi](OU_TROUVER_QUOI.md).
+
+- **Versions** : lues dans les fichiers du projet (fichiers `requirements.txt`, `docker-compose.yml`, `Dockerfile`).
   Toutes sont épinglées : jamais « latest ».
 - **Licences des bibliothèques Python** : lues dans les métadonnées officielles de chaque paquet, à la version
   exacte (fichiers `.whl` téléchargés depuis PyPI, sans rien installer).
@@ -15,20 +18,20 @@ Notre code est sous **AGPL-3.0** ([LICENSE](../LICENSE)). Cette page liste tout 
 
 | Bibliothèque | Version | Licence | Rôle | Utilisée par |
 |---|---|---|---|---|
-| FastAPI | 0.163.1 | MIT | Serveur web (API et pages) | guichet, médiateur, registres, USSD |
-| Uvicorn | 0.54.0 | BSD-3-Clause | Lance le serveur web | guichet, médiateur, registres, USSD |
-| Jinja2 | 3.1.6 | BSD-3-Clause | Pages HTML rendues par le serveur | guichet, USSD |
-| python-multipart | 0.0.34 | Apache-2.0 | Lecture des formulaires | guichet, USSD |
-| itsdangerous | 2.2.0 | BSD-3-Clause | Cookie de session signé | guichet, USSD |
-| HTTPX | 0.28.1 | BSD-3-Clause | Appels HTTP avec délai maximal | guichet, médiateur, USSD, scripts |
+| FastAPI | 0.163.1 | MIT | Serveur web (API et pages) | registres, passerelle, espace usager, guichet |
+| Uvicorn | 0.54.0 | BSD-3-Clause | Lance le serveur web | registres, passerelle, espace usager, guichet |
+| Jinja2 | 3.1.6 | BSD-3-Clause | Pages HTML rendues par le serveur | espace usager (USSD, portail), guichet |
+| python-multipart | 0.0.34 | Apache-2.0 | Lecture des formulaires | espace usager, guichet |
+| itsdangerous | 2.2.0 | BSD-3-Clause | Cookie de session signé | espace usager, guichet |
+| HTTPX | 0.28.1 | BSD-3-Clause | Appels HTTP avec délai maximal | passerelle, espace usager, guichet, résilience (scripts) |
 | Authlib | 1.9.8 | BSD-3-Clause | Connexion des agents par Keycloak (OpenID Connect) | guichet |
-| PyJWT (extra `crypto`) | 2.15.1 | MIT | **Signature** et vérification des réponses (EdDSA / Ed25519) | guichet, médiateur, registres |
-| cryptography | 50.0.2 | Apache-2.0 OU BSD-3-Clause | Clés Ed25519, utilisées par PyJWT | guichet, médiateur, registres |
-| PyYAML | 6.0.3 | MIT | Lecture du catalogue et des adaptateurs | guichet, médiateur, registres, USSD, scripts |
+| PyJWT (extra `crypto`) | 2.15.1 | MIT | **Signature** et vérification des réponses (EdDSA / Ed25519) | registres, passerelle, guichet |
+| cryptography | 50.0.2 | Apache-2.0 OU BSD-3-Clause | Clés Ed25519, utilisées par PyJWT | registres, passerelle, guichet |
+| PyYAML | 6.0.3 | MIT | Lecture du catalogue et des adaptateurs | registres, passerelle, consentement (catalogue), espace usager, guichet, scripts |
 | openpyxl | 3.1.5 | MIT | Lecture de données Excel (.xlsx) | registres, tests |
 | pdfplumber | 0.11.10 | MIT | Lecture de données PDF (texte) | registres, tests |
 
-Outils de test (`tests/requirements.txt`) :
+Outils de test :
 
 | Bibliothèque | Version | Licence | Rôle |
 |---|---|---|---|
@@ -74,17 +77,17 @@ le 17/11/2026 avec les fichiers du projet ; une image construite un autre jour p
 
 | Image | Version | Licence (amont) | Rôle |
 |---|---|---|---|
-| `postgres` | 17.11-alpine | PostgreSQL License | Base de données de Keycloak **uniquement** |
+| `postgres` | 17.11-alpine | PostgreSQL License | Base de données de Keycloak **uniquement** (guichet) |
 | `quay.io/keycloak/keycloak` | 26.8.1 | Apache-2.0 | Comptes des agents, mot de passe + TOTP, rôles et groupes |
 | `caddy` | 2.11.7-alpine | Apache-2.0 | HTTPS (autorité interne), seul point d'entrée |
-| `python` | 3.13.5-slim-bookworm | PSF-2.0 pour Python ; paquets Debian sous leurs propres licences libres | Base des 6 images construites par le projet : guichet, médiateur, registres, USSD, OCR, relais |
+| `python` | 3.13.5-slim-bookworm | PSF-2.0 pour Python ; paquets Debian sous leurs propres licences libres | Base des 7 images construites par le projet : registres, passerelle, USSD, portail web, guichet, OCR, relais |
 
-Paquets Debian ajoutés **seulement** dans l'image `ocr` (`ocr/Dockerfile`), lancée à part, sans réseau :
+Paquets Debian ajoutés **seulement** dans l'image de l'OCR (couche registres, données du jury), lancée à part, sans réseau :
 
 | Paquet | Licence (amont) | Rôle |
 |---|---|---|
 | `tesseract-ocr`, `tesseract-ocr-fra` | Apache-2.0 | Lire un PDF scanné (reconnaissance de caractères) |
-| `poppler-utils` (`pdftoppm`) | GPL-2.0 (indiquée dans `ocr/Dockerfile`) | Transformer les pages du PDF en images |
+| `poppler-utils` (`pdftoppm`) | GPL-2.0 (indiquée dans le Dockerfile de l'OCR) | Transformer les pages du PDF en images |
 
 ## 4. Outils de développement et de démonstration
 

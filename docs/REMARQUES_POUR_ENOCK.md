@@ -1,6 +1,8 @@
 # Remarques pour Enock
 
-Relu le 17/11/2026, d'après le code de `main` au commit `053d043`.
+Relu le 17/11/2026, d'après le code de `main` au commit `053d043`, mis à jour au commit `2e2b4e4`.
+Les chemins cités ici sont ceux d'aujourd'hui : ils vont changer (un dossier par couche). Les chemins à jour seront
+dans [OU_TROUVER_QUOI.md](OU_TROUVER_QUOI.md).
 
 ## 1. Tes fichiers : rien trouvé à relire
 
@@ -23,13 +25,17 @@ Si un de tes textes dit autre chose, c'est lui qui est dépassé, pas le code.
 | Concours | Démarche secondaire : **base légale**, 3 registres en parallèle, âge **18 à 37 ans au 31/12/2026** | `docs/test-manuel.md`, scène 1 ter |
 | Direction des concours | Elle dépend du **ministère des Serviteurs du peuple** (ancien ministère de la Fonction publique, renommé au remaniement du 12 janvier 2026) | `catalogue/annuaire.yaml` |
 | Majorité | **18 ans** (avant : 20 ans), loi n°012-2025/ALT ; c'est un paramètre | démarche « Vérifier la majorité » |
-| Écran de l'usager | **USSD `*226#`** à `https://usager.griot.test`. Pas de portail web pour l'instant | `ussd_sim/` |
+| Écran de l'usager | **USSD `*226#`** à `https://usager.griot.test`, et **portail web** à `https://usager.griot.test/portail` (mêmes comptes, même journal) | `ussd_sim/`, `portail_usager/` |
+| Présentation | **Par couche**, comme le demande le sujet : registres, passerelle d'échange, consentement et minimisation, journal de traçabilité, espace usager ; guichet et résilience en bonus | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| API des registres | **Rien de définitif** : le jury publiera un contrat OpenAPI commun aux 3 registres | — |
 | Menu USSD | 1. Demandes en attente, 2. Qui a consulté mes données, 3. Retirer un accord, 4. Langue (seulement si une 2ᵉ langue est complète), 0. Quitter | `traduction-moore/phrases-ussd.csv` |
 | Reçu | **16 caractères** en 4 groupes (« 9035 47b3 1c2e 9f04 ») | `journal/verifier.py` |
 | Mooré | **Jamais proposé tant qu'il est incomplet**. Malkiram traduit dans `traduction-moore/A_TRADUIRE_MALKIRAM.xlsx` (branche `docs-claude`) | `docs/fiche-oral.md`, question 28 |
 | « Scénario d'Awa » | Awa (`awa.ouedraogo`) est agente du **service des bourses**. La scène principale est maintenant le passeport : il faut peut-être changer de personnage. L'usagère du passeport dans la démo : Aminata Kaboré (`BF-0001`, téléphone `70000001`) | `docs/test-manuel.md` |
 
 ## 3. Dans `main` : passages dépassés (à signaler à Esther, pas à toi)
+
+- `docs/test-manuel.md`, préparation : « 9 services « healthy » ». Depuis le portail web, il y en a **10**.
 
 - `docs/REGLES_DU_SOCLE.md`, règle 3 : l'exemple dit « L'ONI recevra : majeur = oui ; burkinabè = oui ». Mais le
   passeport ne demande plus l'âge (voir `catalogue/demarches.yaml`).

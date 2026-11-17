@@ -165,7 +165,7 @@ services:
       LIMITE_PAR_CITOYEN: "0"              # 0 = désactivé (gênerait l'épreuve en direct) ; mettre 5 pour réactiver
       LIMITE_SUJETS: "0"                   # 0 = désactivé ; citoyens différents par agent et par heure (le banc l'active seul)
       FENETRE_LIMITE: "3600"
-      LIMITE_EXEMPTES: "agent.banc,agent.banc.bourses"   # exemptés SEULEMENT si OUTILS_TEST=1 (LIMITES.md)
+      LIMITE_EXEMPTES: "agent.banc,agent.banc.cefore"   # exemptés SEULEMENT si OUTILS_TEST=1 (LIMITES.md)
     # Un secret par écran usager (USSD, portail web) : le canal écrit au journal vient du secret présenté
     secrets: [sujet_hmac, canal_usager, canal_web]
     volumes:

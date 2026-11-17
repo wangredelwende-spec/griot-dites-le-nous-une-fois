@@ -21,7 +21,7 @@ from registre_app import adaptateur
 
 INTERDICTION = {"attribut": "interdiction_sortie_territoire", "libelle": "interdiction de sortie du territoire",
                 "attendu": False, "parametres": {}}
-VIERGE = {"attribut": "casier_judiciaire_vierge", "libelle": "casier judiciaire vierge", "parametres": {}}
+VIERGE = {"attribut": "casier_vierge", "libelle": "casier judiciaire vierge", "parametres": {}}
 ABSENTS = ("BF-0003", "BF-0099")
 
 
@@ -35,11 +35,11 @@ def casier(absence: str, tmp_path):
 
 # --- absence: refus (réglage du dépôt) : le registre du casier refuse lui-même ---
 
-@pytest.mark.parametrize("attribut", [INTERDICTION["attribut"], VIERGE["attribut"]])
+@pytest.mark.parametrize("attribut", [VIERGE["attribut"]])    # (interdiction de sortie : plus aucun service autorisé)
 @pytest.mark.parametrize("sujet", ABSENTS)
 def test_absence_refus_le_casier_refuse(tmp_path, attribut, sujet):
     registre = casier("refus", tmp_path)
-    assert registre.autorise(attribut, "service-passeport")       # les deux réglages sont permis au passeport
+    assert registre.autorise(attribut, "direction-concours")
     with pytest.raises(adaptateur.Refus, match="introuvable"):
         registre.calculer(attribut, sujet)
 
@@ -48,8 +48,8 @@ def test_absence_refus_le_casier_refuse(tmp_path, attribut, sujet):
 
 def test_l_etat_civil_ne_confirme_pas_l_identite_au_passeport():
     etat_civil = adaptateur.Adaptateur(ADAPTATEUR_TEST)
-    assert not etat_civil.autorise("personne_connue", "service-passeport")
-    assert not etat_civil.autorise("age_entre", "service-passeport")
+    assert not etat_civil.autorise("personne_connue", "tribunal")
+    assert not etat_civil.autorise("majeur", "tribunal")
 
 
 @pytest.mark.parametrize("reglage", [INTERDICTION, VIERGE], ids=["interdiction", "vierge"])
@@ -57,16 +57,16 @@ def test_l_etat_civil_ne_confirme_pas_l_identite_au_passeport():
 @respx.mock
 def test_absence_vierge_passeport_refuse(client, monkeypatch, tmp_path, reglage, sujet):
     reel = casier("vierge", tmp_path)
-    passeport = mediateur.CAT["demarches"]["passeport-ordinaire"] | {
-        "attributs": [{"attribut": "nationalite_burkinabe", "libelle": "burkinabè", "parametres": {}}, reglage]}
+    passeport = mediateur.CAT["demarches"]["test-passeport"] | {
+        "attributs": [{"attribut": "nationalite_bf", "libelle": "burkinabè", "parametres": {}}, reglage]}
     monkeypatch.setattr(mediateur, "CAT", mediateur.CAT | {
         "absence_vierge": {"casier"},
-        "demarches": mediateur.CAT["demarches"] | {"passeport-ordinaire": passeport}})
+        "demarches": mediateur.CAT["demarches"] | {"test-passeport": passeport}})
 
     def etat_civil(requete):
         corps = json.loads(requete.content)
         # Comme le vrai registre : double clé -> refus signé pour le service passeport
-        assert corps["attribut"] == "personne_connue" and corps["destinataire"] == "service-passeport"
+        assert corps["attribut"] == "personne_connue" and corps["destinataire"] == "tribunal"
         return httpx.Response(200, json={"jeton": refus_registre(corps, motif="service non autorisé")})
 
     def registre_casier(requete):          # le casier « absence: vierge » répondrait favorablement…
@@ -78,7 +78,7 @@ def test_absence_vierge_passeport_refuse(client, monkeypatch, tmp_path, reglage,
     respx.post(URL_NATIONALITE).mock(side_effect=lambda r: httpx.Response(
         200, json={"jeton": jeton_registre(json.loads(r.content))}))
     client.agent["nom"] = "moussa.kone"
-    r = client.post("/demandes", json=demande(demarche="passeport-ordinaire", sujet=sujet)).json()
+    r = client.post("/demandes", json=demande(demarche="test-passeport", sujet=sujet)).json()
     v = next(v for v in r["volets"] if v["attribut"] == reglage["attribut"])
     # …mais il n'est jamais appelé : identité non confirmée -> refus, aucune valeur, rien dans l'aperçu
     assert v["statut"] == "refuse" and v["motif"] == "identité non confirmée par l'état civil"

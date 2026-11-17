@@ -1,12 +1,13 @@
-# Démarche VOLONTAIREMENT invalide (démo « le médiateur refuse, et continue de tourner »).
+# Démarche VOLONTAIREMENT invalide (démo « la passerelle refuse, et continue de tourner »).
 # À coller À LA FIN de consentement-minimisation/catalogue/demarches.yaml, sans cette entête. Elle demande la DATE DE NAISSANCE :
-# aucun registre ne déclare cet attribut, donc le médiateur la refuse et garde le catalogue en vigueur.
+# aucun registre ne déclare cet attribut, donc la passerelle la refuse et garde le catalogue en vigueur.
 
   curiosite-date-naissance:
     libelle: Date de naissance complète
-    services: [service-bourses]
-    finalite: constitution d'un fichier des étudiants
+    services: [cefore]
+    finalite: constitution d'un fichier d'entrepreneurs
     base: consentement
+    duree_accord_heures: 24
     attributs:
       - attribut: date_naissance
         libelle: date de naissance

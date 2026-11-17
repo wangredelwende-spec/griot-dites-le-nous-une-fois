@@ -1,6 +1,6 @@
 """Test de bout en bout « Vous voyez avant, vous vérifiez après », contre la pile qui tourne.
 
-1. agent.banc.bourses (Service des bourses) demande la « Bourse nationale » pour BF-0012 : en attente de l'usager.
+1. agent.banc.cefore (Service des bourses) demande la « Bourse nationale » pour BF-0012 : en attente de l'usager.
 2. L'usager (téléphone 70000012) compose *226#, voit l'aperçu exact et confirme : il reçoit un reçu.
 3. Le guichet actualise : « nationalité burkinabè : oui », signature vérifiée.
 4. L'usager consulte « Qui a consulté mes données » : le reçu y figure, sans la valeur.
@@ -17,7 +17,7 @@ import httpx
 
 from e2e_jalon1 import autorite_caddy, connecter
 
-AGENT = "agent.banc.bourses"
+AGENT = "agent.banc.cefore"
 GUICHET, USSD = "https://guichet.griot.test", "https://usager.griot.test"
 
 
@@ -26,7 +26,7 @@ def texte(page: str) -> str:
 
 
 def demander(guichet: httpx.Client, csrf: str) -> str:
-    r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf, "demarche": "bourse-nationale", "sujet_ref": "BF-0012"})
+    r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf, "demarche": "entreprise-individuelle-cefore", "sujet_ref": "BF-0012"})
     assert "En attente de l'usager" in texte(r.text), texte(r.text)[-300:]
     return str(r.url)
 

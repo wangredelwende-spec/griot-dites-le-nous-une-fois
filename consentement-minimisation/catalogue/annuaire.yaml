@@ -14,23 +14,21 @@ identifiant_usager:
 # jamais d'un formulaire). « nom » = texte montré à l'usager.
 # « cle_api_sha256 » = empreinte de la clé API de l'administration (en-tête X-Cle-Api) : on ne garde jamais la clé.
 services:
-  service-bourses:
-    groupe: Service des bourses
-    nom: Le service des bourses
-    cle_api_sha256: 64b3333361784113eac1fd27a59382878a55820efc7c11511c303e4896d905cb   # clé de DÉMO « cle-demo-bourses » ; en production : une clé tirée au hasard
   direction-concours:                # nouveau nom depuis le remaniement de janvier 2026 ; code inchangé
     groupe: Direction des concours – ministère des Serviteurs du peuple
     nom: La Direction des concours – ministère des Serviteurs du peuple
+    nom_court: La direction des concours   # dans l'aperçu « … recevra : … » (écran USSD de 160 caractères)
     cle_api_sha256: dc1720cf6ccf4d3177bc8dfb85849c19a9d99afeea21674cf6489419ab89516a   # clé de DÉMO « cle-demo-concours » ; en production : une clé tirée au hasard
-  mairie:
-    groupe: Mairie
-    nom: La mairie
-    cle_api_sha256: c2d44606cd78e3a9b89fd155bf743689634ae3a113372aff66db058f9951d46a   # clé de DÉMO « cle-demo-mairie » ; en production : une clé tirée au hasard
-  service-passeport:
-    groupe: Service des passeports – ONI (ministère de la Sécurité)
-    nom: Le Service des passeports – ONI (ministère de la Sécurité)
-    nom_court: L'ONI (passeports)      # dans l'aperçu « … recevra : … » (écran USSD de 160 caractères)
-    cle_api_sha256: 156e4f5cc17d4731dd54c7e9dc0565d19244325ae0fd5e249609ef02aed17f12   # clé de DÉMO « cle-demo-passeport » ; en production : une clé tirée au hasard
+  cefore:
+    groupe: CEFORE – guichet des entreprises
+    nom: Le CEFORE
+    cle_api_sha256: 4d4a6469316462e44b92897c594fca3266386e7c388a54bcc263494d8f565d75   # clé de DÉMO « cle-demo-cefore »
+  tribunal:
+    groupe: Tribunal – certificats de nationalité
+    nom: Le tribunal
+    cle_api_sha256: 85d7bd4a4aff42e8915aebe0da175fdd4e277c776b5dc47ca926b566fe203309   # clé de DÉMO « cle-demo-tribunal »
+  # Services retirés du catalogue actif le 17/11 (bourses, mairie, passeport) : voir LIMITES.md et
+  # consentement-minimisation/catalogue/demarches-inactives.yaml (conservés, non chargés).
 
 # Registres joignables par le médiateur (réseau Docker « registres » uniquement).
 # La clé publique de chaque registre est lue dans /publiques/<registre>/cle.pem (volume du registre, lecture seule).

@@ -21,20 +21,20 @@ sys.modules["ussd_app"] = ussd
 spec.loader.exec_module(ussd)
 
 M = "http://mediateur:8000"
-EN_ATTENTE = [{"id_demande": "d-1", "service": "Le service des bourses", "code_service": "service-bourses",
+EN_ATTENTE = [{"id_demande": "d-1", "service": "Le service des bourses", "code_service": "cefore",
                "demarche": "Bourse nationale", "finalite": "attribution de la bourse nationale",
-               "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè", "parametres": {},
+               "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè", "parametres": {},
                               "valeur": "oui"}], "expire_le": 1794838200,
                "apercu": "Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre."}]
-CONCOURS = [{"code": "age_entre", "libelle": "âge de 18 à 37 ans au 31/12/2026"},
-            {"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"},
-            {"code": "casier_judiciaire_vierge", "libelle": "casier judiciaire vierge"}]
+CONCOURS = [{"code": "majeur", "libelle": "âge de 18 à 37 ans au 31/12/2026"},
+            {"code": "nationalite_bf", "libelle": "nationalité burkinabè"},
+            {"code": "casier_vierge", "libelle": "casier judiciaire vierge"}]
 
 
 def ligne(n, evenement="remise", service="direction-concours", resultat="ok"):
     return {"n": n, "ts": "2026-11-16T11:54:30Z", "agent": "issa.sawadogo", "service": "…", "code_service": service,
             "demarche": "…", "finalite": "…", "base": "base_legale", "texte_base": "…",
-            "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"}],
+            "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè"}],
             "evenement": evenement, "resultat": resultat, "motif": "", "empreinte": f"{n:08x}" + "a" * 56}
 
 
@@ -67,7 +67,7 @@ def test_apercu_puis_confirmation_avec_recu():
     tel = Telephone()
     tel.connecter()
     apercu = tel.taper("1")
-    assert apercu.startswith("Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre.")
+    assert apercu.startswith("Le CEFORE recevra : nationalité burkinabè = oui. Rien d'autre.")
     assert "1. Confirmer 2. Refuser" in apercu
     assert tel.taper("1") == "Confirmé. Reçu : 3f9a 1c0b 0000 0000\n0. Menu"
     assert confirmer.calls[0].request.headers["X-Cle-Canal"] == "secret-de-test-canal"
@@ -113,7 +113,7 @@ def test_detail_avec_finalite_base_et_recu_de_16_caracteres():
 @respx.mock
 def test_confirmation_faite_sur_le_web_visible_a_l_ussd():
     """Même journal pour les deux écrans : une confirmation faite sur le portail web apparaît ici, marquée (web)."""
-    web = ligne(8, "confirmation", "service-bourses") | {"canal": "web", "base": "consentement",
+    web = ligne(8, "confirmation", "cefore") | {"canal": "web", "base": "consentement",
                                                        "finalite": "vérification de l'âge minimal pour concourir " * 4}
     respx.get(f"{M}/usagers/BF-0012/historique").mock(return_value=httpx.Response(200, json=[web]))
     tel = Telephone()
@@ -203,17 +203,17 @@ def test_apercu_de_plusieurs_attributs_tient_en_160():
     tel = Telephone()
     tel.connecter()
     apercu = tel.taper("1")
-    assert apercu.startswith("(1/2) Le service des bourses recevra : âge = oui ; nation. = oui ; casier = oui. "
+    assert apercu.startswith("(1/2) Le CEFORE recevra : âge = oui ; nation. = oui ; casier = oui. "
                              "Rien d'autre.")
     assert "…" not in apercu and "1. Confirmer 2. Refuser" in apercu
 
 
-ACCORDS = [{"id_demande": "d-7", "code_service": "service-bourses", "service": "Le service des bourses",
+ACCORDS = [{"id_demande": "d-7", "code_service": "cefore", "service": "Le service des bourses",
             "demarche": "Bourse nationale", "transmis": False,
-            "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"}]},
-           {"id_demande": "d-8", "code_service": "service-bourses", "service": "Le service des bourses",
+            "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè"}]},
+           {"id_demande": "d-8", "code_service": "cefore", "service": "Le service des bourses",
             "demarche": "Bourse nationale", "transmis": True,
-            "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"}]}]
+            "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè"}]}]
 
 
 @respx.mock
@@ -225,8 +225,8 @@ def test_retirer_un_accord_pas_encore_transmis():
     tel.connecter()
     assert "3. Retirer un accord" in tel.ecran()
     liste = tel.taper("3")
-    assert liste.splitlines()[:3] == ["Vos accords :", "1. Bourses nation. en cours", "2. Bourses nation. transmis"]
-    assert tel.taper("1").startswith("Retirer votre accord ? Le service des bourses : nation.")
+    assert liste.splitlines()[:3] == ["Vos accords :", "1. CEFORE nation. en cours", "2. CEFORE nation. transmis"]
+    assert tel.taper("1").startswith("Retirer votre accord ? Le CEFORE : nation.")
     assert tel.taper("1") == "Accord retiré. Rien n'a été transmis. Reçu : 77aa 77aa 77aa 77aa\n0. Menu"
     assert b'"sujet_ref":"BF-0012"' in retirer.calls[0].request.content.replace(b" ", b"")
 
@@ -245,7 +245,7 @@ def test_retirer_un_accord_deja_transmis():
 
 @respx.mock
 def test_alerte_montre_son_motif():
-    alerte = ligne(4, "alerte", "service-bourses", "refuse") | {
+    alerte = ligne(4, "alerte", "cefore", "refuse") | {
         "motif": "agent bloqué : plus de 5 citoyens différents consultés en 60 minutes, consultation à contrôler"}
     respx.get(f"{M}/usagers/BF-0012/historique").mock(return_value=httpx.Response(200, json=[alerte]))
     tel = Telephone()
@@ -258,8 +258,8 @@ def test_alerte_montre_son_motif():
 # --- Passeport : l'écran USSD complet (aperçu + choix) tient en 160 caractères, avec ou sans le repli casier ---
 
 def apercu_passeport(dernier: dict) -> list[dict]:
-    attributs = [{"code": "nationalite_burkinabe", "libelle": "burkinabè", "parametres": {}, "valeur": "oui"}, dernier]
-    return [{"id_demande": "d-p", "service": "…", "code_service": "service-passeport", "demarche": "Passeport ordinaire",
+    attributs = [{"code": "nationalite_bf", "libelle": "burkinabè", "parametres": {}, "valeur": "oui"}, dernier]
+    return [{"id_demande": "d-p", "service": "…", "code_service": "tribunal", "demarche": "Passeport ordinaire",
              "finalite": "établissement d'un passeport ordinaire", "attributs": attributs, "expire_le": 1794838200,
              "apercu": "…"}]
 
@@ -267,7 +267,7 @@ def apercu_passeport(dernier: dict) -> list[dict]:
 @pytest.mark.parametrize("dernier, attendu", [
     ({"code": "interdiction_sortie_territoire", "libelle": "interdiction de sortie du territoire", "parametres": {},
       "valeur": "non"}, "interdiction de sortie du territoire = non"),
-    ({"code": "casier_judiciaire_vierge", "libelle": "casier judiciaire vierge", "parametres": {}, "valeur": "oui"},
+    ({"code": "casier_vierge", "libelle": "casier judiciaire vierge", "parametres": {}, "valeur": "oui"},
      "casier judiciaire vierge = oui"),                                       # repli du jour J
 ])
 @respx.mock
@@ -276,7 +276,7 @@ def test_ecran_passeport_tient_en_160_caracteres(dernier, attendu):
     tel = Telephone()
     tel.connecter()
     ecran = tel.taper("1")              # taper() vérifie déjà ≤ 160 caractères
-    assert "(passeports) recevra : burkinabè = oui ; " + attendu + ". Rien d'autre." in ecran
+    assert "Le tribunal recevra : burkinabè = oui ; " + attendu + ". Rien d'autre." in ecran
     assert "1. Confirmer 2. Refuser" in ecran
 
 
@@ -332,11 +332,11 @@ def test_libelle_age_traduit_avec_les_seuils_de_la_demarche(monkeypatch):
     reste le libellé du catalogue. (Mooré simulé ici par une copie marquée : on n'invente jamais de mooré.)"""
     faux = {cle: f"[mos] {texte}" for cle, texte in ussd.TEXTES["fr"].items()}
     monkeypatch.setitem(ussd.TEXTES, "mos", faux)
-    concours = {"code": "age_entre", "libelle": "âge de 18 à 37 ans au 31/12/2026",
+    concours = {"code": "majeur", "libelle": "âge de 18 à 37 ans au 31/12/2026",
                 "parametres": {"min": 18, "max": 37, "date_reference": "2026-12-31"}}
-    majorite = {"code": "age_entre", "libelle": "majeur (18 ans accomplis)",
+    majorite = {"code": "majeur", "libelle": "majeur (18 ans accomplis)",
                 "parametres": {"min": 18, "date_reference": "aujourd'hui"}}
     assert ussd.nom_attribut({"langue": "mos"}, concours) == "[mos] âge entre 18 et 37 ans"
     assert ussd.nom_attribut({"langue": "mos"}, majorite) == "[mos] âge d'au moins 18 ans"
     assert ussd.nom_attribut({"langue": "fr"}, concours) == "âge de 18 à 37 ans au 31/12/2026"     # inchangé
-    assert ussd.nom_attribut({"langue": "mos"}, {"code": "age_entre", "libelle": "x"}) == "x"     # sans seuils
+    assert ussd.nom_attribut({"langue": "mos"}, {"code": "majeur", "libelle": "x"}) == "x"     # sans seuils

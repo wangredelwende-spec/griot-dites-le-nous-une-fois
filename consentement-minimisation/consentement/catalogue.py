@@ -63,6 +63,9 @@ def valider(demarches: dict, services: dict, attributs: dict) -> list[str]:
                 problemes.append(f"« {cle} » doit être un texte non vide (ou être retiré)")
         if d.get("base") not in BASES:
             problemes.append("base manquante ou inconnue (consentement | base_legale)")
+        if d.get("base") == "consentement" and (type(d.get("duree_accord_heures")) is not int
+                                                or not 1 <= d["duree_accord_heures"] <= 8760):
+            problemes.append("consentement sans « duree_accord_heures » (nombre entier d'heures, 1 à 8760)")
         if d.get("base") == "base_legale" and not d.get("texte"):
             problemes.append("base légale sans texte cité")
         if not d.get("services") or any(s not in services for s in d["services"]):
@@ -114,7 +117,8 @@ def charger(brut: bytes | None = None) -> dict:
         bases[registre] = conf.get("bases") or {}     # mode accepté par service (consentement / base légale)
         for code, a in conf["attributs"].items():
             attributs[code] = {"registre": registre, "regle": a["regle"], "claim": a["claim"],
-                               "services": a.get("services", [])}
+                               "services": a.get("services", []),
+                               "champs": a.get("champs") or []}      # règle « champs » : cases renvoyées, rien d'autre
         if conf.get("absence") == "vierge":
             absence_vierge.add(registre)
 

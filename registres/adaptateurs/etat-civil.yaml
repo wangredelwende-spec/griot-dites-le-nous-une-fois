@@ -16,6 +16,11 @@ identite: nip
 champs:
   date_naissance: date_naissance
   date_deces: date_deces
+  nom: nom
+  prenoms: prenoms
+  lieu_naissance: lieu_naissance
+  pere: pere
+  mere: mere
 
 # Une fiche dont « date_deces » est remplie est refusée
 refuser_si_decede: true
@@ -28,9 +33,8 @@ motif_refus_public: "réponse impossible, s'adresser à l'état civil"
 # Le registre vérifie lui-même le jeton de l'agent : le service n'est plus une simple déclaration du médiateur.
 groupes:
   Direction des concours – ministère des Serviteurs du peuple: direction-concours
-  Service des bourses: service-bourses
-  Mairie: mairie
-  Service des passeports – ONI (ministère de la Sécurité): service-passeport
+  CEFORE – guichet des entreprises: cefore
+  Tribunal – certificats de nationalité: tribunal
 
 # Attributs calculables. Seul le résultat est renvoyé, jamais la fiche.
 # « services » = DOUBLE CLÉ : le registre refuse lui-même tout service absent de cette liste,
@@ -45,27 +49,30 @@ groupes:
 bases:
   direction-concours:
     base_legale: ["loi n°081-2015/CNT", "loi n°012-2025/ALT"]   # concours (statut général) ; majorité civile
-  service-bourses:
-    consentement: true                                           # ex. aide au transport des étudiants
-    base_legale: ["loi n°012-2025/ALT"]                          # vérifier la majorité
-  mairie:
-    base_legale: ["loi n°012-2025/ALT"]
-  # service-passeport : absent. L'ONI connaît l'âge par la CNIB : l'état civil ne lui répond pas.
+  cefore:
+    consentement: true                                           # entreprise individuelle : l'usager confirme
+  tribunal:
+    consentement: true                                           # certificat de nationalité : l'usager confirme
 
 attributs:
-  age_entre:
+  majeur:
     regle: age_entre                # paramètres de la demande : min, max (facultatif), date_reference
     champ: date_naissance
-    claim: age_equal_or_over        # réponse : {"age_equal_or_over": {"18": true, "38": false}, "date_reference": "2026-12-31"}
+    claim: age_equal_or_over        # réponse : {"age_equal_or_over": {"18": true}, "date_reference": "2026-11-17"}
     services:
       direction-concours:
-        - {min: 18, max: 37, date_reference: "2026-12-31"}   # concours direct adjoints administratifs (communiqué)
         - {min: 18, date_reference: aujourd'hui}             # majorité civile (loi n°012-2025/ALT)
-      service-bourses:
-        - {min: 18, date_reference: aujourd'hui}
-      mairie:
-        - {min: 18, date_reference: aujourd'hui}
+  identite:
+    regle: champs                   # renvoie les cases listées (et RIEN d'autre) ; case vide -> refus
+    champs: [nom, prenoms]
+    claim: identite                 # réponse : {"identite": {"nom": "KABORE", "prenoms": "Aminata"}}
+    services: [cefore]
+  naissance_filiation:
+    regle: champs
+    champs: [date_naissance, lieu_naissance, pere, mere]    # date complète exigée (« né vers 1990 » : refus)
+    claim: naissance_filiation
+    services: [tribunal]
   personne_connue:
     regle: existe                   # une seule fiche et personne vivante -> true ; sinon refus
-    claim: personne_connue          # sert au médiateur avant un casier « absence: vierge »
-    services: [direction-concours]
+    claim: personne_connue          # sert à la passerelle avant un casier « absence: vierge »
+    services: [direction-concours, cefore]

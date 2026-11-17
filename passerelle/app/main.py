@@ -412,7 +412,9 @@ async def traiter_volet(demande: dict, demande_attribut: dict, sujet_ref: str, j
         tracer(demande, "reponse-registre", "refuse", contenu, attribut=code, registre=registre)
         return volet
     tracer(demande, "reponse-registre", "ok", attribut=code, registre=registre)
-    return volet | {"statut": "ok", "valeur": int(contenu), "jeton": jeton}
+    # Oui/non : 1 ou 0. Cases précises (identité, naissance et filiation) : texte JSON, effacé dès la remise.
+    return volet | {"statut": "ok", "valeur": json.dumps(contenu, ensure_ascii=False) if isinstance(contenu, dict)
+                    else int(contenu), "jeton": jeton}
 
 
 # --- Limites de débit ---

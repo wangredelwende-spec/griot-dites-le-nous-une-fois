@@ -55,19 +55,48 @@ from app import main as mediateur  # noqa: E402
 from app.agents import agent_connecte  # noqa: E402
 
 
-EMETTEURS = {"age_entre": "registre-etat-civil", "personne_connue": "registre-etat-civil",
-             "nationalite_burkinabe": "registre-nationalite", "casier_judiciaire_vierge": "registre-casier",
+# Démarches DE TEST (jamais dans le catalogue du dépôt) : les scénarios d'un seul attribut, ou à consentement, que
+# les trois démarches actives ne permettent pas. Ajoutées au catalogue en mémoire, après son chargement.
+DEMARCHES_DE_TEST = {
+    "test-majorite": {"libelle": "Vérifier la majorité (test)", "services": ["direction-concours"],
+                      "finalite": "vérification de la majorité civile", "base": "base_legale",
+                      "texte": "Code des personnes et de la famille, loi n°012-2025/ALT (majorité civile à 18 ans accomplis)",
+                      "attributs": [{"attribut": "majeur", "parametres": {"min": 18, "date_reference": "aujourd'hui"},
+                                     "libelle": "majeur (18 ans accomplis)"}]},
+    "test-nationalite": {"libelle": "Nationalité (test, consentement)", "services": ["cefore"],
+                         "finalite": "vérification de la nationalité", "base": "consentement", "duree_accord_heures": 24,
+                         "attributs": [{"attribut": "nationalite_bf", "libelle": "nationalité burkinabè"}]},
+    "test-passeport": {"libelle": "Passeport (test, désactivé au catalogue)", "services": ["tribunal"],
+                       "finalite": "établissement d'un passeport ordinaire", "base": "consentement",
+                       "duree_accord_heures": 24,
+                       "attributs": [{"attribut": "nationalite_bf", "libelle": "burkinabè"},
+                                     {"attribut": "interdiction_sortie_territoire", "attendu": False,
+                                      "libelle": "interdiction de sortie du territoire"}]},
+}
+for _d in DEMARCHES_DE_TEST.values():
+    for _a in _d["attributs"]:
+        _a.setdefault("parametres", {})          # le chargeur du catalogue le fait pour les vraies démarches
+mediateur.CAT["demarches"].update(DEMARCHES_DE_TEST)
+
+EMETTEURS = {"majeur": "registre-etat-civil", "personne_connue": "registre-etat-civil",
+             "identite": "registre-etat-civil", "naissance_filiation": "registre-etat-civil",
+             "nationalite_bf": "registre-nationalite", "casier_vierge": "registre-casier",
              "interdiction_sortie_territoire": "registre-casier"}
 
 
 def claims_attribut(corps: dict) -> dict:
     """Réponse « oui » que calculerait le registre pour l'attribut demandé."""
-    if corps["attribut"] == "age_entre":
+    if corps["attribut"] == "majeur":
         p = corps["parametres"]
         ages = {str(p["min"]): True}
         if p.get("max") is not None:
             ages[str(p["max"] + 1)] = False             # « pas encore max + 1 ans »
         return {"age_equal_or_over": ages, "date_reference": p["date_reference"]}
+    if corps["attribut"] == "identite":
+        return {"identite": {"nom": "KABORE", "prenoms": "Aminata"}}
+    if corps["attribut"] == "naissance_filiation":
+        return {"naissance_filiation": {"date_naissance": "2001-03-14", "lieu_naissance": "Ouagadougou",
+                                        "pere": "Issaka KABORE", "mere": "Salimata KABORE"}}
     return {corps["attribut"]: True}
 
 
@@ -99,10 +128,10 @@ ADAPTATEUR_TEST.write_text((RACINE / "registres/adaptateurs/etat-civil.yaml").re
 
 JETON_AGENT = "jeton-keycloak-de-test"     # transmis tel quel aux registres (qui le vérifient eux-mêmes)
 AGENTS = {
-    "awa.ouedraogo": ["Service des bourses"],
+    "awa.ouedraogo": ["CEFORE – guichet des entreprises"],
     "issa.sawadogo": ["Direction des concours – ministère des Serviteurs du peuple"],
-    "agent.curieux": ["Service des bourses"],
-    "moussa.kone": ["Service des passeports – ONI (ministère de la Sécurité)"],
+    "agent.curieux": ["CEFORE – guichet des entreprises"],
+    "moussa.kone": ["Tribunal – certificats de nationalité"],
 }
 
 
@@ -120,9 +149,10 @@ def client():
 
 FINALITES = {code: d["finalite"] for code, d in
              yaml.safe_load((RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8"))["demarches"].items()}
+FINALITES.update({code: d["finalite"] for code, d in DEMARCHES_DE_TEST.items()})
 
 
-def demande(demarche="verifier-majorite", sujet="BF-0001", **modifs) -> dict:
+def demande(demarche="test-majorite", sujet="BF-0001", **modifs) -> dict:
     d = {"id_demande": str(uuid.uuid4()), "demarche": demarche, "sujet_ref": sujet, "finalite": FINALITES[demarche]}
     d.update(modifs)
     return d

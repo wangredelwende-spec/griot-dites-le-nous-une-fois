@@ -17,7 +17,7 @@ refuser_si_decede: true
 motif_refus_public: "réponse impossible, s'adresser à l'état civil"
 groupes: {Mairie: mairie}
 attributs:
-  age_entre:
+  majeur:
     regle: age_entre
     champ: date_naissance
     claim: age_equal_or_over

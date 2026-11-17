@@ -33,7 +33,7 @@ def charger(nom: str, **remplacements) -> "adaptateur.Adaptateur":
 
 def majeur(registre, sujet: str):
     try:
-        return registre.calculer("age_entre", sujet, MAJEUR)["age_equal_or_over"]["18"]
+        return registre.calculer("majeur", sujet, MAJEUR)["age_equal_or_over"]["18"]
     except adaptateur.Refus as motif:
         return f"refus : {motif}"
 
@@ -68,7 +68,7 @@ def test_json_imbrique_et_correspondances():
     registre = charger("nationalite-json.yaml")
     def nationalite(sujet):
         try:
-            return registre.calculer("nationalite_burkinabe", sujet)["nationalite_burkinabe"]
+            return registre.calculer("nationalite_bf", sujet)["nationalite_bf"]
         except adaptateur.Refus as motif:
             return f"refus : {motif}"
     assert nationalite("BF-0001") is True            # « Burkinabè »
@@ -83,18 +83,18 @@ def test_json_imbrique_et_correspondances():
 def test_csv_windows_1252_point_virgule():
     registre = charger("casier-csv.yaml")
     assert "Peines complémentaires" in registre.lignes[0]                 # accents bien décodés
-    assert registre.calculer("casier_judiciaire_vierge", "BF-0001") == {"casier_judiciaire_vierge": True}
+    assert registre.calculer("casier_vierge", "BF-0001") == {"casier_vierge": True}
     assert registre.calculer("interdiction_sortie_territoire", "BF-0005") == {"interdiction_sortie_territoire": False}
     assert registre.calculer("interdiction_sortie_territoire", "BF-0008") == {"interdiction_sortie_territoire": True}
     with pytest.raises(adaptateur.Refus, match="donnée insuffisante"):
-        registre.calculer("casier_judiciaire_vierge", "BF-0015")          # case vide
+        registre.calculer("casier_vierge", "BF-0015")          # case vide
 
 
 def test_csv_virgule_utf8(tmp_path):
     (tmp_path / "casier.csv").write_text("NIP,Nb condamnations,Peines complémentaires\nBF-0001,0,aucune\n",
                                          encoding="utf-8")
     registre = charger("casier-csv.yaml", **{DONNEES.as_posix() + "/casier.csv": (tmp_path / "casier.csv").as_posix()})
-    assert registre.calculer("casier_judiciaire_vierge", "BF-0001") == {"casier_judiciaire_vierge": True}
+    assert registre.calculer("casier_vierge", "BF-0001") == {"casier_vierge": True}
 
 
 def test_pdf_scanne_refuse_au_demarrage():
@@ -151,11 +151,11 @@ def test_api_du_jury(api):
 def test_api_lente_ou_mauvais_secret_indisponible(api):
     registre = charger("etat-civil-api.yaml", **{"{port}": str(api)})
     with pytest.raises(adaptateur.SourceIndisponible):
-        registre.calculer("age_entre", "BF-LENT", MAJEUR)                  # 2 s > délai de 1 s
+        registre.calculer("majeur", "BF-LENT", MAJEUR)                  # 2 s > délai de 1 s
     (TMP / "secrets/api_jury").write_text("mauvais-jeton")
     try:
         with pytest.raises(adaptateur.SourceIndisponible, match="HTTP 401"):
-            registre.calculer("age_entre", "BF-0001", MAJEUR)
+            registre.calculer("majeur", "BF-0001", MAJEUR)
     finally:
         (TMP / "secrets/api_jury").write_text("jeton-jury-de-test")
 

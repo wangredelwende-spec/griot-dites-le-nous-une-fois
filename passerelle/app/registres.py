@@ -96,11 +96,20 @@ def verifier(jeton: str, cle_publique: bytes, emetteur: str, destinataire: str, 
     return "ok", lire_valeur(infos, attribut, parametres), infos
 
 
-def lire_valeur(infos: dict, attribut: dict, parametres: dict) -> bool:
-    """Réponse « ok » -> oui/non, après contrôle de la forme EXACTE (rien en trop, rien en moins)."""
+def lire_valeur(infos: dict, attribut: dict, parametres: dict) -> bool | dict:
+    """Réponse « ok » -> oui/non (ou, pour identité et naissance/filiation, les cases précises), après contrôle de la
+    forme EXACTE (rien en trop, rien en moins)."""
     claim = attribut["claim"]
+    if attribut["regle"] == "champs":
+        # ex. {"identite": {"nom": "KABORE", "prenoms": "Aminata"}} : exactement les cases déclarées, en texte non vide
+        valeur = infos.get(claim)
+        if (set(infos) != CLAIMS_COMMUNS | {claim} or not isinstance(valeur, dict)
+                or set(valeur) != set(attribut["champs"])
+                or any(not isinstance(v, str) or not v.strip() for v in valeur.values())):
+            raise ReponseCorrompue("contenu inattendu (informations en trop ou manquantes)")
+        return valeur
     if attribut["regle"] != "age_entre":
-        # ex. {"nationalite_burkinabe": true}
+        # ex. {"nationalite_bf": true}
         if set(infos) != CLAIMS_COMMUNS | {claim} or type(infos[claim]) is not bool:
             raise ReponseCorrompue("contenu inattendu (informations en trop ou manquantes)")
         return infos[claim]

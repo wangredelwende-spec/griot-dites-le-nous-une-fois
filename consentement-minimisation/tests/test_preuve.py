@@ -8,7 +8,7 @@ spec = importlib.util.spec_from_file_location("preuve", RACINE / "scripts/preuve
 preuve = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(preuve)
 
-LECTURE = {"identite": "nip", "vocabulaire": ["nationalite_burkinabe", "age_entre", "age_equal_or_over"],
+LECTURE = {"identite": "nip", "vocabulaire": ["nationalite_bf", "burkinabe", "majeur", "age_equal_or_over"],
            "fiches": [{"nip": "BF-0001", "nom": "KABORE", "sexe": "F", "date_naissance": "2001-03-14",
                        "lieu_naissance": "Ouagadougou", "pere": "Issaka KABORE", "nationalite": "burkinabe"}]}
 

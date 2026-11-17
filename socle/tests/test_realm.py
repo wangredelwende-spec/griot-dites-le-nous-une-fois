@@ -11,12 +11,13 @@ from conftest import RACINE
 REALM = json.loads((RACINE / "socle/keycloak/realm-griot.json").read_text(encoding="utf-8"))
 GROUPES = {g["name"] for g in REALM["groups"]}
 COMPTES = {u["username"]: u for u in REALM["users"]}
-ONI = "Service des passeports – ONI (ministère de la Sécurité)"
+TRIBUNAL = "Tribunal – certificats de nationalité"
+CEFORE = "CEFORE – guichet des entreprises"
 CONCOURS = "Direction des concours – ministère des Serviteurs du peuple"
 
 
 def test_groupes_renommes_presents_partout():
-    assert {ONI, CONCOURS, "Service des bourses", "Mairie"} <= GROUPES
+    assert {TRIBUNAL, CONCOURS, CEFORE} == GROUPES
     annuaire = yaml.safe_load((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_text(encoding="utf-8"))
     assert {s["groupe"] for s in annuaire["services"].values()} <= GROUPES
     for registre in ("etat-civil", "nationalite", "casier"):
@@ -25,9 +26,8 @@ def test_groupes_renommes_presents_partout():
 
 
 def test_comptes_de_demo():
-    attendus = {"moussa.kone": ONI, "issa.sawadogo": CONCOURS, "awa.ouedraogo": "Service des bourses",
-                "mariam.kabore": "Mairie", "agent.curieux": "Service des bourses", "agent.banc": CONCOURS,
-                "agent.banc.bourses": "Service des bourses"}
+    attendus = {"moussa.kone": TRIBUNAL, "issa.sawadogo": CONCOURS, "awa.ouedraogo": CEFORE,
+                "agent.curieux": CEFORE, "agent.banc": CONCOURS, "agent.banc.cefore": CEFORE}
     for nom, groupe in attendus.items():
         u = COMPTES[nom]
         assert u["enabled"] and u["groups"] == [f"/{groupe}"] and u["realmRoles"] == ["agent-guichet"], nom

@@ -60,11 +60,11 @@ def test_api_coupee_ou_lente_indisponible(pile):
     port, api = pile
     registre = registre_via_relais(port)
     with pytest.raises(adaptateur.SourceIndisponible):
-        registre.calculer("age_entre", "BF-LENT", MAJEUR)      # 2 s > délai du relais (1 s) -> 504
+        registre.calculer("majeur", "BF-LENT", MAJEUR)      # 2 s > délai du relais (1 s) -> 504
     api.shutdown()
     api.server_close()                                          # API du jury coupée
     with pytest.raises(adaptateur.SourceIndisponible):
-        registre.calculer("age_entre", "BF-0001", MAJEUR)
+        registre.calculer("majeur", "BF-0001", MAJEUR)
 
 
 def test_relais_lecture_seule_et_destination_unique(pile):

@@ -20,9 +20,9 @@ sys.modules["portail_app"] = portail
 spec.loader.exec_module(portail)
 
 M = "http://mediateur:8000"
-EN_ATTENTE = [{"id_demande": "d-1", "service": "Le service des bourses", "code_service": "service-bourses",
+EN_ATTENTE = [{"id_demande": "d-1", "service": "Le service des bourses", "code_service": "cefore",
                "demarche": "Bourse nationale", "finalite": "attribution de la bourse nationale",
-               "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè", "parametres": {},
+               "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè", "parametres": {},
                               "valeur": "oui"}], "expire_le": 1794838200,
                "apercu": "Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre."}]
 EMPREINTE = "3f9a1c0b" + "e" * 56
@@ -30,9 +30,9 @@ EMPREINTE = "3f9a1c0b" + "e" * 56
 
 def ligne(n, evenement="confirmation", canal="web"):
     return {"n": n, "ts": "2026-11-17T09:15:00Z", "agent": "awa.ouedraogo", "service": "Le service des bourses",
-            "code_service": "service-bourses", "demarche": "Bourse nationale",
+            "code_service": "cefore", "demarche": "Bourse nationale",
             "finalite": "attribution de la bourse nationale", "finalites": {}, "base": "consentement",
-            "texte_base": "", "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"}],
+            "texte_base": "", "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè"}],
             "evenement": evenement, "resultat": "ok", "motif": "", "canal": canal, "empreinte": EMPREINTE}
 
 
@@ -149,9 +149,9 @@ def test_historique_et_detail_avec_finalite_base_canal_et_recu():
 
 @respx.mock
 def test_retrait_en_deux_temps_avec_recu():
-    accords = [{"id_demande": "d-1", "code_service": "service-bourses", "service": "Le service des bourses",
+    accords = [{"id_demande": "d-1", "code_service": "cefore", "service": "Le service des bourses",
                 "demarche": "Bourse nationale",
-                "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"}], "transmis": True}]
+                "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè"}], "transmis": True}]
     respx.get(f"{M}/usagers/BF-0012/accords").mock(return_value=httpx.Response(200, json=accords))
     respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
     retirer = respx.post(f"{M}/demandes/d-1/retirer").mock(return_value=httpx.Response(

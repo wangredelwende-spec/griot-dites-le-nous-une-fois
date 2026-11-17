@@ -16,7 +16,7 @@ Ajouter un bloc à la fin de `consentement-minimisation/catalogue/demarches.yaml
       - attribut: age_entre
         parametres: {min: 17, max: 25, date_reference: "2026-10-01"}
         libelle: âge de 17 à 25 ans au 01/10/2026
-      - attribut: nationalite_burkinabe
+      - attribut: nationalite_bf
         libelle: nationalité burkinabè
 ```
 
@@ -24,7 +24,7 @@ Ajouter un bloc à la fin de `consentement-minimisation/catalogue/demarches.yaml
 - `base: base_legale` exige `texte:`, c'est-à-dire le texte qui autorise la consultation sans accord.
 - Les attributs possibles sont ceux que **les registres déclarent** dans `registres/adaptateurs/<registre>.yaml` :
   `age_entre` (paramètres `min`, `max` facultatif, `date_reference` : une date ou `aujourd'hui`),
-  `nationalite_burkinabe`, `casier_judiciaire_vierge` et `interdiction_sortie_territoire`.
+  `nationalite_bf`, `casier_vierge` et `interdiction_sortie_territoire`.
 - Facultatif, pour le guichet : `attendu: false` quand la bonne réponse est « non » (interdiction de sortie du
   territoire), et `si_non:` pour le texte montré quand la réponse est « non » (repli casier du passeport : « casier
   non vierge : dossier à instruire »). Une réponse « non » n'est jamais un refus : c'est une réponse signée.

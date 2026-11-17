@@ -23,7 +23,7 @@ composer l'écran dans une autre langue (mooré).
 ```json
 [{"id_demande": "8c1f…", "service": "Le service des bourses", "code_service": "service-bourses",
   "demarche": "Bourse nationale", "finalite": "attribution de la bourse nationale",
-  "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè", "parametres": {},
+  "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè", "parametres": {},
                  "valeur": "oui"}],
   "expire_le": 1794838200,
   "apercu": "Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre."}]
@@ -57,7 +57,7 @@ composer l'écran dans une autre langue (mooré).
 
 ```json
 [{"id_demande": "8c1f…", "code_service": "service-bourses", "service": "Le service des bourses",
-  "demarche": "Bourse nationale", "attributs": [{"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"}],
+  "demarche": "Bourse nationale", "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè"}],
   "transmis": false}]
 ```
 
@@ -81,8 +81,8 @@ composer l'écran dans une autre langue (mooré).
   "finalites": {},
   "base": "base_legale", "texte_base": "Loi n°081-2015/CNT …",
   "attributs": [{"code": "age_entre", "libelle": "âge de 18 à 37 ans au 31/12/2026"},
-                {"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"},
-                {"code": "casier_judiciaire_vierge", "libelle": "casier judiciaire vierge"}],
+                {"code": "nationalite_bf", "libelle": "nationalité burkinabè"},
+                {"code": "casier_vierge", "libelle": "casier judiciaire vierge"}],
   "evenement": "remise", "resultat": "ok", "motif": "", "canal": "",
   "empreinte": "038672c337eaa71a…"}]
 ```

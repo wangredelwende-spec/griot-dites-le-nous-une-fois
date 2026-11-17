@@ -129,8 +129,24 @@ class Adaptateur:
         demande = normaliser(parametres, aujourdhui)
         return any(normaliser(p, aujourdhui) == demande for p in autorisations.get(service) or [])
 
+    def champs_utiles(self, fiche: dict, noms: list[str]) -> dict:
+        """Règle « champs » (identité, naissance et filiation) : les cases listées dans l'adaptateur, et RIEN d'autre.
+        Case vide : refus (on ne devine pas). Date de naissance : complète exigée (« né vers 1990 » : refus)."""
+        utiles = {}
+        for nom in noms:
+            valeur = self.valeur(fiche, nom)
+            if not valeur:
+                raise Refus(f"donnée insuffisante : « {nom} » vide")
+            if nom == "date_naissance":
+                debut, fin = bornes_de_naissance(valeur, self.format_date)
+                if debut != fin:
+                    raise Refus("donnée insuffisante : date de naissance incomplète")
+                valeur = debut.isoformat()
+            utiles[nom] = valeur
+        return utiles
+
     def calculer(self, attribut: str, sujet_ref: str, parametres: dict | None = None) -> dict:
-        """Renvoie UNIQUEMENT la réponse minimale, par exemple {"nationalite_burkinabe": True}."""
+        """Renvoie UNIQUEMENT la réponse minimale, par exemple {"nationalite_bf": True}."""
         parametres = parametres or {}
         regle = self.attributs.get(attribut)
         if regle is None:
@@ -142,6 +158,8 @@ class Adaptateur:
         fiche = self.trouver(sujet_ref)
         if self.refuser_si_decede and "date_deces" in self.champs and self.valeur(fiche, "date_deces"):
             raise Refus("personne décédée")
+        if regle["regle"] == "champs":
+            return {regle["claim"]: self.champs_utiles(fiche, regle["champs"])}
         # Seule la case utile est lue ; le calcul (couche consentement et minimisation) ne voit qu'elle
         valeur = "" if regle["regle"] == "existe" else self.valeur(fiche, regle["champ"])
         return calculer_regle(regle, valeur, parametres, self.format_date)

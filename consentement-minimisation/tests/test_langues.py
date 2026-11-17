@@ -37,8 +37,8 @@ def test_route_reservee_au_canal_usager(client):
 
 
 def test_finalite_traduite_seulement_si_c_est_la_meme_finalite():
-    d = {"finalite": "attribution de la bourse nationale", "finalite_mos": "[mos] bourse"}
-    assert mediateur.finalites_traduites(d, "attribution de la bourse nationale") == {"mos": "[mos] bourse"}
+    d = {"finalite": "attribution de la bourse nationale", "finalite_mos": "[mos] entreprise"}
+    assert mediateur.finalites_traduites(d, "attribution de la bourse nationale") == {"mos": "[mos] entreprise"}
     # Ligne écrite sous une ANCIENNE finalité : on ne lui colle pas la traduction de la nouvelle
     assert mediateur.finalites_traduites(d, "ancienne finalité") == {}
 
@@ -50,7 +50,7 @@ def test_finalite_mos_vide_ou_pas_un_texte_refusee(monkeypatch, tmp_path, valeur
     (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
-    ancre = "    finalite: attribution de la bourse nationale\n"
+    ancre = "    finalite: immatriculation d'une entreprise individuelle au CEFORE\n"
     assert ancre in texte
     brut = texte.replace(ancre, ancre + f"    finalite_mos: {'null' if valeur is None else repr(valeur)}\n")
     with pytest.raises(catalogue.CatalogueInvalide, match="« finalite_mos » doit être un texte non vide"):
@@ -63,6 +63,6 @@ def test_finalite_mos_remplie_acceptee(monkeypatch, tmp_path):
     (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
-    ancre = "    finalite: attribution de la bourse nationale\n"
-    brut = texte.replace(ancre, ancre + "    finalite_mos: \"[mos] bourse\"\n")
-    assert catalogue.charger(brut.encode("utf-8"))["demarches"]["bourse-nationale"]["finalite_mos"] == "[mos] bourse"
+    ancre = "    finalite: immatriculation d'une entreprise individuelle au CEFORE\n"
+    brut = texte.replace(ancre, ancre + "    finalite_mos: \"[mos] entreprise\"\n")
+    assert catalogue.charger(brut.encode("utf-8"))["demarches"]["entreprise-individuelle-cefore"]["finalite_mos"] == "[mos] entreprise"

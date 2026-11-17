@@ -259,8 +259,13 @@ def verifier_volet(jeton: str, demande_attribut: dict, service: str, id_demande:
 def lire_valeur(infos: dict, attribut: dict, parametres: dict) -> bool:
     """Réponse signée -> oui/non. Le guichet relit lui-même la réponse, avec les paramètres du catalogue."""
     valeur = infos[attribut["claim"]]
+    if attribut["regle"] == "champs":               # identité, naissance et filiation : exactement les cases déclarées
+        if (not isinstance(valeur, dict) or set(valeur) != set(attribut["champs"])
+                or any(not isinstance(v, str) or not v.strip() for v in valeur.values())):
+            raise jwt.InvalidTokenError("cases inattendues")
+        return valeur
     if attribut["regle"] != "age_entre":
-        if type(valeur) is not bool:                # ex. {"nationalite_burkinabe": true}
+        if type(valeur) is not bool:                # ex. {"nationalite_bf": true}
             raise jwt.InvalidTokenError("valeur inattendue")
         return valeur
     # ex. {"age_equal_or_over": {"18": true, "38": false}, "date_reference": "2026-12-31"}
@@ -336,9 +341,11 @@ def conclusion(lignes: list[dict]) -> str:
     """Jamais de « oui » global sur un résultat partiel. Une condition est remplie quand la réponse signée
     vaut la réponse « attendu » du catalogue (oui par défaut ; « non » pour une interdiction de sortie)."""
     valeurs = [l["resultat"].get("valeur") for l in lignes]
-    if all(v is not None and v == l["attendu"] for v, l in zip(valeurs, lignes)):
+    # Une réponse précise (identité, naissance et filiation) n'est ni oui ni non : obtenue = condition remplie
+    remplie = lambda v, l: isinstance(v, dict) or v == l["attendu"]    # noqa: E731
+    if all(v is not None and remplie(v, l) for v, l in zip(valeurs, lignes)):
         return "oui"
-    if any(v is not None and v != l["attendu"] for v, l in zip(valeurs, lignes)):
+    if any(v is not None and not remplie(v, l) for v, l in zip(valeurs, lignes)):
         return "non"
     return "incomplet"
 

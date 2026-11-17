@@ -1,15 +1,13 @@
 # Démarche prête à coller À LA FIN de consentement-minimisation/catalogue/demarches.yaml (démo « ajouter une démarche en direct »).
-# Copier les lignes ci-dessous (avec les 2 espaces au début de « aide-transport-etudiant: »), sans cette entête.
-# Elle n'utilise que ce que les registres autorisent déjà au service des bourses (double clé) : aucun code changé.
+# Copier les lignes ci-dessous (avec les 2 espaces au début de « agrement-commercial: »), sans cette entête.
+# Elle n'utilise que ce que les registres autorisent déjà au CEFORE (double clé) : aucun code changé.
 
-  aide-transport-etudiant:
-    libelle: Aide au transport des étudiants
-    services: [service-bourses]
-    finalite: attribution de l'aide au transport des étudiants
+  agrement-commercial:
+    libelle: Agrément d'une activité commerciale
+    services: [cefore]
+    finalite: instruction d'une demande d'agrément d'activité commerciale
     base: consentement
+    duree_accord_heures: 48
     attributs:
-      - attribut: age_entre
-        parametres: {min: 18, date_reference: aujourd'hui}
-        libelle: majeur
-      - attribut: nationalite_burkinabe
-        libelle: burkinabè
+      - attribut: casier_vierge
+        libelle: casier judiciaire vierge

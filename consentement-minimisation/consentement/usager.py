@@ -9,6 +9,7 @@ de la passerelle d'échange : elles utilisent sa base de travail, son journal et
 leur donne au démarrage (brancher). Aucune valeur n'est écrite au journal, jamais.
 """
 import hmac
+import json
 import time
 
 from fastapi import APIRouter, Depends, Header, HTTPException
@@ -63,7 +64,11 @@ def apercu(demande: dict) -> dict:
                   "parametres": connus.get(v["attribut"], {}).get("parametres", {}),
                   "valeur": "oui" if v["valeur"] else "non"}
                  for v in demande["volets"] if v["statut"] == "ok"]
-    liste = " ; ".join(f"{a['libelle']} = {a['valeur']}" for a in attributs)
+    for a, v in zip(attributs, [v for v in demande["volets"] if v["statut"] == "ok"]):
+        if isinstance(v["valeur"], str):          # cases précises (JSON) : l'usager voit CE QUI partira, mot pour mot
+            a["valeur"] = "texte"
+            a["texte"] = ", ".join(json.loads(v["valeur"]).values())
+    liste = " ; ".join(f"{a['libelle']} = {a.get('texte') or a['valeur']}" for a in attributs)
     return {"id_demande": demande["id_demande"], "service": service, "code_service": demande["demandeur"],
             "demarche": P.CAT["demarches"].get(demande["demarche"], {}).get("libelle", demande["demarche"]),
             "finalite": demande["finalite"], "attributs": attributs, "expire_le": int(demande["expire_le"]),

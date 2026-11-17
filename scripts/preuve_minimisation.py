@@ -10,7 +10,7 @@
 
 Utilisation :
     python scripts/preuve_minimisation.py BF-0001
-    python scripts/preuve_minimisation.py BF-0008 --demarche concours-adjoints
+    python scripts/preuve_minimisation.py BF-0008 --demarche concours-direct
 Code de sortie : 0 si aucun témoin n'est trouvé, 1 sinon.
 """
 import argparse
@@ -99,7 +99,7 @@ def main():
     sys.stdout.reconfigure(encoding="utf-8")       # ✅ et ❌ dans la console Windows
     parametres = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parametres.add_argument("usager", help="identifiant du citoyen, ex. BF-0001")
-    parametres.add_argument("--demarche", default="concours-adjoints", help="démarche du catalogue")
+    parametres.add_argument("--demarche", default="concours-direct", help="démarche du catalogue")
     args = parametres.parse_args()
 
     # 1. Données témoins, lues dans chaque registre

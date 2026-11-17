@@ -112,7 +112,7 @@ def nom_attribut(s: dict, a: dict, court: bool = False) -> str:
         return textes.get(f"attribut_court_{a['code']}", a["code"][:8])
     if s["langue"] == "fr":         # le catalogue est écrit en français
         return a["libelle"]
-    if a["code"] == "age_entre":
+    if a["code"] in ("age_entre", "majeur"):
         # Seuils de LA démarche (paramètres du catalogue) : « âge entre 18 et 37 ans », traduit avec ses nombres
         p = a.get("parametres") or {}
         if "min" in p and "max" in p:
@@ -133,7 +133,7 @@ def ecran_attente(s: dict) -> str:
     suivante = t(s, "suivante") + " " if s["index"] + 1 < len(s["liste"]) else ""
     # UN aperçu qui liste TOUT ce qui partira ; trop long pour 160 caractères : libellés courts
     for court in (False, True):
-        liste = " ; ".join(f"{nom_attribut(s, a, court)} = {t(s, a['valeur'])}" for a in d["attributs"])
+        liste = " ; ".join(f"{nom_attribut(s, a, court)} = {a.get('texte') or t(s, a['valeur'])}" for a in d["attributs"])
         lignes = (rang + t(s, "apercu", service=service, liste=liste), t(s, "confirmer_refuser"),
                   suivante + t(s, "retour"))
         if len("\n".join(lignes)) <= LIMITE:

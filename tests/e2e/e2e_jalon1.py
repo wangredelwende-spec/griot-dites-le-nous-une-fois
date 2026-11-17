@@ -18,27 +18,27 @@ sys.path.insert(0, str(RACINE / "scripts"))
 from client_guichet import autorite_caddy, connecter, envoyer, texte  # noqa: E402
 
 
-def demander(client: httpx.Client, csrf: str, sujet: str, demarche: str = "verifier-majorite") -> str:
+def demander(client: httpx.Client, csrf: str, sujet: str, demarche: str = "concours-direct") -> str:
     return texte(envoyer(client, csrf, sujet, demarche).text)
 
 
 REFUS = "refusé par le registre d'état civil : réponse impossible, s'adresser à l'état civil. Réponse signée par le registre, signature vérifiée"
 # (démarche, usager, textes attendus) ; démarches du catalogue (consentement-minimisation/catalogue/demarches.yaml)
 CAS = [
-    ("verifier-majorite", "BF-0001", ["majeur (18 ans accomplis) : oui Signé par le registre d'état civil, signature vérifiée"]),
-    ("verifier-majorite", "BF-0003", ["majeur (18 ans accomplis) : non"]),
-    ("verifier-majorite", "BF-0004", [REFUS]),      # vers 1990
-    ("verifier-majorite", "BF-0007", [REFUS]),      # décédée : le guichet ne l'apprend pas
-    ("verifier-majorite", "BF-0019", [REFUS]),      # doublon
-    ("verifier-majorite", "BF-0099", [REFUS]),      # introuvable
+    ("concours-direct", "BF-0001", ["majeur (18 ans accomplis) : oui Signé par le registre d'état civil, signature vérifiée"]),
+    ("concours-direct", "BF-0003", ["majeur (18 ans accomplis) : non"]),
+    ("concours-direct", "BF-0004", [REFUS]),      # vers 1990
+    ("concours-direct", "BF-0007", [REFUS]),      # décédée : le guichet ne l'apprend pas
+    ("concours-direct", "BF-0019", [REFUS]),      # doublon
+    ("concours-direct", "BF-0099", [REFUS]),      # introuvable
     # Concours direct : UNE demande, 3 registres
-    ("concours-adjoints", "BF-0001", ["âge de 18 à 37 ans au 31/12/2026 : oui", "nationalité burkinabè : oui",
+    ("concours-direct", "BF-0001", ["âge de 18 à 37 ans au 31/12/2026 : oui", "nationalité burkinabè : oui",
                                       "casier judiciaire vierge : oui", "Conclusion : toutes les conditions sont vérifiées"]),
-    ("concours-adjoints", "BF-0008", ["casier judiciaire vierge : non", "au moins une condition n'est pas remplie"]),
-    ("concours-adjoints", "BF-0018", ["nationalité burkinabè : non"]),
-    ("concours-adjoints", "BF-0003", ["âge de 18 à 37 ans au 31/12/2026 : non",
+    ("concours-direct", "BF-0008", ["casier judiciaire vierge : non", "au moins une condition n'est pas remplie"]),
+    ("concours-direct", "BF-0018", ["nationalité burkinabè : non"]),
+    ("concours-direct", "BF-0003", ["âge de 18 à 37 ans au 31/12/2026 : non",
                                       "réponse impossible, s'adresser au greffe"]),          # absente du casier ≠ vierge
-    ("concours-adjoints", "BF-0013", ["réponse impossible, s'adresser au service de la nationalité"]),
+    ("concours-direct", "BF-0013", ["réponse impossible, s'adresser au service de la nationalité"]),
 ]
 
 

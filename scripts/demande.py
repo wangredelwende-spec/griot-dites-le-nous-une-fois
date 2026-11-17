@@ -1,6 +1,6 @@
 """Une demande en ligne de commande, faite par un VRAI agent, exactement comme au guichet.
 
-    .venv\\Scripts\\python scripts\\demande.py --demarche concours-adjoints --usager BF-0001
+    .venv\\Scripts\\python scripts\\demande.py --demarche concours-direct --usager BF-0001
 
 Le script demande au clavier l'identifiant de l'agent, son mot de passe (caché) puis son code TOTP.
 RIEN n'est enregistré : ni mot de passe, ni code, ni jeton, ni résultat (tout reste en mémoire le temps

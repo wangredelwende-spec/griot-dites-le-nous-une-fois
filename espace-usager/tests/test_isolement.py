@@ -36,7 +36,7 @@ def vrai_mediateur(client, monkeypatch):
     portail.ECHECS_PIN.clear()
     ussd.SESSIONS.clear()
     ussd.ECHECS_PIN.clear()
-    client.agent["nom"] = "awa.ouedraogo"          # Service des bourses : démarche « bourse-nationale »
+    client.agent["nom"] = "awa.ouedraogo"          # Service des bourses : démarche « test-nationalite »
     yield client
     # Nettoyage (base de test partagée) : rien ne reste en attente pour ces deux citoyens, utilisés par d'autres tests
     monkeypatch.undo()
@@ -46,7 +46,7 @@ def vrai_mediateur(client, monkeypatch):
 
 
 def nouvelle_demande(client, sujet: str) -> str:
-    d = demande(demarche="bourse-nationale", sujet=sujet)
+    d = demande(demarche="test-nationalite", sujet=sujet)
     assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
     return d["id_demande"]
 

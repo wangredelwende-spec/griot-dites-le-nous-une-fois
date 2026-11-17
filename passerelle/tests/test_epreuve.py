@@ -55,7 +55,7 @@ def test_reponse_non_conforme_rejetee_et_au_journal(client, contenu):
 @respx.mock
 def test_hors_catalogue_403_et_journal(client):
     cas = {"démarche inconnue": {"demarche": "inventee"},
-           "attribut hors catalogue": {"attributs": ["casier_judiciaire_vierge"]},
+           "attribut hors catalogue": {"attributs": ["casier_vierge"]},
            "finalité non prévue": {"finalite": "curiosité"}}
     for nom, modif in cas.items():
         d = demande() | modif
@@ -95,18 +95,18 @@ def test_erreur_imprevue_ne_plante_pas(client, monkeypatch):
 
 @respx.mock
 def test_cle_api_par_administration():
-    """Sans jeton Keycloak : la clé API identifie l'administration (service-bourses), jamais le corps de la demande."""
+    """Sans jeton Keycloak : la clé API identifie l'administration (cefore), jamais le corps de la demande."""
     mediateur.app.dependency_overrides.clear()
     with TestClient(mediateur.app) as c:
         respx.post("http://registre-nationalite:8000/attributs").mock(side_effect=registre_qui_signe())
-        d = demande(demarche="bourse-nationale")
-        assert c.post("/demandes", json=d, headers={"X-Cle-Api": "cle-demo-bourses"}).status_code == 200
+        d = demande(demarche="test-nationalite")
+        assert c.post("/demandes", json=d, headers={"X-Cle-Api": "cle-demo-cefore"}).status_code == 200
         ligne = lignes_de(d)[0]
-        assert ligne["agent"] == "api-service-bourses" and ligne["demandeur"] == "service-bourses"
+        assert ligne["agent"] == "api-cefore" and ligne["demandeur"] == "cefore"
         # On referme la demande en attente (sinon elle apparaîtrait dans les aperçus des autres tests)
         c.post(f"/demandes/{d['id_demande']}/refuser", json={"sujet_ref": "BF-0001"}, headers=CANAL)
         # La clé d'une AUTRE administration ne donne pas accès à cette démarche
-        d2 = demande(demarche="bourse-nationale")
-        r = c.post("/demandes", json=d2, headers={"X-Cle-Api": "cle-demo-mairie"})
+        d2 = demande(demarche="test-nationalite")
+        r = c.post("/demandes", json=d2, headers={"X-Cle-Api": "cle-demo-concours"})
         assert r.status_code == 403
         assert c.post("/demandes", json=demande(), headers={"X-Cle-Api": "mauvaise"}).status_code == 401

@@ -120,9 +120,9 @@ def volet(reponse: dict, attribut: str) -> dict:
     return next((v for v in reponse.get("volets", []) if v["attribut"] == attribut), {})
 
 
-def concours(sujet: str, finalite: str = FINALITES["concours-adjoints"], **plus) -> str:
+def concours(sujet: str, finalite: str = FINALITES["concours-direct"], **plus) -> str:
     """Code d'une demande « Concours direct » par outil-test-concours."""
-    return (f"d, r = demander('outil-test-concours', 'concours-adjoints', {sujet!r}, {finalite!r}, **{plus!r})\n"
+    return (f"d, r = demander('outil-test-concours', 'concours-direct', {sujet!r}, {finalite!r}, **{plus!r})\n"
             "resultat.update(r=r, journal=journal(d['id_demande']), id=d['id_demande'])\n")
 
 
@@ -132,15 +132,15 @@ def registre_coupe():
     panne("etat-civil", "coupe")
     try:
         x = dans_le_mediateur(concours("BF-0002"))
-        age, autres = volet(x["r"]["corps"], "age_entre"), [volet(x["r"]["corps"], a) for a in
-                                                             ("nationalite_burkinabe", "casier_judiciaire_vierge")]
+        age, autres = volet(x["r"]["corps"], "majeur"), [volet(x["r"]["corps"], a) for a in
+                                                             ("nationalite_bf", "casier_vierge")]
         ligne = any(l["resultat"] == "indisponible" and l["registre"] == "etat-civil" for l in x["journal"])
         noter("1. Registre coupé (API)", age.get("statut") == "indisponible" and "rien n'a été deviné" in age.get("motif", "")
               and all(v.get("jeton") for v in autres) and ligne,
               f"« {age.get('motif')} », les 2 autres registres répondent, ligne « indisponible » au journal", json.dumps(x))
         # Le guichet (agent.banc) : un message clair, pas d'écran blanc
         with httpx.Client(verify=autorite_caddy(), follow_redirects=True, timeout=30) as client:
-            page = envoyer(client, connecter(client, "agent.banc"), "BF-0002", "concours-adjoints")
+            page = envoyer(client, connecter(client, "agent.banc"), "BF-0002", "concours-direct")
         lisible = texte(page.text)
         noter("1. Registre coupé (guichet)", page.status_code == 200 and "rien n'a été deviné" in lisible
               and "résultat incomplet" in lisible, "page lisible : « … indisponible … rien n'a été deviné », "
@@ -153,7 +153,7 @@ def registre_lent():
     panne("etat-civil", "lent")
     try:
         x = dans_le_mediateur(concours("BF-0010"))      # jamais un citoyen de la démo (CITOYENS_DE_LA_DEMO)
-        age, duree = volet(x["r"]["corps"], "age_entre"), x["r"]["duree"]
+        age, duree = volet(x["r"]["corps"], "majeur"), x["r"]["duree"]
         noter("2. Registre lent", age.get("statut") == "indisponible" and "délai dépassé" in age.get("motif", "")
               and 2.5 <= duree <= 6, f"refus après {duree} s : « {age.get('motif')} »", json.dumps(x))
     finally:
@@ -164,7 +164,7 @@ def reponse_corrompue():
     panne("etat-civil", "corrompu")
     try:
         x = dans_le_mediateur(concours("BF-0006"))
-        age = volet(x["r"]["corps"], "age_entre")
+        age = volet(x["r"]["corps"], "majeur")
         alerte = any(l["evenement"] == "alerte" and l["registre"] == "etat-civil" for l in x["journal"])
         noter("3. Réponse corrompue", "signature invalide" in age.get("motif", "") and not age.get("jeton") and alerte,
               f"« {age.get('motif')} » + ligne d'alerte au journal", json.dumps(x))
@@ -174,7 +174,7 @@ def reponse_corrompue():
 
 def demande_rejouee():
     x = dans_le_mediateur(f"""
-d, premiere = demander('outil-test-concours', 'concours-adjoints', 'BF-0011', {FINALITES['concours-adjoints']!r})
+d, premiere = demander('outil-test-concours', 'concours-direct', 'BF-0011', {FINALITES['concours-direct']!r})
 seconde = envoyer('outil-test-concours', d)
 resultat.update(premiere=premiere["corps"], seconde=seconde["corps"], journal=journal(d['id_demande']))
 """)
@@ -192,8 +192,8 @@ def mauvaise_finalite():
     appels = sum(l["evenement"] == "reponse-registre" for l in x["journal"])
     noter("5. Mauvaise finalité", r.get("statut") == "refuse" and r.get("motif") == "finalité non autorisée" and appels == 0,
           "« finalité non autorisée », aucun registre appelé", json.dumps(x))
-    x = dans_le_mediateur(concours("BF-0021", attributs=["age_entre", "nationalite_burkinabe",
-                                                         "casier_judiciaire_vierge", "personne_connue"]))
+    x = dans_le_mediateur(concours("BF-0021", attributs=["majeur", "nationalite_bf",
+                                                         "casier_vierge", "personne_connue"]))
     r = x["r"]["corps"]
     noter("5 bis. Attribut demandé en plus", r.get("statut") == "refuse" and "attributs non autorisés" in r.get("motif", ""),
           f"« {r.get('motif')} »", json.dumps(x))
@@ -204,15 +204,15 @@ def renforcements_registre():
     ids = [PREFIXE_DIRECT + str(uuid.uuid4()) for _ in range(3)]
     APPELS_DIRECTS.update(ids)
     x = dans_le_mediateur(f"ids = {ids!r}\n" + """
-corps = {"id_demande": ids[0], "attribut": "casier_judiciaire_vierge", "sujet_ref": "BF-0008",
+corps = {"id_demande": ids[0], "attribut": "casier_vierge", "sujet_ref": "BF-0008",
          "destinataire": "direction-concours"}
 resultat["sans_jeton"] = registre_direct("casier", corps, {})
-corps = {"id_demande": ids[1], "attribut": "age_entre", "sujet_ref": "BF-0021",
+corps = {"id_demande": ids[1], "attribut": "majeur", "sujet_ref": "BF-0021",
          "destinataire": "direction-concours", "parametres": {"min": 25, "date_reference": time.strftime("%Y-%m-%d")}}
 resultat["seuil"] = registre_direct("etat-civil", corps, {"Authorization": "Bearer " + jeton("outil-test-concours")})
-corps = {"id_demande": ids[2], "attribut": "casier_judiciaire_vierge", "sujet_ref": "BF-0008",
+corps = {"id_demande": ids[2], "attribut": "casier_vierge", "sujet_ref": "BF-0008",
          "destinataire": "direction-concours"}
-resultat["usurpation"] = registre_direct("casier", corps, {"Authorization": "Bearer " + jeton("outil-test-bourses")})
+resultat["usurpation"] = registre_direct("casier", corps, {"Authorization": "Bearer " + jeton("outil-test-cefore")})
 """)
     noter("A. Appel direct au registre sans jeton d'agent", x["sans_jeton"]["statut"] == "refus",
           f"refus signé par le registre : « {x['sans_jeton'].get('motif')} »", json.dumps(x))
@@ -231,7 +231,7 @@ fichier.write_text("5")
 statuts = []
 try:
     for i in range(1, 7):
-        d, r = demander('outil-test-curieux', 'verifier-majorite', f'BANC-CUR-{{i}}', {FINALITES['verifier-majorite']!r})
+        d, r = demander('outil-test-curieux', 'concours-direct', f'BANC-CUR-{{i}}', {FINALITES['concours-direct']!r})
         statuts.append(r["corps"].get("statut"))
 finally:
     fichier.unlink(missing_ok=True)
@@ -247,25 +247,25 @@ def passeport_casier_en_panne():
     """Passeport (consentement, nationalité + casier, pas d'âge) pendant que le CASIER est coupé, lent puis
     corrompu : l'usager ne voit que ce qui est arrivé (signé), le guichet reçoit la réponse signée de la
     nationalité et un volet en échec, jamais tout."""
-    F = FINALITES["passeport-ordinaire"]
+    F = FINALITES["certificat-nationalite"]
     for mode, sujet, attendu in (("coupe", "BF-0021", "injoignable"), ("lent", "BF-0002", "délai dépassé"),
                                  ("corrompu", "BF-0006", "réponse corrompue")):
         panne("casier", mode)
         try:
             x = dans_le_mediateur(f"""
-d, r = demander('outil-test-passeport', 'passeport-ordinaire', {sujet!r}, {F!r})
+d, r = demander('outil-test-tribunal', 'certificat-nationalite', {sujet!r}, {F!r})
 attente = usager("GET", "/usagers/{sujet}/en-attente")
 usager("POST", f"/demandes/{{d['id_demande']}}/confirmer", {{"sujet_ref": {sujet!r}}})
-resultat.update(r=r, attente=attente, remise=suivre('outil-test-passeport', d['id_demande']))
+resultat.update(r=r, attente=attente, remise=suivre('outil-test-tribunal', d['id_demande']))
 """)
         finally:
             panne("casier", "normal")
         avant, remise = x["r"]["corps"], x["remise"]
         casier = volet(remise, "interdiction_sortie_territoire")
-        signes = [volet(remise, "nationalite_burkinabe").get("jeton")]
+        signes = [volet(remise, "nationalite_bf").get("jeton")]
         apercu = x["attente"][0]["apercu"] if x["attente"] else ""
         ok = (avant["statut"] == "en_attente" and "interdiction" not in apercu and "Rien d'autre" in apercu
-              and "majeur" not in apercu and not volet(remise, "age_entre")
+              and "majeur" not in apercu and not volet(remise, "majeur")
               and remise.get("statut") == "remise" and all(signes) and not casier.get("jeton")
               and casier.get("statut") in ("indisponible", "refuse") and attendu in casier.get("motif", ""))
         noter(f"10. Passeport, casier {mode}", ok,
@@ -275,20 +275,20 @@ resultat.update(r=r, attente=attente, remise=suivre('outil-test-passeport', d['i
 
 def consentement():
     x = dans_le_mediateur(f"""
-F = {FINALITES['bourse-nationale']!r}
-d, r = demander('outil-test-bourses', 'bourse-nationale', 'BF-0014', F)
+F = {FINALITES['entreprise-individuelle-cefore']!r}
+d, r = demander('outil-test-cefore', 'entreprise-individuelle-cefore', 'BF-0014', F)
 usager("POST", f"/demandes/{{d['id_demande']}}/refuser", {{"sujet_ref": "BF-0014"}})
-resultat["refus"] = [r["corps"]["statut"], suivre('outil-test-bourses', d['id_demande'])]
-d, r = demander('outil-test-bourses', 'bourse-nationale', 'BF-0016', F)
+resultat["refus"] = [r["corps"]["statut"], suivre('outil-test-cefore', d['id_demande'])]
+d, r = demander('outil-test-cefore', 'entreprise-individuelle-cefore', 'BF-0016', F)
 usager("POST", f"/demandes/{{d['id_demande']}}/confirmer", {{"sujet_ref": "BF-0016"}})
 usager("POST", f"/demandes/{{d['id_demande']}}/retirer", {{"sujet_ref": "BF-0016"}})
-resultat["retrait"] = [r["corps"]["statut"], suivre('outil-test-bourses', d['id_demande'])]
-d, r = demander('outil-test-bourses', 'bourse-nationale', 'BF-0020', F)
+resultat["retrait"] = [r["corps"]["statut"], suivre('outil-test-cefore', d['id_demande'])]
+d, r = demander('outil-test-cefore', 'entreprise-individuelle-cefore', 'BF-0020', F)
 # On « avance l'horloge » de cette seule demande (table de travail, pas le journal) au lieu d'attendre 10 minutes
 base = sqlite3.connect("/donnees/mediateur.sqlite3", isolation_level=None)
 base.execute("UPDATE demandes SET expire_le = 0 WHERE id_demande = ?", (d['id_demande'],))
 base.close()
-resultat["expiration"] = [r["corps"]["statut"], suivre('outil-test-bourses', d['id_demande'])]
+resultat["expiration"] = [r["corps"]["statut"], suivre('outil-test-cefore', d['id_demande'])]
 """)
     for cas, attendu in (("refus", "refuse"), ("retrait", "retiree"), ("expiration", "expiree")):
         avant, apres = x[cas]
@@ -301,16 +301,16 @@ def portail_web():
     """Portail web : une confirmation faite avec le secret du canal web est écrite « canal = web » et visible dans
     l'historique servi à l'USSD (même journal). Puis le portail arrêté seul : message clair, l'USSD continue."""
     x = dans_le_mediateur(f"""
-F = {FINALITES['bourse-nationale']!r}
+F = {FINALITES['entreprise-individuelle-cefore']!r}
 WEB = open("/run/secrets/canal_web").read().strip()
-d, r = demander('outil-test-bourses', 'bourse-nationale', 'BF-0017', F)
+d, r = demander('outil-test-cefore', 'entreprise-individuelle-cefore', 'BF-0017', F)
 c = httpx.post(f"http://127.0.0.1:8000/demandes/{{d['id_demande']}}/confirmer", json={{"sujet_ref": "BF-0017"}},
                headers={{"X-Cle-Canal": WEB}}, timeout=10).json()
 base = sqlite3.connect("file:/donnees/mediateur.sqlite3?mode=ro", uri=True)
 resultat["canal"] = (base.execute("SELECT canal FROM journal WHERE hash = ?", (c.get("empreinte", ""),)).fetchone() or [""])[0]
 resultat["vu_par_ussd"] = [l["canal"] for l in usager("GET", "/usagers/BF-0017/historique")
                            if l["empreinte"] == c.get("empreinte")]
-resultat["remise"] = suivre('outil-test-bourses', d['id_demande']).get("statut")
+resultat["remise"] = suivre('outil-test-cefore', d['id_demande']).get("statut")
 """)
     noter("11. Portail web : confirmation", x["canal"] == "web" and x["vu_par_ussd"] == ["web"] and x["remise"] == "remise",
           "écrite au journal avec canal = web, visible dans l'historique USSD, remise au guichet", json.dumps(x))

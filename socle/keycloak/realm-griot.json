@@ -50,14 +50,6 @@
   },
   "groups": [
     {
-      "name": "Service des bourses",
-      "attributes": {
-        "code": [
-          "service-bourses"
-        ]
-      }
-    },
-    {
       "name": "Direction des concours – ministère des Serviteurs du peuple",
       "attributes": {
         "code": [
@@ -66,18 +58,18 @@
       }
     },
     {
-      "name": "Mairie",
+      "name": "CEFORE – guichet des entreprises",
       "attributes": {
         "code": [
-          "mairie"
+          "cefore"
         ]
       }
     },
     {
-      "name": "Service des passeports – ONI (ministère de la Sécurité)",
+      "name": "Tribunal – certificats de nationalité",
       "attributes": {
         "code": [
-          "service-passeport"
+          "tribunal"
         ]
       }
     }
@@ -219,7 +211,7 @@
       "lastName": "Ouédraogo",
       "attributes": {
         "fonction": [
-          "Agente du service des bourses"
+          "Agente du CEFORE"
         ]
       },
       "credentials": [
@@ -236,7 +228,7 @@
         "agent-guichet"
       ],
       "groups": [
-        "/Service des bourses"
+        "/CEFORE – guichet des entreprises"
       ]
     },
     {
@@ -267,40 +259,13 @@
       ]
     },
     {
-      "username": "mariam.kabore",
-      "enabled": true,
-      "firstName": "Mariam",
-      "lastName": "Kaboré",
-      "attributes": {
-        "fonction": [
-          "Agente d'état civil de la mairie"
-        ]
-      },
-      "credentials": [
-        {
-          "type": "password",
-          "value": "Agent-Demo-2026!",
-          "temporary": false
-        }
-      ],
-      "requiredActions": [
-        "CONFIGURE_TOTP"
-      ],
-      "realmRoles": [
-        "agent-guichet"
-      ],
-      "groups": [
-        "/Mairie"
-      ]
-    },
-    {
       "username": "moussa.kone",
       "enabled": true,
       "firstName": "Moussa",
       "lastName": "Koné",
       "attributes": {
         "fonction": [
-          "Agent du service des passeports (ONI)"
+          "Agent du tribunal"
         ]
       },
       "credentials": [
@@ -317,7 +282,7 @@
         "agent-guichet"
       ],
       "groups": [
-        "/Service des passeports – ONI (ministère de la Sécurité)"
+        "/Tribunal – certificats de nationalité"
       ]
     },
     {
@@ -344,7 +309,7 @@
         "agent-guichet"
       ],
       "groups": [
-        "/Service des bourses"
+        "/CEFORE – guichet des entreprises"
       ]
     },
     {
@@ -375,7 +340,7 @@
       ]
     },
     {
-      "username": "agent.banc.bourses",
+      "username": "agent.banc.cefore",
       "enabled": true,
       "firstName": "Banc",
       "lastName": "Automatique Bourses",
@@ -398,7 +363,7 @@
         "agent-guichet"
       ],
       "groups": [
-        "/Service des bourses"
+        "/CEFORE – guichet des entreprises"
       ]
     },
     {

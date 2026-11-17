@@ -1,0 +1,89 @@
+# DÉMARCHES INACTIVES (retirées du catalogue actif le 17/11 : passeport, bourse, majorité).
+# Ce fichier n'est PAS chargé par la passerelle : il est conservé pour mémoire (voir LIMITES.md). Pour en réactiver une :
+# recopier son bloc dans demarches.yaml, ré-ajouter son service dans annuaire.yaml et son attribut dans les registres.
+# (Les codes d'attributs ont été renommés depuis : age_entre -> majeur, nationalite_burkinabe -> nationalite_bf,
+#  casier_judiciaire_vierge -> casier_vierge.)
+# Catalogue des démarches : AUCUNE démarche n'est écrite dans le code.
+# Ajouter une démarche = ajouter un bloc ici et enregistrer : le médiateur relit le fichier tout seul, sans
+# redémarrage (voir docs/AJOUTER_UNE_DEMARCHE.md). Il VALIDE chaque nouvelle version : finalité, base, texte
+# (base légale), attributs déclarés par un registre, double clé (service et seuils autorisés par le registre).
+# Version invalide : REFUSÉE, l'ancienne reste en vigueur, la raison s'affiche au guichet ; le médiateur
+# continue de tourner. Chaque chargement ou refus est écrit au journal chaîné avec l'empreinte SHA-256.
+#
+# Pour chaque démarche :
+#   libelle   : nom montré à l'agent et à l'usager
+#   services  : services autorisés (codes de annuaire.yaml)
+#   finalite  : POURQUOI on consulte (montrée à l'usager, écrite au journal)
+#   finalite_mos : facultatif, la finalité en mooré. Le mooré n'est proposé sur *226# que si TOUTES les
+#               démarches l'ont ET si phrases-ussd.csv est complet en mooré (n'inventez jamais de mooré).
+#   base      : consentement (l'usager voit l'aperçu et confirme) | base_legale (pas de confirmation,
+#               mais la consultation apparaît dans son historique avec le texte cité)
+#   texte     : texte qui autorise la consultation (obligatoire en base légale)
+#   attributs : ce qui est demandé, et RIEN d'autre. Chaque attribut est déclaré par un registre
+#               (registres/adaptateurs/<registre>.yaml), qui vérifie de son côté que le service y a droit.
+#               Facultatif, pour l'affichage au guichet : « attendu » (réponse qui remplit la condition,
+#               true par défaut) et « si_non » (texte montré à l'agent quand la réponse est « non »).
+#
+# Attributs disponibles :
+#   age_entre                 parametres : min, max (facultatif), date_reference (date ou aujourd'hui)
+#   nationalite_burkinabe     sans paramètre
+#   casier_judiciaire_vierge  sans paramètre
+#   interdiction_sortie_territoire  sans paramètre (peine complémentaire inscrite au casier)
+demarches:
+
+  # Scénario principal. Aujourd'hui, l'usager apporte acte de naissance, certificat de nationalité, CNIB
+  # et extrait de casier (copies légalisées). Ici, c'est LUI qui demande que les preuves soient récupérées
+  # à sa place : consentement, avec l'aperçu exact de ce qui partira.
+  passeport-ordinaire:
+    libelle: Passeport ordinaire
+    services: [service-passeport]
+    finalite: établissement d'un passeport ordinaire
+    base: consentement
+    # PAS d'âge : l'ONI connaît déjà la date de naissance par l'enrôlement de la carte d'identité (CNIB).
+    # Redemander « majeur » ne servirait à rien : on ne transmet que l'utile. La minimisation de l'âge
+    # se montre avec le concours (18–37 ans, sans jamais la date de naissance).
+    attributs:
+      - attribut: nationalite_burkinabe
+        libelle: burkinabè
+      # Casier du passeport, sur UNE ligne : si le casier du jury n'a PAS de colonne « peines complémentaires »,
+      # remplacer la ligne ci-dessous par la ligne « repli » du commentaire (JOUR_J_DONNEES_JURY.md), sans code.
+      - {attribut: interdiction_sortie_territoire, libelle: interdiction de sortie du territoire, attendu: false}
+      #   repli « casier vierge » : - {attribut: casier_judiciaire_vierge, libelle: casier judiciaire vierge, si_non: "casier non vierge : dossier à instruire"}
+
+  concours-adjoints:
+    libelle: Concours direct adjoints administratifs
+    services: [direction-concours]
+    finalite: vérification des conditions d'inscription au concours direct des adjoints administratifs
+    base: base_legale
+    # C'est le communiqué du concours qui fixe 18–37 ans au 31/12/2026 ; la loi est le cadre général.
+    # Référence exacte du communiqué à compléter par l'équipe.
+    texte: Communiqué d'ouverture du concours direct de recrutement d'adjoints administratifs (session 2026, âge de 18 à 37 ans au 31/12/2026) ; cadre général - loi n°081-2015/CNT portant statut général de la fonction publique d'État
+    attributs:
+      - attribut: age_entre
+        parametres: {min: 18, max: 37, date_reference: "2026-12-31"}
+        libelle: âge de 18 à 37 ans au 31/12/2026
+      - attribut: nationalite_burkinabe
+        libelle: nationalité burkinabè
+      - attribut: casier_judiciaire_vierge
+        libelle: casier judiciaire vierge
+
+  bourse-nationale:
+    libelle: Bourse nationale
+    services: [service-bourses]
+    finalite: attribution de la bourse nationale
+    base: consentement
+    attributs:
+      - attribut: nationalite_burkinabe
+        libelle: nationalité burkinabè
+
+  verifier-majorite:
+    libelle: Vérifier la majorité
+    services: [direction-concours, service-bourses, mairie]
+    finalite: vérification de la majorité civile
+    base: base_legale
+    # Majorité civile abaissée de 20 à 18 ans. Le seuil reste un paramètre : changer « min » suffit.
+    texte: Code des personnes et de la famille, loi n°012-2025/ALT (majorité civile à 18 ans accomplis)
+    attributs:
+      - attribut: age_entre
+        parametres: {min: 18, date_reference: aujourd'hui}
+        libelle: majeur (18 ans accomplis)

@@ -20,9 +20,14 @@
 {% for l in lignes %}
 {% set r = l.resultat %}
 {% if r.valeur is defined %}
-<div class="bloc {{ 'succes' if r.valeur == l.attendu else 'attente' }}" role="status">
+<div class="bloc {{ 'succes' if (r.valeur is mapping or r.valeur == l.attendu) else 'attente' }}" role="status">
   {# « non » n'est pas un refus : c'est une réponse signée ; le catalogue peut dire quoi faire (si_non) #}
+  {% if r.valeur is mapping %}
+  <p class="resultat"><strong>{{ l.libelle }}</strong></p>
+  <ul>{% for nom, texte in r.valeur.items() %}<li>{{ nom | replace("_", " ") }} : {{ texte }}</li>{% endfor %}</ul>
+  {% else %}
   <p class="resultat"><strong>{% if not r.valeur and l.si_non %}{{ l.si_non }}{% else %}{{ l.libelle }} : {{ "oui" if r.valeur else "non" }}{% endif %}</strong></p>
+  {% endif %}
   <p>Signé par le {{ r.registre }}, signature vérifiée, valable jusqu'à {{ r.jusqu_a }}.
   <span class="aide">Clé du registre : <code>{{ r.cle }}</code>.</span></p>
 </div>

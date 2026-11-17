@@ -1,70 +1,69 @@
-"""Repli « casier vierge » du passeport : UNE ligne du catalogue change, aucun code (JOUR_J_DONNEES_JURY.md).
-
-Le casier du jury risque de n'avoir pas de colonne « peines complémentaires » : la démarche passeport doit
-pouvoir basculer sur « casier judiciaire vierge » en remplaçant une seule ligne de consentement-minimisation/catalogue/demarches.yaml.
-Le catalogue doit rester VALIDE (sinon le médiateur refuse de démarrer) et sans avertissement de double clé
-(sinon le registre casier refuserait de répondre au service passeport). L'aperçu USSD suit tout seul :
-il est fabriqué depuis le catalogue, jamais en dur.
-"""
+"""Catalogue actif : les trois démarches du cadre (concours direct, CEFORE, certificat de nationalité), leur validation
+au chargement, et le refus d'une version invalide (l'ancienne reste en vigueur, la passerelle continue de tourner)."""
 import pytest
 from conftest import RACINE
 
 from app import main as mediateur
 from consentement import catalogue
 
-LIGNE_INTERDICTION = ("- {attribut: interdiction_sortie_territoire, "
-                      "libelle: interdiction de sortie du territoire, attendu: false}")
-LIGNE_REPLI = ("- {attribut: casier_judiciaire_vierge, libelle: casier judiciaire vierge, "
-               "si_non: \"casier non vierge : dossier à instruire\"}")
+
+def charger_le_catalogue():
+    return catalogue.charger()          # lève CatalogueInvalide si le catalogue du dépôt est invalide
 
 
-def charger_le_catalogue(monkeypatch, tmp_path, repli):
-    """Charge le catalogue du dépôt, ou sa copie avec la SEULE ligne du casier passeport remplacée."""
-    dossier = tmp_path / "catalogue"
-    dossier.mkdir(exist_ok=True)
-    (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
+def test_catalogue_actif_trois_demarches_du_cadre():
+    chat = charger_le_catalogue()
+    assert set(chat["demarches"]) == {"concours-direct", "entreprise-individuelle-cefore", "certificat-nationalite"}
+    attributs = {code: [a["attribut"] for a in d["attributs"]] for code, d in chat["demarches"].items()}
+    assert attributs == {"concours-direct": ["majeur", "nationalite_bf", "casier_vierge"],
+                         "entreprise-individuelle-cefore": ["identite", "casier_vierge"],
+                         "certificat-nationalite": ["naissance_filiation"]}
+    services = {code: d["services"] for code, d in chat["demarches"].items()}
+    assert services == {"concours-direct": ["direction-concours"], "entreprise-individuelle-cefore": ["cefore"],
+                        "certificat-nationalite": ["tribunal"]}
+    assert set(chat["services"]) == {"direction-concours", "cefore", "tribunal"}
+
+
+def test_duree_de_l_accord_pour_chaque_demarche_a_consentement():
+    chat = charger_le_catalogue()
+    for code, d in chat["demarches"].items():
+        assert d["base"] in ("base_legale", "consentement"), code
+        if d["base"] == "consentement":
+            assert type(d["duree_accord_heures"]) is int and d["duree_accord_heures"] > 0, code
+
+
+def test_demarches_retirees_pas_dans_le_catalogue_actif_mais_conservees():
+    chat = charger_le_catalogue()
+    inactives = (RACINE / "consentement-minimisation/catalogue/demarches-inactives.yaml").read_text(encoding="utf-8")
+    for code in ("passeport-ordinaire", "bourse-nationale", "verifier-majorite"):
+        assert code not in chat["demarches"] and f"  {code}:" in inactives
+
+
+def test_consentement_sans_duree_refuse(monkeypatch, tmp_path):
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
-    assert LIGNE_INTERDICTION in texte, "la ligne à remplacer en repli a disparu du catalogue"
-    if repli:
-        texte = texte.replace(LIGNE_INTERDICTION, LIGNE_REPLI)
-    (dossier / "demarches.yaml").write_text(texte, encoding="utf-8")
-    monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
-    return catalogue.charger()          # lève CatalogueInvalide si le repli est mal formé
+    assert "    duree_accord_heures: 168" in texte
+    with pytest.raises(catalogue.CatalogueInvalide, match="duree_accord_heures"):
+        catalogue.charger(texte.replace("    duree_accord_heures: 168          # 7 jours : le temps de constituer le dossier\n", "").encode())
 
 
-def attributs_du_passeport(chat):
-    return [a["attribut"] for a in chat["demarches"]["passeport-ordinaire"]["attributs"]]
-
-
-def test_reglage_normal(monkeypatch, tmp_path):
-    chat = charger_le_catalogue(monkeypatch, tmp_path, repli=False)
-    # Pas d'âge : l'ONI le connaît déjà par l'enrôlement de la CNIB (option A du 16/11)
-    assert attributs_du_passeport(chat) == ["nationalite_burkinabe", "interdiction_sortie_territoire"]
-    # charger() refuse désormais toute démarche que la double clé d'un registre interdirait : réussir suffit
-
-
-def test_reglage_repli_une_ligne(monkeypatch, tmp_path):
-    chat = charger_le_catalogue(monkeypatch, tmp_path, repli=True)
-    assert attributs_du_passeport(chat)[-1] == "casier_judiciaire_vierge"
-    # Double clé : le registre casier autorise le service passeport sur « vierge », sinon il refuserait
-    # charger() refuse désormais toute démarche que la double clé d'un registre interdirait : réussir suffit
-
-
-def test_apercu_uissd_suit_tout_seul(monkeypatch, tmp_path):
-    """L'aperçu est fabriqué depuis le catalogue : il change avec la ligne, sans autre modification."""
-    for repli, volets, attendu in (
-        (False, [("nationalite_burkinabe", True),
-                 ("interdiction_sortie_territoire", False)], "interdiction de sortie du territoire = non"),
-        (True, [("nationalite_burkinabe", True),
-                ("casier_judiciaire_vierge", True)], "casier judiciaire vierge = oui"),
-    ):
-        chat = charger_le_catalogue(monkeypatch, tmp_path, repli=repli)
-        monkeypatch.setattr(mediateur, "CAT", chat)
-        d = {"id_demande": "test", "demandeur": "service-passeport", "demarche": "passeport-ordinaire",
-             "finalite": "établissement d'un passeport ordinaire", "expire_le": 0,
+def test_apercus_tiennent_dans_un_ecran_ussd(monkeypatch):
+    """L'aperçu est fabriqué depuis le catalogue : jamais en dur, et chaque aperçu tient dans 160 caractères."""
+    chat = charger_le_catalogue()
+    monkeypatch.setattr(mediateur, "CAT", chat)
+    exemples = {
+        "concours-direct": ("direction-concours", [("majeur", 1), ("nationalite_bf", 1), ("casier_vierge", 1)]),
+        "entreprise-individuelle-cefore": ("cefore", [("identite", '{"nom": "KABORE", "prenoms": "Aminata"}'),
+                                                      ("casier_vierge", 1)]),
+        "certificat-nationalite": ("tribunal", [("naissance_filiation", '{"date_naissance": "2001-03-14", '
+                                                 '"lieu_naissance": "Ouagadougou", "pere": "Issaka KABORE", '
+                                                 '"mere": "Salimata KABORE"}')]),
+    }
+    for demarche, (service, volets) in exemples.items():
+        d = {"id_demande": "test", "demandeur": service, "demarche": demarche,
+             "finalite": chat["demarches"][demarche]["finalite"], "expire_le": 0,
              "volets": [{"attribut": a, "valeur": v, "statut": "ok"} for a, v in volets]}
         apercu = mediateur.apercu(d)["apercu"]
-        assert attendu in apercu
+        assert "Rien d'autre." in apercu
         assert len(apercu) <= 160, f"écran USSD trop long ({len(apercu)}) : {apercu}"
 
 
@@ -80,12 +79,12 @@ def test_demarche_a_coller_en_direct(monkeypatch, tmp_path):
     (dossier / "demarches.yaml").write_text(texte, encoding="utf-8")
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     chat = catalogue.charger()
-    assert "aide-transport-etudiant" in chat["demarches"]
+    assert "agrement-commercial" in chat["demarches"]
     # Erreur volontaire (démo « le médiateur refuse de démarrer ») : finalité supprimée
-    (dossier / "demarches.yaml").write_text(texte.replace("    finalite: attribution de l'aide au transport des étudiants\n", ""),
+    (dossier / "demarches.yaml").write_text(texte.replace("    finalite: instruction d'une demande d'agrément d'activité commerciale\n", ""),
                                             encoding="utf-8")
     import pytest
-    with pytest.raises(catalogue.CatalogueInvalide, match="aide-transport-etudiant.*finalité manquante"):
+    with pytest.raises(catalogue.CatalogueInvalide, match="agrement-commercial.*finalité manquante"):
         catalogue.charger()
 
 
@@ -94,9 +93,10 @@ def test_demarche_a_coller_en_direct(monkeypatch, tmp_path):
 DATE_DE_NAISSANCE = """
   curiosite-date-naissance:
     libelle: Date de naissance complète
-    services: [mairie]
+    services: [direction-concours]
     finalite: curiosité
     base: consentement
+    duree_accord_heures: 24
     attributs:
       - {attribut: date_naissance, libelle: date de naissance}
 """
@@ -104,21 +104,23 @@ DATE_DE_NAISSANCE = """
 SEUIL_NON_DECLARE = """
   majorite-a-21-ans:
     libelle: Majorité à 21 ans
-    services: [mairie]
+    services: [direction-concours]
     finalite: vérification de l'âge
     base: consentement
+    duree_accord_heures: 24
     attributs:
-      - {attribut: age_entre, parametres: {min: 21, date_reference: aujourd'hui}, libelle: 21 ans}
+      - {attribut: majeur, parametres: {min: 21, date_reference: aujourd'hui}, libelle: 21 ans}
 """
 
 DOUBLE_CLE = """
-  nationalite-mairie:
-    libelle: Nationalité pour la mairie
-    services: [mairie]
+  nationalite-cefore:
+    libelle: Nationalité pour le CEFORE
+    services: [cefore]
     finalite: vérification de la nationalité
     base: consentement
+    duree_accord_heures: 24
     attributs:
-      - {attribut: nationalite_burkinabe, libelle: burkinabè}
+      - {attribut: nationalite_bf, libelle: burkinabè}
 """
 
 
@@ -141,7 +143,7 @@ def ecrire_et_surveiller(dossier, texte):
 @pytest.mark.parametrize("ajout, raison", [
     (DATE_DE_NAISSANCE, "attribut inconnu « date_naissance » (aucun registre ne le déclare)"),
     (SEUIL_NON_DECLARE, "seuil ou date non déclaré"),
-    (DOUBLE_CLE, "n'autorise pas mairie à demander « nationalite_burkinabe »"),
+    (DOUBLE_CLE, "n'autorise pas cefore à demander « nationalite_bf »"),
     ("\n  cassee: [ : :\n", "YAML cassé"),
 ])
 def test_catalogue_invalide_refuse_ancien_garde(monkeypatch, tmp_path, ajout, raison, client):
@@ -177,11 +179,12 @@ def test_catalogue_invalide_refuse_ancien_garde(monkeypatch, tmp_path, ajout, ra
 DEMARCHE_VALIDE = """
   test-valide:
     libelle: Vérifier la majorité (test)
-    services: [service-bourses]
+    services: [direction-concours]
     finalite: vérification de la majorité civile
-    base: consentement
+    base: base_legale
+    texte: Code des personnes et de la famille, loi n°012-2025/ALT (majorité civile à 18 ans accomplis)
     attributs:
-      - {attribut: age_entre, parametres: {min: 18, date_reference: aujourd'hui}, libelle: majeur}
+      - {attribut: majeur, parametres: {min: 18, date_reference: aujourd'hui}, libelle: majeur}
 """
 
 
@@ -198,24 +201,19 @@ def test_demarche_refusee_de_la_demo(monkeypatch, tmp_path):
         catalogue.charger(texte.encode("utf-8"))
 
 
-def test_passeport_en_base_legale_refuse_au_chargement(monkeypatch, tmp_path):
-    """Passer le passeport en base légale dans le catalogue : refusé au chargement (la nationalité et le casier
-    n'ont déclaré que le consentement pour le service passeport). Le registre refuse aussi : test_registre.py."""
-    dossier = tmp_path / "catalogue"
-    dossier.mkdir()
-    (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
+def test_cefore_en_base_legale_refuse_au_chargement(monkeypatch, tmp_path):
+    """Passer le CEFORE en base légale dans le catalogue : refusé au chargement (l'état civil et le casier n'ont
+    déclaré que le consentement pour le CEFORE). Le registre refuse aussi : test_registre.py."""
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
-    avant = """    finalite: établissement d'un passeport ordinaire
-    base: consentement
+    avant = """    base: consentement
+    duree_accord_heures: 168          # 7 jours : le temps de constituer le dossier
 """
     assert avant in texte
-    texte = texte.replace(avant, """    finalite: établissement d'un passeport ordinaire
-    base: base_legale
-    texte: Décret relatif au passeport ordinaire
+    texte = texte.replace(avant, """    base: base_legale
+    texte: Décret relatif à l'immatriculation (texte inventé pour le test)
 """)
-    monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     with pytest.raises(catalogue.CatalogueInvalide) as refus:
         catalogue.charger(texte.encode("utf-8"))
-    for registre in ("nationalite", "casier"):
-        assert (f"démarche « passeport-ordinaire » : le registre {registre} n'accepte pas la base « base_legale » "
-                f"pour service-passeport") in str(refus.value)
+    for registre in ("etat-civil", "casier"):
+        assert (f"démarche « entreprise-individuelle-cefore » : le registre {registre} n'accepte pas la base "
+                f"« base_legale » pour cefore") in str(refus.value)

@@ -93,8 +93,8 @@ Réponse `200` (base légale : remise immédiate) :
 {"id_demande": "6f1c2a4e-…", "statut": "remise", "motif": "", "demarche": "concours-adjoints",
  "volets": [
    {"attribut": "age_entre", "registre": "etat-civil", "statut": "ok", "motif": "", "jeton": "eyJhbGciOiJFZERTQSJ9…"},
-   {"attribut": "nationalite_burkinabe", "registre": "nationalite", "statut": "ok", "motif": "", "jeton": "eyJ…"},
-   {"attribut": "casier_judiciaire_vierge", "registre": "casier", "statut": "indisponible",
+   {"attribut": "nationalite_bf", "registre": "nationalite", "statut": "ok", "motif": "", "jeton": "eyJ…"},
+   {"attribut": "casier_vierge", "registre": "casier", "statut": "indisponible",
     "motif": "Registre … indisponible (délai dépassé (3 s)), rien n'a été deviné"}]}
 ```
 

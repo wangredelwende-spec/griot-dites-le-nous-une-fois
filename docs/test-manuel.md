@@ -55,7 +55,7 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 | `controle.cil` | `Controle-Demo-2026!` | Contrôle (lecture seule, rôle `controleur`) | Aucune démarche : page **Contrôle** (scène 2 ter) |
 
 À la **première connexion**, Keycloak montre un QR code : le scanner avec FreeOTP/Aegis, taper le code à
-6 chiffres. Ensuite, chaque connexion demande mot de passe + code. (`agent.banc` et `agent.banc.bourses` sont
+6 chiffres. Ensuite, chaque connexion demande mot de passe + code. (`agent.banc` et `agent.banc.cefore` sont
 réservés aux tests automatiques : ne pas les utiliser en démo.)
 
 | Téléphone (USSD) | PIN | Usager | Intérêt |
@@ -113,7 +113,7 @@ Attendu :
 3. Chaque témoin est cherché hors des registres (base SQLite du médiateur, historique de l'usager, page du guichet,
    réponses reçues, logs du médiateur, du guichet, de l'USSD et de Caddy) : **« introuvable ✅ » partout**.
 4. Les réponses signées reçues par le guichet, décodées en entier : `{"age_equal_or_over": {"18": true, "38": true},
-   "date_reference": "2026-12-31", …}` (47 ans : trop âgé), `"casier_judiciaire_vierge": false`. Rien d'autre.
+   "date_reference": "2026-12-31", …}` (47 ans : trop âgé), `"casier_vierge": false`. Rien d'autre.
 Au guichet, chaque résultat a aussi un bouton « réponse signée reçue (contenu complet, décodé) ».
 
 ## Scène 1 ter (secondaire) : le concours direct, base légale et panne partielle sur 3 registres
@@ -278,7 +278,7 @@ autorisés : le catalogue fixe ce que cette démarche peut demander » ; rejet i
 lui-même, avec une réponse signée (voir `docs/AJOUTER_UNE_DEMARCHE.md`, § 3). Idem pour un seuil d'âge non déclaré
 par le registre (« 25 ans ? 26 ans ? … ») : « paramètres non autorisés par le registre pour ce service ».
 **Médiateur compromis** : un appel direct au registre sans jeton d'agent valide est refusé par le registre :
-`docker compose exec mediateur python -c "import httpx; print(httpx.post('http://registre-casier:8000/attributs', json={'id_demande': 'x', 'attribut': 'casier_judiciaire_vierge', 'sujet_ref': 'BF-0008', 'destinataire': 'direction-concours'}).json())"`
+`docker compose exec mediateur python -c "import httpx; print(httpx.post('http://registre-casier:8000/attributs', json={'id_demande': 'x', 'attribut': 'casier_vierge', 'sujet_ref': 'BF-0008', 'destinataire': 'direction-concours'}).json())"`
 → un jeton signé dont le contenu est « refus : jeton d'agent absent ».
 **Trop de demandes sur une même personne** : au-delà de 5 demandes d'un même service en 24 h → « bloqué » au guichet
 et « ALERTE » dans l'historique USSD du citoyen (motif affiché dans le détail).
@@ -325,7 +325,7 @@ journal) et affiche le résultat. Rien n'est enregistré. API pour les intégrat
 Plusieurs bancs le même jour sans remise à zéro finissent par « bloqué » (limite 5/24 h) : remettre à zéro, puis relancer.
 
 1. `OUTILS_TEST=1` dans `.env`, puis `python scripts/outils_test.py` (crée 4 comptes de service de TEST,
-   `outil-test-concours`, `outil-test-bourses`, `outil-test-curieux`, `outil-test-passeport` : mêmes règles que les agents, aucune exemption).
+   `outil-test-concours`, `outil-test-cefore`, `outil-test-curieux`, `outil-test-tribunal` : mêmes règles que les agents, aucune exemption).
 2. `python resilience/banc_de_pannes.py` → une ligne ✅ / ❌ par vérification (registre coupé, lent, corrompu, rejeu,
    mauvaise finalité, attribut en plus, appels directs au registre, seuil non déclaré, agent curieux, consentement
    refusé / retiré / expiré, journal modifié, consultation cachée, réseau, double trace), en 45 s environ.

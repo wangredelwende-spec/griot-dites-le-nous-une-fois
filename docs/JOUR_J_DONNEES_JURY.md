@@ -133,7 +133,7 @@ Dans `catalogue\demarches.yaml`, démarche `passeport-ordinaire`, remplacer la l
 par la ligne « repli » donnée en commentaire juste en dessous :
 
 ```yaml
-      - {attribut: casier_judiciaire_vierge, libelle: casier judiciaire vierge, si_non: "casier non vierge : dossier à instruire"}
+      - {attribut: casier_vierge, libelle: casier judiciaire vierge, si_non: "casier non vierge : dossier à instruire"}
 ```
 
 Puis `docker compose restart mediateur guichet`. Rien d'autre :

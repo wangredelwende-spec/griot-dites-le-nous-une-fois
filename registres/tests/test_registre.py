@@ -28,8 +28,9 @@ MAJORITE = {"min": 18, "date_reference": AUJOURDHUI}
 
 # Faux Keycloak : une clé RSA de test. Le registre vérifie le jeton de l'agent avec SA clé publique.
 CLE_KEYCLOAK = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-GROUPES = {"service-bourses": "Service des bourses", "direction-concours": "Direction des concours – ministère des Serviteurs du peuple",
-           "mairie": "Mairie", "service-passeport": "Service des passeports – ONI (ministère de la Sécurité)"}
+GROUPES = {"cefore": "CEFORE – guichet des entreprises",
+           "direction-concours": "Direction des concours – ministère des Serviteurs du peuple",
+           "tribunal": "Tribunal – certificats de nationalité"}
 
 
 class FauxKeycloak:
@@ -40,7 +41,7 @@ class FauxKeycloak:
 registre.CLES_KEYCLOAK = FauxKeycloak()
 
 
-def jeton_agent(service: str = "service-bourses", cle=CLE_KEYCLOAK, **modifs) -> str:
+def jeton_agent(service: str = "direction-concours", cle=CLE_KEYCLOAK, **modifs) -> str:
     maintenant = int(time.time())
     charge = {"iss": "https://auth.griot.test/realms/griot", "aud": "mediateur", "exp": maintenant + 300,
               "iat": maintenant, "preferred_username": "agent.test", "roles": ["agent-guichet"],
@@ -52,9 +53,9 @@ def jeton_agent(service: str = "service-bourses", cle=CLE_KEYCLOAK, **modifs) ->
 BASE = {"base": "base_legale", "texte": "Code des personnes et de la famille, loi n°012-2025/ALT ; loi n°081-2015/CNT"}
 
 
-def demander(sujet: str, attribut: str = "age_entre", service: str = "service-bourses", parametres=None,
+def demander(sujet: str, attribut: str = "majeur", service: str = "direction-concours", parametres=None,
              jeton: str | None = None, base: dict = BASE) -> dict:
-    parametres = MAJORITE if parametres is None and attribut == "age_entre" else (parametres or {})
+    parametres = MAJORITE if parametres is None and attribut == "majeur" else (parametres or {})
     # jeton="" : AUCUN en-tête Authorization (appel direct au registre, sans agent)
     entetes = {} if jeton == "" else {"Authorization": f"Bearer {jeton if jeton is not None else jeton_agent(service)}"}
     r = client.post("/attributs", headers=entetes, json={"id_demande": "d-1", "attribut": attribut, "sujet_ref": sujet,
@@ -87,18 +88,18 @@ def test_empreinte_de_la_cle():
 
 def test_double_cle_le_registre_refuse_un_service_non_autorise():
     """Même si le médiateur laissait passer, le registre refuse (signé) un service absent de sa liste."""
-    infos = demander("BF-0001", attribut="personne_connue", service="mairie")
+    infos = demander("BF-0001", attribut="personne_connue", service="tribunal")
     assert infos["statut"] == "refus" and infos["motif"].startswith("service non autorisé")
     assert "personne_connue" not in infos
 
 
 def test_mode_corrompu_casse_la_signature():
-    jeton = client.post("/attributs", headers={"Authorization": f"Bearer {jeton_agent('mairie')}"},
-                        json={"id_demande": "d-1", "attribut": "age_entre", "sujet_ref": "BF-0003",
-                              "parametres": MAJORITE, "destinataire": "mairie"} | BASE).json()["jeton"]
+    jeton = client.post("/attributs", headers={"Authorization": f"Bearer {jeton_agent('direction-concours')}"},
+                        json={"id_demande": "d-1", "attribut": "majeur", "sujet_ref": "BF-0003",
+                              "parametres": MAJORITE, "destinataire": "direction-concours"} | BASE).json()["jeton"]
     falsifie = registre.falsifier(jeton)
     with pytest.raises(jwt.InvalidSignatureError):
-        jwt.decode(falsifie, CLE_PUBLIQUE, algorithms=["EdDSA"], audience="mairie")
+        jwt.decode(falsifie, CLE_PUBLIQUE, algorithms=["EdDSA"], audience="direction-concours")
     infos = jwt.decode(falsifie, options={"verify_signature": False})
     assert infos["age_equal_or_over"] == {"18": True}        # « non » devenu « oui », sans re-signer
 
@@ -120,25 +121,23 @@ def test_appel_sans_jeton_d_agent_valide_refuse(jeton, motif):
 
 
 def test_service_declare_different_du_jeton_refuse():
-    """Le médiateur déclare « direction-concours », mais le jeton est celui d'un agent des bourses."""
-    infos = demander("BF-0001", service="direction-concours", jeton=jeton_agent("service-bourses"))
+    """Le médiateur déclare « direction-concours », mais le jeton est celui d'un agent du CEFORE."""
+    infos = demander("BF-0001", service="direction-concours", jeton=jeton_agent("cefore"))
     assert infos["statut"] == "refus" and "ne correspond pas au jeton" in infos["motif"]
 
 
 # --- B. Double clé sur les paramètres : impossible de reconstituer une date de naissance ---
 
 def test_parametres_declares_acceptes():
-    infos = demander("BF-0001", service="direction-concours",
-                     parametres={"min": 18, "max": 37, "date_reference": "2026-12-31"})
-    assert infos["statut"] == "ok" and infos["age_equal_or_over"] == {"18": True, "38": False}
+    infos = demander("BF-0001", service="direction-concours", parametres={"min": 18, "date_reference": AUJOURDHUI})
+    assert infos["statut"] == "ok" and infos["age_equal_or_over"] == {"18": True}
 
 
 @pytest.mark.parametrize("service, parametres", [
-    ("direction-concours", {"min": 18, "max": 36, "date_reference": "2026-12-31"}),    # autre seuil
+    ("direction-concours", {"min": 18, "max": 36, "date_reference": "2026-12-31"}),    # tranche d'âge non déclarée
     ("direction-concours", {"min": 18, "max": 37, "date_reference": "2026-06-30"}),    # autre date
-    ("service-bourses", {"min": 25, "date_reference": AUJOURDHUI}),                    # seuil de 25 ans
-    ("service-bourses", {"min": 18, "date_reference": "2019-03-14"}),                  # autre jour
-    ("service-bourses", {"min": 18, "max": 37, "date_reference": "2026-12-31"}),       # seuils d'un autre service
+    ("direction-concours", {"min": 25, "date_reference": AUJOURDHUI}),                 # seuil de 25 ans
+    ("direction-concours", {"min": 18, "date_reference": "2019-03-14"}),               # autre jour
 ])
 def test_autres_seuils_refuses(service, parametres):
     infos = demander("BF-0001", service=service, parametres=parametres)
@@ -157,7 +156,7 @@ def test_reconstitution_de_la_date_de_naissance_impossible():
 
 def test_trace_des_reponses_sans_valeur_ni_citoyen():
     import sqlite3
-    demander("BF-0008", service="direction-concours", parametres={"min": 18, "max": 37, "date_reference": "2026-12-31"})
+    demander("BF-0008", service="direction-concours")
     export = jwt.decode(client.get("/trace").json()["jeton"], CLE_PUBLIQUE, algorithms=["EdDSA"],
                         audience="verification")                     # export SIGNÉ par le registre
     derniere = export["trace"][-1]
@@ -187,35 +186,55 @@ def test_source_indisponible_503_non_signe(monkeypatch):
     avant = registre.TRACE_BASE.execute("SELECT COUNT(*) FROM reponses").fetchone()[0]
     monkeypatch.setattr(registre.ADAPTATEUR, "calculer", panne)
     r = client.post("/attributs", headers={"Authorization": f"Bearer {jeton_agent()}"},
-                    json={"id_demande": "d-api", "attribut": "age_entre", "sujet_ref": "BF-0001",
-                          "destinataire": "service-bourses", "parametres": MAJORITE} | BASE)
+                    json={"id_demande": "d-api", "attribut": "majeur", "sujet_ref": "BF-0001",
+                          "destinataire": "direction-concours", "parametres": MAJORITE} | BASE)
     assert r.status_code == 503 and "jeton" not in r.json()
     assert registre.TRACE_BASE.execute("SELECT COUNT(*) FROM reponses").fetchone()[0] == avant
 
 
 # --- Double clé sur le MODE : consentement / base légale déclarés par le registre, par service ---
 
-TEXTE_PASSEPORT = "Décret relatif au passeport ordinaire (texte inventé pour le test)"
-
-
-def test_registre_refuse_lui_meme_le_passeport_en_base_legale(monkeypatch):
-    """Le registre de la nationalité accepte le passeport SEULEMENT avec l'accord de l'usager (consentement)."""
+def test_registre_refuse_lui_meme_la_mauvaise_base(monkeypatch):
+    """Le registre de la nationalité accepte le concours SEULEMENT en base légale citant la loi n°081-2015/CNT."""
     from test_adaptateur import charger
     monkeypatch.setattr(registre, "ADAPTATEUR", charger("nationalite"))
-    passeport = {"attribut": "nationalite_burkinabe", "service": "service-passeport"}
-    assert demander("BF-0001", **passeport, base={"base": "consentement"})["statut"] == "ok"
-    for base in ({"base": "base_legale", "texte": TEXTE_PASSEPORT},
-                 {"base": "base_legale", "texte": "loi n°081-2015/CNT"},     # texte déclaré, mais pour le concours
-                 {"base": ""}, {"base": "deviner"}):
-        infos = demander("BF-0001", **passeport, base=base)
+    concours = {"attribut": "nationalite_bf", "service": "direction-concours"}
+    assert demander("BF-0001", **concours, base={"base": "base_legale", "texte": "loi n°081-2015/CNT"})["statut"] == "ok"
+    for base in ({"base": "base_legale", "texte": "arrêté inventé pour le test"},
+                 {"base": "consentement"}, {"base": ""}, {"base": "deviner"}):
+        infos = demander("BF-0001", **concours, base=base)
         assert infos["statut"] == "refus" and infos["motif"] == "base juridique non autorisée par le registre pour ce service"
-        assert "nationalite_burkinabe" not in infos
+        assert "nationalite_bf" not in infos
 
 
 def test_base_legale_sans_reference_declaree_refusee():
-    """État civil, mairie : base légale acceptée avec la loi n°012-2025/ALT, refusée avec un autre texte ;
-    consentement refusé (non déclaré pour la mairie)."""
-    assert demander("BF-0001", service="mairie")["statut"] == "ok"
-    for base in ({"base": "base_legale", "texte": "arrêté municipal"}, {"base": "consentement"}):
-        motif = demander("BF-0001", service="mairie", base=base)["motif"]
+    """État civil, CEFORE : consentement accepté (identité), base légale refusée même avec une loi connue."""
+    cefore = {"attribut": "identite", "service": "cefore", "parametres": {}}
+    assert demander("BF-0001", **cefore, base={"base": "consentement"})["statut"] == "ok"
+    for base in ({"base": "base_legale", "texte": "loi n°012-2025/ALT"}, {"base": "base_legale", "texte": "arrêté"}):
+        motif = demander("BF-0001", **cefore, base=base)["motif"]
         assert motif == "base juridique non autorisée par le registre pour ce service"
+
+
+# --- Règle « champs » : identité, naissance et filiation (exactement les cases déclarées, rien d'autre) ---
+
+def test_identite_pour_le_cefore_seulement_nom_et_prenoms():
+    infos = demander("BF-0001", attribut="identite", service="cefore", base={"base": "consentement"})
+    assert infos["statut"] == "ok" and infos["identite"] == {"nom": "KABORE", "prenoms": "Aminata"}
+    assert set(infos) == {"iss", "aud", "sub", "demande", "iat", "exp", "jti", "statut", "identite"}   # ni date, ni parents
+    assert "2001" not in json.dumps(infos) and "Issaka" not in json.dumps(infos)
+
+
+def test_naissance_et_filiation_pour_le_tribunal_seulement():
+    consentement = {"base": "consentement"}
+    infos = demander("BF-0001", attribut="naissance_filiation", service="tribunal", base=consentement)
+    assert infos["naissance_filiation"] == {"date_naissance": "2001-03-14", "lieu_naissance": "Ouagadougou",
+                                            "pere": "Issaka KABORE", "mere": "Salimata KABORE"}
+    refuse = demander("BF-0001", attribut="naissance_filiation", service="cefore", base=consentement)
+    assert refuse["statut"] == "refus" and "naissance_filiation" not in refuse     # double clé
+
+
+def test_naissance_incomplete_ou_decede_refuse_sans_rien_deviner():
+    for sujet in ("BF-0004", "BF-0007", "BF-0099"):      # « vers 1990 », décédé, introuvable
+        infos = demander(sujet, attribut="naissance_filiation", service="tribunal", base={"base": "consentement"})
+        assert infos["statut"] == "refus" and "naissance_filiation" not in infos

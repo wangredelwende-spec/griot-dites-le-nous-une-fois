@@ -1,6 +1,6 @@
 """Test de bout en bout du portail web usager (https://usager.griot.test/portail), contre la pile qui tourne.
 
-1. agent.banc.bourses (Service des bourses) demande la « Bourse nationale » pour BF-0009 : en attente de l'usager.
+1. agent.banc.cefore (Service des bourses) demande la « Bourse nationale » pour BF-0009 : en attente de l'usager.
 2. L'usager se connecte au portail (70000009 + PIN), voit l'aperçu exact et confirme : il reçoit un reçu.
 3. Le guichet actualise : « nationalité burkinabè : oui », signature vérifiée.
 4. La même confirmation est visible dans l'historique USSD (*226#), marquée « (web) », avec le même reçu.
@@ -18,7 +18,7 @@ import httpx
 from e2e_jalon1 import RACINE, autorite_caddy, connecter
 from e2e_ussd import Telephone, texte, verifier
 
-AGENT = "agent.banc.bourses"
+AGENT = "agent.banc.cefore"
 GUICHET, PORTAIL = "https://guichet.griot.test", "https://usager.griot.test/portail"
 NUMERO, SUJET = "70000009", "BF-0009"
 
@@ -46,7 +46,7 @@ def main():
         for ancienne in re.findall(r'/portail/attente/([0-9a-f-]+)/refuser', web.get(f"{PORTAIL}/attente").text):
             web.post(f"{PORTAIL}/attente/{ancienne}/refuser", data={"csrf": csrf})
 
-        r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf_guichet, "demarche": "bourse-nationale", "sujet_ref": SUJET})
+        r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf_guichet, "demarche": "entreprise-individuelle-cefore", "sujet_ref": SUJET})
         adresse = str(r.url)
         resultats.append(verifier("demande de bourse en attente de l'usager", "En attente de l'usager" in texte(r.text),
                                   texte(r.text)[-300:]))

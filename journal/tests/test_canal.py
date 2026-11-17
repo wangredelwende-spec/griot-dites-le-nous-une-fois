@@ -24,7 +24,7 @@ def ligne_du_journal(empreinte: str) -> dict:
 
 def demande_bourse(client, sujet: str) -> str:
     client.agent["nom"] = "awa.ouedraogo"
-    d = demande(demarche="bourse-nationale", sujet=sujet)
+    d = demande(demarche="test-nationalite", sujet=sujet)
     assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
     return d["id_demande"]
 
@@ -103,4 +103,4 @@ def test_historique_donne_les_seuils_de_la_demarche(client):
     client.agent["nom"] = "issa.sawadogo"
     client.post("/demandes", json=demande(sujet="BF-0010"))
     ligne = client.get("/usagers/BF-0010/historique", headers=CANAL).json()[0]
-    assert ligne["attributs"][0]["code"] == "age_entre" and ligne["attributs"][0]["parametres"]["min"] == 18
+    assert ligne["attributs"][0]["code"] == "majeur" and ligne["attributs"][0]["parametres"]["min"] == 18

@@ -1,5 +1,6 @@
 """Médiateur : catalogue, signature, délai, rejeu, finalité, consentement, journal."""
 import asyncio
+from datetime import datetime, timezone
 import importlib.util
 import json
 import sqlite3
@@ -153,8 +154,8 @@ def test_mauvaise_finalite_refusee(client):
 
 @respx.mock
 def test_demarche_d_un_autre_service_refusee(client):
-    # Issa (concours) tente la démarche « bourse-nationale » : refusé, le service vient du jeton
-    r = client.post("/demandes", json=demande(demarche="bourse-nationale")).json()
+    # Issa (concours) tente la démarche « test-nationalite » : refusé, le service vient du jeton
+    r = client.post("/demandes", json=demande(demarche="test-nationalite")).json()
     assert r["statut"] == "refuse" and "non autorisée pour ce service" in r["motif"]
 
 
@@ -162,13 +163,13 @@ def test_demarche_d_un_autre_service_refusee(client):
 def test_consentement_apercu_puis_confirmation(client):
     client.agent["nom"] = "awa.ouedraogo"
     respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
-    d = demande(demarche="bourse-nationale", sujet="BF-0012")
+    d = demande(demarche="test-nationalite", sujet="BF-0012")
     assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
     suivi = client.get(f"/demandes/{d['id_demande']}").json()
     assert suivi["statut"] == "en_attente" and "jeton" not in suivi["volets"][0]   # rien avant l'accord
 
     attente = client.get("/usagers/BF-0012/en-attente", headers=CANAL).json()
-    assert attente[0]["apercu"] == "Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre."
+    assert attente[0]["apercu"] == "Le CEFORE recevra : nationalité burkinabè = oui. Rien d'autre."
     confirmation = client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": "BF-0012"}, headers=CANAL)
     assert confirmation.json()["statut"] == "confirmee" and len(confirmation.json()["empreinte"]) == 64
 
@@ -181,7 +182,7 @@ def test_consentement_apercu_puis_confirmation(client):
 def test_refus_par_l_usager(client):
     client.agent["nom"] = "awa.ouedraogo"
     respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
-    d = demande(demarche="bourse-nationale", sujet="BF-0013")
+    d = demande(demarche="test-nationalite", sujet="BF-0013")
     client.post("/demandes", json=d)
     client.post(f"/demandes/{d['id_demande']}/refuser", json={"sujet_ref": "BF-0013"}, headers=CANAL)
     r = client.get(f"/demandes/{d['id_demande']}").json()
@@ -192,7 +193,7 @@ def test_refus_par_l_usager(client):
 def test_un_autre_usager_ne_peut_pas_confirmer(client):
     client.agent["nom"] = "awa.ouedraogo"
     respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
-    d = demande(demarche="bourse-nationale", sujet="BF-0014")
+    d = demande(demarche="test-nationalite", sujet="BF-0014")
     client.post("/demandes", json=d)
     r = client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": "BF-0015"}, headers=CANAL)
     assert r.status_code == 404
@@ -202,7 +203,7 @@ def test_un_autre_usager_ne_peut_pas_confirmer(client):
 def test_consentement_expire(client):
     client.agent["nom"] = "awa.ouedraogo"
     respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
-    d = demande(demarche="bourse-nationale", sujet="BF-0016")
+    d = demande(demarche="test-nationalite", sujet="BF-0016")
     client.post("/demandes", json=d)
     sqlite3.connect(CHEMIN_JOURNAL, isolation_level=None).execute(
         "UPDATE demandes SET expire_le = 0 WHERE id_demande = ?", (d["id_demande"],))
@@ -222,7 +223,7 @@ def test_historique_sans_la_valeur(client):
     assert [l["evenement"] for l in historique] == ["remise", "reponse-registre", "demande"]
     assert historique[0]["service"] == "La Direction des concours – ministère des Serviteurs du peuple"
     assert "012-2025" in historique[0]["texte_base"]
-    assert historique[0]["attributs"] == [{"code": "age_entre", "libelle": "majeur (18 ans accomplis)",
+    assert historique[0]["attributs"] == [{"code": "majeur", "libelle": "majeur (18 ans accomplis)",
                                            "parametres": {"min": 18, "date_reference": "aujourd'hui"}}]
     texte = json.dumps(historique, ensure_ascii=False)
     assert "true" not in texte and "= oui" not in texte and "BF-0018" not in texte
@@ -263,7 +264,7 @@ def test_verifier_recu_avec_ou_sans_espaces():
 def demande_casier(sujet="BF-0003"):
     """Le casier n'est demandé que par le concours direct : on coupe les deux autres registres."""
     respx.post(URL_NATIONALITE).mock(side_effect=httpx.ConnectError("hors sujet"))
-    return demande("concours-adjoints", sujet)
+    return demande("concours-direct", sujet)
 
 
 def volet(reponse: dict, attribut: str) -> dict:
@@ -277,7 +278,7 @@ def test_casier_absence_vierge_verifie_l_identite(client, monkeypatch):
     respx.post(URL_REGISTRE).mock(side_effect=registre_qui_refuse())
     casier = respx.post(URL_CASIER).mock(return_value=httpx.Response(500))
     r = client.post("/demandes", json=demande_casier("BF-0099")).json()
-    assert volet(r, "casier_judiciaire_vierge")["motif"] == "identité non confirmée par l'état civil"
+    assert volet(r, "casier_vierge")["motif"] == "identité non confirmée par l'état civil"
     assert not casier.called
 
 
@@ -287,9 +288,9 @@ def test_casier_absence_vierge_identite_confirmee(client, monkeypatch):
     respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
     respx.post(URL_CASIER).mock(side_effect=registre_qui_signe())
     r = client.post("/demandes", json=demande_casier()).json()
-    assert volet(r, "casier_judiciaire_vierge")["jeton"]
+    assert volet(r, "casier_vierge")["jeton"]
     attributs = [l["attribut"] for l in journal_de() if l["evenement"] == "reponse-registre"][-4:]
-    assert "personne_connue" in attributs and "casier_judiciaire_vierge" in attributs
+    assert "personne_connue" in attributs and "casier_vierge" in attributs
 
 
 @respx.mock
@@ -297,7 +298,7 @@ def test_casier_absence_vierge_etat_civil_coupe(client, monkeypatch):
     monkeypatch.setattr(mediateur, "CAT", mediateur.CAT | {"absence_vierge": {"casier"}})
     respx.post(URL_REGISTRE).mock(side_effect=httpx.ConnectError("coupé"))
     r = client.post("/demandes", json=demande_casier()).json()
-    v = volet(r, "casier_judiciaire_vierge")
+    v = volet(r, "casier_vierge")
     assert v["statut"] == "indisponible" and "rien n'a été deviné" in v["motif"]
 
 
@@ -312,16 +313,16 @@ def tous_les_registres(etat_civil=None, nationalite=None, casier=None):
 @respx.mock
 def test_concours_direct_trois_registres_une_demande(client):
     tous_les_registres()
-    r = client.post("/demandes", json=demande("concours-adjoints")).json()
+    r = client.post("/demandes", json=demande("concours-direct")).json()
     assert r["statut"] == "remise"
-    assert [v["attribut"] for v in r["volets"]] == ["age_entre", "nationalite_burkinabe", "casier_judiciaire_vierge"]
+    assert [v["attribut"] for v in r["volets"]] == ["majeur", "nationalite_bf", "casier_vierge"]
     assert all(v["jeton"] and v["statut"] == "ok" for v in r["volets"])
     # Les paramètres viennent du catalogue, jamais du guichet
     corps = json.loads(respx.calls[0].request.content)
-    assert corps["parametres"] == {"min": 18, "max": 37, "date_reference": "2026-12-31"}
+    assert corps["parametres"] == {"min": 18, "date_reference": datetime.now(timezone.utc).date().isoformat()}
     evenements = [l["evenement"] for l in journal_de()[-5:]]
     assert evenements == ["demande", "reponse-registre", "reponse-registre", "reponse-registre", "remise"]
-    assert journal_de()[-1]["attribut"] == "age_entre+nationalite_burkinabe+casier_judiciaire_vierge"
+    assert journal_de()[-1]["attribut"] == "majeur+nationalite_bf+casier_vierge"
 
 
 @respx.mock
@@ -331,7 +332,7 @@ def test_concours_direct_registres_appeles_en_parallele(client):
         return httpx.Response(200, json={"jeton": jeton_registre(json.loads(requete.content))})
     tous_les_registres(lent, lent, lent)
     debut = time.monotonic()
-    r = client.post("/demandes", json=demande("concours-adjoints")).json()
+    r = client.post("/demandes", json=demande("concours-direct")).json()
     assert r["statut"] == "remise" and time.monotonic() - debut < 0.75     # 3 × 0,3 s en série = 0,9 s
 
 
@@ -339,17 +340,17 @@ def test_concours_direct_registres_appeles_en_parallele(client):
 def test_concours_direct_un_registre_en_panne(client):
     """L'état civil est coupé : la nationalité et le casier s'affichent, l'âge est « indisponible »."""
     tous_les_registres(etat_civil=httpx.ConnectError("coupé"))
-    r = client.post("/demandes", json=demande("concours-adjoints")).json()
-    age = volet(r, "age_entre")
+    r = client.post("/demandes", json=demande("concours-direct")).json()
+    age = volet(r, "majeur")
     assert age["statut"] == "indisponible" and "rien n'a été deviné" in age["motif"] and "jeton" not in age
-    assert volet(r, "nationalite_burkinabe")["jeton"] and volet(r, "casier_judiciaire_vierge")["jeton"]
+    assert volet(r, "nationalite_bf")["jeton"] and volet(r, "casier_vierge")["jeton"]
 
 
 @respx.mock
 def test_tous_les_registres_en_panne(client):
     coupe = httpx.ConnectError("coupé")
     tous_les_registres(coupe, coupe, coupe)
-    r = client.post("/demandes", json=demande("concours-adjoints")).json()
+    r = client.post("/demandes", json=demande("concours-direct")).json()
     assert r["statut"] == "indisponible" and all(v["statut"] == "indisponible" for v in r["volets"])
 
 
@@ -357,17 +358,17 @@ def test_tous_les_registres_en_panne(client):
 def test_date_de_reference_falsifiee_refusee(client):
     tous_les_registres(etat_civil=lambda req: httpx.Response(200, json={"jeton": jeton_registre(
         json.loads(req.content), date_reference="2030-01-01")}))
-    r = client.post("/demandes", json=demande("concours-adjoints")).json()
-    assert "date de référence" in volet(r, "age_entre")["motif"]
+    r = client.post("/demandes", json=demande("concours-direct")).json()
+    assert "date de référence" in volet(r, "majeur")["motif"]
 
 
 @respx.mock
 def test_seuil_d_age_manquant_refuse(client):
-    # Le registre ne répond que « 18 ans » : on ne peut pas conclure « 37 ans au plus »
+    # Le registre répond sur un AUTRE seuil que celui demandé (18 ans) : on ne peut pas conclure
     tous_les_registres(etat_civil=lambda req: httpx.Response(200, json={"jeton": jeton_registre(
-        json.loads(req.content), age_equal_or_over={"18": True})}))
-    r = client.post("/demandes", json=demande("concours-adjoints")).json()
-    assert "seuils d'âge" in volet(r, "age_entre")["motif"]
+        json.loads(req.content), age_equal_or_over={"19": True})}))
+    r = client.post("/demandes", json=demande("concours-direct")).json()
+    assert "seuils d'âge" in volet(r, "majeur")["motif"]
 
 
 @respx.mock
@@ -382,28 +383,28 @@ def test_majorite_date_du_jour(client):
 @respx.mock
 def test_attributs_en_plus_refuses(client):
     route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
-    r = client.post("/demandes", json=demande(attributs=["age_entre", "casier_judiciaire_vierge"])).json()
+    r = client.post("/demandes", json=demande(attributs=["majeur", "casier_vierge"])).json()
     assert r["statut"] == "refuse" and "attributs non autorisés" in r["motif"] and not route.called
     # Aucun champ libre (ex. « date_naissance ») : la demande est rejetée avant tout traitement
     assert client.post("/demandes", json=demande(date_naissance=True)).status_code == 422
-    assert client.post("/demandes", json=demande(attributs=["age_entre"])).json()["statut"] == "remise"
+    assert client.post("/demandes", json=demande(attributs=["majeur"])).json()["statut"] == "remise"
 
 
 @respx.mock
 def test_consentement_plusieurs_attributs_un_apercu_une_confirmation(client, monkeypatch):
     demarches = mediateur.CAT["demarches"] | {"bourse-complete": {
-        "libelle": "Bourse (test)", "services": ["service-bourses"], "finalite": "test", "base": "consentement",
-        "attributs": [{"attribut": "age_entre", "parametres": {"min": 18, "date_reference": "aujourd'hui"},
+        "libelle": "Bourse (test)", "services": ["cefore"], "finalite": "test", "base": "consentement",
+        "attributs": [{"attribut": "majeur", "parametres": {"min": 18, "date_reference": "aujourd'hui"},
                        "libelle": "majeur"},
-                      {"attribut": "nationalite_burkinabe", "parametres": {}, "libelle": "nationalité burkinabè"}]}}
+                      {"attribut": "nationalite_bf", "parametres": {}, "libelle": "nationalité burkinabè"}]}}
     monkeypatch.setattr(mediateur, "CAT", mediateur.CAT | {"demarches": demarches})
     client.agent["nom"] = "awa.ouedraogo"
     tous_les_registres()
-    d = demande("verifier-majorite", sujet="BF-0002") | {"demarche": "bourse-complete", "finalite": "test"}
+    d = demande("concours-direct", sujet="BF-0002") | {"demarche": "bourse-complete", "finalite": "test"}
     assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
     attente = client.get("/usagers/BF-0002/en-attente", headers=CANAL).json()
     assert len(attente) == 1
-    assert attente[0]["apercu"] == "Le service des bourses recevra : majeur = oui ; nationalité burkinabè = oui. Rien d'autre."
+    assert attente[0]["apercu"] == "Le CEFORE recevra : majeur = oui ; nationalité burkinabè = oui. Rien d'autre."
     client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": "BF-0002"}, headers=CANAL)
     r = client.get(f"/demandes/{d['id_demande']}").json()
     assert r["statut"] == "remise" and all(v["jeton"] for v in r["volets"])
@@ -418,10 +419,10 @@ def test_empreinte_du_catalogue_au_journal(client):
 
 def test_catalogue_invalide_refuse_de_demarrer():
     from consentement import catalogue
-    attributs = {"age_entre": {"regle": "age_entre"}, "nationalite_burkinabe": {"regle": "egal"}}
+    attributs = {"majeur": {"regle": "age_entre"}, "nationalite_bf": {"regle": "egal"}}
     services = {"mairie": {}}
     bonne = {"libelle": "x", "services": ["mairie"], "finalite": "f", "base": "base_legale", "texte": "loi",
-             "attributs": [{"attribut": "nationalite_burkinabe", "libelle": "n"}]}
+             "attributs": [{"attribut": "nationalite_bf", "libelle": "n"}]}
     assert catalogue.valider({"ok": bonne}, services, attributs) == []
     cas = {
         "sans finalité": bonne | {"finalite": ""},
@@ -429,9 +430,9 @@ def test_catalogue_invalide_refuse_de_demarrer():
         "base légale sans texte": bonne | {"texte": ""},
         "attribut inconnu": bonne | {"attributs": [{"attribut": "date_naissance", "libelle": "d"}]},
         "service inconnu": bonne | {"services": ["police"]},
-        "âge sans min": bonne | {"attributs": [{"attribut": "age_entre", "libelle": "a",
+        "âge sans min": bonne | {"attributs": [{"attribut": "majeur", "libelle": "a",
                                                 "parametres": {"date_reference": "2026-12-31"}}]},
-        "max < min": bonne | {"attributs": [{"attribut": "age_entre", "libelle": "a",
+        "max < min": bonne | {"attributs": [{"attribut": "majeur", "libelle": "a",
                                              "parametres": {"min": 30, "max": 18, "date_reference": "aujourd'hui"}}]},
     }
     for nom, demarche in cas.items():
@@ -472,7 +473,8 @@ def test_limite_par_service_et_par_citoyen(client, monkeypatch):
     assert alerte["evenement"] == "alerte" and "plus de 3 demandes du même service" in alerte["motif"]
     # Un AUTRE service peut toujours interroger cette personne ; le même service, une autre personne aussi
     client.agent["nom"] = "awa.ouedraogo"
-    assert client.post("/demandes", json=demande(sujet="BF-0020")).json()["statut"] == "remise"
+    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    assert client.post("/demandes", json=demande(demarche="test-nationalite", sujet="BF-0020")).json()["statut"] == "en_attente"
     client.agent["nom"] = "issa.sawadogo"
     assert client.post("/demandes", json=demande(sujet="BF-0016")).json()["statut"] == "remise"
 
@@ -493,7 +495,7 @@ def test_comptes_de_test_exemptes_seulement_si_outils_test(client, monkeypatch):
 
 def demande_confirmee(client, sujet: str, confirmer: bool = True) -> dict:
     client.agent["nom"] = "awa.ouedraogo"
-    d = demande(demarche="bourse-nationale", sujet=sujet)
+    d = demande(demarche="test-nationalite", sujet=sujet)
     assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
     if confirmer:
         client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": sujet}, headers=CANAL)
@@ -553,16 +555,17 @@ def test_retrait_impossible_en_base_legale_ou_pour_un_autre(client):
 def test_agent_curieux_bloque_et_citoyens_alertes(client, monkeypatch):
     monkeypatch.setattr(mediateur, "LIMITE_SUJETS", 3)
     client.agent["nom"] = "agent.curieux"
-    route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
-    statuts = [client.post("/demandes", json=demande(sujet=f"CUR-{i}")).json()["statut"] for i in range(1, 5)]
-    assert statuts == ["remise", "remise", "remise", "bloquee"] and route.call_count == 3
+    route = respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    statuts = [client.post("/demandes", json=demande(demarche="test-nationalite", sujet=f"CUR-{i}")).json()["statut"]
+               for i in range(1, 5)]
+    assert statuts == ["en_attente", "en_attente", "en_attente", "bloquee"] and route.call_count == 3
     # Alerte dans l'historique de CHAQUE citoyen concerné (les 3 consultés + celui qui a déclenché le blocage)
     for i in range(1, 5):
         historique = client.get(f"/usagers/CUR-{i}/historique", headers=CANAL).json()
         assert historique[0]["evenement"] == "alerte" and "agent bloqué" in historique[0]["motif"], i
     # Reconsulter un citoyen déjà consulté reste possible ; un nouveau est encore bloqué, sans réalerter les autres
-    assert client.post("/demandes", json=demande(sujet="CUR-1")).json()["statut"] == "remise"
-    assert client.post("/demandes", json=demande(sujet="CUR-5")).json()["statut"] == "bloquee"
+    assert client.post("/demandes", json=demande(demarche="test-nationalite", sujet="CUR-1")).json()["statut"] == "en_attente"
+    assert client.post("/demandes", json=demande(demarche="test-nationalite", sujet="CUR-5")).json()["statut"] == "bloquee"
     alertes = [l for l in journal_de() if l["evenement"] == "alerte" and "agent bloqué" in l["motif"]]
     assert len(alertes) == 5
 
@@ -578,11 +581,11 @@ def charger_verifier():
 
 def ligne(id_demande, evenement="reponse-registre", resultat="ok", registre="etat-civil", ts="2026-11-16T15:00:00Z"):
     return {"id_demande": id_demande, "evenement": evenement, "resultat": resultat, "registre": registre,
-            "attribut": "age_entre", "ts": ts}
+            "attribut": "majeur", "ts": ts}
 
 
 def trace(*ids, debut="2026-11-16T14:00:00Z"):
-    return {"debut": debut, "trace": [{"id_demande": i, "attribut": "age_entre", "ts": "2026-11-16T15:00:00Z",
+    return {"debut": debut, "trace": [{"id_demande": i, "attribut": "majeur", "ts": "2026-11-16T15:00:00Z",
                                        "jti": "j", "destinataire": "mairie", "statut": "ok"} for i in ids]}
 
 
@@ -597,13 +600,13 @@ def test_double_trace_consultation_cachee_par_le_mediateur():
     """Le médiateur a supprimé la ligne de d2 et recalculé sa chaîne : le registre, lui, a gardé sa trace."""
     verifier = charger_verifier()
     ecarts = verifier.comparer({"etat-civil": trace("d1", "d2")}, [ligne("", "catalogue"), ligne("d1")])
-    assert ecarts == ["etat-civil : réponse à la demande d2 (age_entre) ABSENTE du journal du médiateur"]
+    assert ecarts == ["etat-civil : réponse à la demande d2 (majeur) ABSENTE du journal du médiateur"]
 
 
 def test_double_trace_reponse_inventee():
     verifier = charger_verifier()
     ecarts = verifier.comparer({"etat-civil": trace("d1")}, [ligne("", "catalogue"), ligne("d1"), ligne("d9")])
-    assert ecarts == ["etat-civil : le journal cite une réponse à la demande d9 (age_entre) que le registre n'a jamais émise"]
+    assert ecarts == ["etat-civil : le journal cite une réponse à la demande d9 (majeur) que le registre n'a jamais émise"]
 
 
 def test_double_trace_registre_illisible():
@@ -681,7 +684,7 @@ def test_controle_ne_peut_rien_demander(client):
 def reponses_passeport(interdiction=False):
     def repondre(requete):
         corps = json.loads(requete.content)
-        valeurs = {"nationalite_burkinabe": {"nationalite_burkinabe": True},
+        valeurs = {"nationalite_bf": {"nationalite_bf": True},
                    "interdiction_sortie_territoire": {"interdiction_sortie_territoire": interdiction}}
         return httpx.Response(200, json={"jeton": jeton_registre(corps, **valeurs[corps["attribut"]])})
     return repondre
@@ -693,11 +696,11 @@ def test_passeport_apercu_puis_confirmation(client):
     etat_civil = respx.post(URL_REGISTRE).mock(return_value=httpx.Response(500))
     for url in (URL_NATIONALITE, URL_CASIER):
         respx.post(url).mock(side_effect=reponses_passeport())
-    d = demande(demarche="passeport-ordinaire", sujet="BF-0001")
+    d = demande(demarche="test-passeport", sujet="BF-0001")
     r = client.post("/demandes", json=d).json()
     assert r["statut"] == "en_attente" and all("jeton" not in v for v in r["volets"])     # rien ne part avant
     attente = client.get("/usagers/BF-0001/en-attente", headers=CANAL).json()
-    assert attente[0]["apercu"] == ("L'ONI (passeports) recevra : burkinabè = oui ; "
+    assert attente[0]["apercu"] == ("Le tribunal recevra : burkinabè = oui ; "
                                     "interdiction de sortie du territoire = non. Rien d'autre.")
     assert not etat_civil.called            # l'état civil n'est jamais interrogé pour un passeport
     client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": "BF-0001"}, headers=CANAL)
@@ -708,15 +711,15 @@ def test_passeport_apercu_puis_confirmation(client):
 def test_passeport_ne_peut_pas_demander_l_age(client):
     """L'ONI ne peut pas ajouter « majeur » à sa demande : le catalogue ne le prévoit pas."""
     client.agent["nom"] = "moussa.kone"
-    d = demande(demarche="passeport-ordinaire", sujet="BF-0001") | {
-        "attributs": ["age_entre", "nationalite_burkinabe", "interdiction_sortie_territoire"]}
+    d = demande(demarche="test-passeport", sujet="BF-0001") | {
+        "attributs": ["majeur", "nationalite_bf", "interdiction_sortie_territoire"]}
     r = client.post("/demandes", json=d).json()
     assert r["statut"] == "refuse" and r["motif"].startswith("attributs non autorisés")
 
 
 def test_passeport_reserve_a_la_police(client):
     client.agent["nom"] = "awa.ouedraogo"       # service des bourses
-    r = client.post("/demandes", json=demande(demarche="passeport-ordinaire", sujet="BF-0001")).json()
+    r = client.post("/demandes", json=demande(demarche="test-passeport", sujet="BF-0001")).json()
     assert r["statut"] == "refuse" and r["motif"] == "démarche non autorisée pour ce service"
 
 
@@ -735,7 +738,7 @@ def test_cle_composee_de_bout_en_bout(client, monkeypatch):
     cle = "KABORÉ|Aminata Rosine|2001-03-14"
     client.agent["nom"] = "awa.ouedraogo"
     respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
-    d = demande(demarche="bourse-nationale", sujet=cle)
+    d = demande(demarche="test-nationalite", sujet=cle)
     assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
     # La clé passe dans l'adresse (« | », espace, accent encodés), comme le fait l'USSD
     from urllib.parse import quote
@@ -757,6 +760,6 @@ def test_base_et_texte_transmis_au_registre(client):
         return httpx.Response(200, json={"jeton": jeton_registre(recus[-1])})
     for url in (URL_REGISTRE, URL_NATIONALITE, URL_CASIER):
         respx.post(url).mock(side_effect=registre)
-    client.post("/demandes", json=demande("concours-adjoints"))
+    client.post("/demandes", json=demande("concours-direct"))
     assert len(recus) == 3
     assert all(c["base"] == "base_legale" and "loi n°081-2015/CNT" in c["texte"] for c in recus)

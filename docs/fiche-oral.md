@@ -32,7 +32,7 @@ Démonstration pas à pas : `docs/test-manuel.md`.
 
 **Minimisation**
 
-23. **Que reçoit vraiment l'ONI ?** → Deux réponses signées : `{"nationalite_burkinabe": true}` et `{"interdiction_sortie_territoire": false}`. Ni date de naissance, ni filiation, ni casier. Preuve en direct : `scripts/preuve_minimisation.py`.
+23. **Que reçoit vraiment l'ONI ?** → Deux réponses signées : `{"nationalite_bf": true}` et `{"interdiction_sortie_territoire": false}`. Ni date de naissance, ni filiation, ni casier. Preuve en direct : `scripts/preuve_minimisation.py`.
 23 bis. **Pourquoi pas « majeur » pour le passeport ?** → L'ONI connaît déjà la date de naissance : c'est lui qui enrôle la carte d'identité (CNIB). La redemander à l'état civil ne servirait à rien, et « ne transmettre que l'utile » vaut aussi pour ce qui est inutile parce que déjà connu. La double clé le garantit : le registre de l'état civil refuse lui-même de donner l'âge à l'ONI. La minimisation de l'âge se montre avec le concours (18–37 ans au 31/12/2026, jamais la date de naissance).
 24. **Pourquoi « interdiction de sortie » plutôt que « casier vierge » ?** → C'est plus minimal : une condamnation pour vol sans interdiction (BF-0005) ne regarde pas le service des passeports. Si le casier du jury n'a pas cette colonne, repli en une ligne de catalogue vers « casier vierge ».
 25. **Si l'ONI apprend seulement « pas d'interdiction de sortie », comment sait-il qu'un casier mal tenu ne cache pas une interdiction ?** → Une case vide n'est jamais lue comme « aucune » : le registre exige « aucune » écrit en toutes lettres, sinon il répond « donnée insuffisante » (BF-0015).

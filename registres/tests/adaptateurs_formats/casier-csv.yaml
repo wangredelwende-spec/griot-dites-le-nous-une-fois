@@ -15,10 +15,10 @@ absence: refus
 motif_refus_public: "réponse impossible, s'adresser au greffe"
 groupes: {Mairie: mairie}
 attributs:
-  casier_judiciaire_vierge:
+  casier_vierge:
     regle: nombre_nul
     champ: nombre_condamnations
-    claim: casier_judiciaire_vierge
+    claim: casier_vierge
     services: [mairie]
   interdiction_sortie_territoire:
     regle: contient

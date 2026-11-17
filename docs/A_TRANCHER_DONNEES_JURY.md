@@ -11,7 +11,7 @@
 | Décès | Où est noté le décès ? | `champs.date_deces` + `refuser_si_decede` |
 | Homonymes, doublons | Même identifiant pour deux fiches ? | refus « identité ambiguë » (déjà en place) |
 | Valeurs écrites autrement | « Burkinabè », « BF », « BFA »… | `correspondances: {oui: […], non: […]}` ; valeur absente des deux listes : refus |
-| Interdiction de sortie du territoire | Le casier du jury a-t-il une colonne de peines complémentaires ? | sinon : retirer `interdiction_sortie_territoire` du passeport et reprendre `casier_judiciaire_vierge` dans `consentement-minimisation/catalogue/demarches.yaml` |
+| Interdiction de sortie du territoire | Le casier du jury a-t-il une colonne de peines complémentaires ? | sinon : retirer `interdiction_sortie_territoire` du passeport et reprendre `casier_vierge` dans `consentement-minimisation/catalogue/demarches.yaml` |
 | API du jury | Export ou API en direct ? | **Décidé (16/11)** : par défaut, **export unique** vers un fichier JSON avec empreinte SHA-256 (`scripts\exporter_api_jury.py`), puis registre `type: json`, sans réseau. Si le jury impose l'API en direct : profil `api-jury`, un **relais** seul à toucher le réseau, qui ne transmet qu'à `API_JURY_URL` (.env), en GET, délai 2 s ; le registre reste sans sortie (`JOUR_J_DONNEES_JURY.md`) |
 
 ## PDF scanné : plan B

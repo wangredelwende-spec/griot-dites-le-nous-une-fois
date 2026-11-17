@@ -13,7 +13,7 @@ FINALE = date(2026, 11, 16)
 
 
 def majeur(sujet: str, jour: date = FINALE) -> dict:
-    return REGISTRE.calculer("age_entre", sujet, {"min": 18, "date_reference": jour.isoformat()})
+    return REGISTRE.calculer("majeur", sujet, {"min": 18, "date_reference": jour.isoformat()})
 
 
 def reponse_majeur(oui: bool, jour: date = FINALE) -> dict:
@@ -53,7 +53,7 @@ def test_la_reponse_ne_contient_que_l_attribut():
 
 def test_attribut_inconnu_refuse():
     with pytest.raises(adaptateur.Refus, match="non disponible"):
-        REGISTRE.calculer("casier_judiciaire_vierge", "BF-0001")
+        REGISTRE.calculer("casier_vierge", "BF-0001")
 
 
 def charger(nom: str):
@@ -71,19 +71,19 @@ CASIER = charger("casier")
 
 @pytest.mark.parametrize("sujet, burkinabe", [("BF-0001", True), ("BF-0006", True), ("BF-0018", False)])
 def test_nationalite(sujet, burkinabe):
-    assert NATIONALITE.calculer("nationalite_burkinabe", sujet) == {"nationalite_burkinabe": burkinabe}
+    assert NATIONALITE.calculer("nationalite_bf", sujet) == {"nationalite_bf": burkinabe}
 
 
 @pytest.mark.parametrize("sujet, vierge", [("BF-0001", True), ("BF-0008", False), ("BF-0005", False), ("BF-0006", True)])
 def test_casier(sujet, vierge):
-    reponse = CASIER.calculer("casier_judiciaire_vierge", sujet)
-    assert reponse == {"casier_judiciaire_vierge": vierge}       # jamais le détail des condamnations
+    reponse = CASIER.calculer("casier_vierge", sujet)
+    assert reponse == {"casier_vierge": vierge}       # jamais le détail des condamnations
 
 
 @pytest.mark.parametrize("registre, attribut, sujet, motif", [
-    ("nationalite", "nationalite_burkinabe", "BF-0013", "donnée insuffisante"),   # nationalité non renseignée
-    ("casier", "casier_judiciaire_vierge", "BF-0015", "donnée insuffisante"),               # nombre vide
-    ("casier", "casier_judiciaire_vierge", "BF-0003", "introuvable"),                       # absent : ce n'est PAS « vierge »
+    ("nationalite", "nationalite_bf", "BF-0013", "donnée insuffisante"),   # nationalité non renseignée
+    ("casier", "casier_vierge", "BF-0015", "donnée insuffisante"),               # nombre vide
+    ("casier", "casier_vierge", "BF-0003", "introuvable"),                       # absent : ce n'est PAS « vierge »
 ])
 def test_refus_nationalite_casier(registre, attribut, sujet, motif):
     with pytest.raises(adaptateur.Refus, match=motif):
@@ -105,8 +105,8 @@ def test_casier_absence_vierge(tmp_path):
     chemin.write_text(texte.replace("absence: refus", "absence: vierge").replace(
         "/donnees/casier.csv", (RACINE / "registres/donnees_fictives/casier.csv").as_posix()), encoding="utf-8")
     casier = adaptateur.Adaptateur(chemin)
-    assert casier.calculer("casier_judiciaire_vierge", "BF-0003") == {"casier_judiciaire_vierge": True}
-    assert casier.calculer("casier_judiciaire_vierge", "BF-0008") == {"casier_judiciaire_vierge": False}
+    assert casier.calculer("casier_vierge", "BF-0003") == {"casier_vierge": True}
+    assert casier.calculer("casier_vierge", "BF-0008") == {"casier_vierge": False}
     assert casier.calculer("interdiction_sortie_territoire", "BF-0003") == {"interdiction_sortie_territoire": False}
     chemin.write_text(texte.replace("absence: refus", "absence: peut-etre"), encoding="utf-8")
     with pytest.raises(ValueError, match="absence"):
@@ -122,14 +122,14 @@ CONCOURS = {"min": 18, "max": 37, "date_reference": "2026-12-31"}
     ("BF-0011", {"18": True, "38": False}),     # année seule (2004) : 22 ans au 31/12/2026, quel que soit le jour
 ])
 def test_age_entre_18_et_37_ans(sujet, ages):
-    assert REGISTRE.calculer("age_entre", sujet, CONCOURS) == {"age_equal_or_over": ages,
+    assert REGISTRE.calculer("majeur", sujet, CONCOURS) == {"age_equal_or_over": ages,
                                                                 "date_reference": "2026-12-31"}
 
 
 def test_age_entre_trop_age():
     # « vers 1990 » ne permet pas de conclure ; une date exacte, si
     with pytest.raises(adaptateur.Refus, match="donnée insuffisante"):
-        REGISTRE.calculer("age_entre", "BF-0004", CONCOURS)
+        REGISTRE.calculer("majeur", "BF-0004", CONCOURS)
 
 
 @pytest.mark.parametrize("parametres", [{}, {"min": "dix-huit", "date_reference": "2026-12-31"},
@@ -137,20 +137,21 @@ def test_age_entre_trop_age():
                                         {"min": 18, "date_reference": "demain"}])
 def test_age_entre_parametres_invalides(parametres):
     with pytest.raises(adaptateur.Refus, match="paramètres invalides"):
-        REGISTRE.calculer("age_entre", "BF-0001", parametres)
+        REGISTRE.calculer("majeur", "BF-0001", parametres)
 
 
 def test_double_cle_declaree_par_le_registre():
-    assert REGISTRE.autorise("age_entre", "mairie")
-    # L'ONI connaît déjà l'âge par l'enrôlement de la CNIB : l'état civil refuse de le lui donner
-    assert not REGISTRE.autorise("age_entre", "service-passeport")
-    assert not REGISTRE.autorise("personne_connue", "mairie")
-    assert CASIER.autorise("casier_judiciaire_vierge", "direction-concours")
-    assert CASIER.autorise("casier_judiciaire_vierge", "service-passeport")   # repli du jour J (sans peine complémentaire)
-    assert not CASIER.autorise("casier_judiciaire_vierge", "service-bourses")
+    assert REGISTRE.autorise("majeur", "direction-concours")
+    # Le CEFORE et le tribunal n'ont pas besoin de l'âge : l'état civil refuse de le leur donner
+    assert not REGISTRE.autorise("majeur", "cefore") and not REGISTRE.autorise("majeur", "tribunal")
+    assert REGISTRE.autorise("identite", "cefore") and not REGISTRE.autorise("identite", "tribunal")
+    assert REGISTRE.autorise("naissance_filiation", "tribunal") and not REGISTRE.autorise("naissance_filiation", "cefore")
+    assert not REGISTRE.autorise("personne_connue", "tribunal")
+    assert CASIER.autorise("casier_vierge", "direction-concours") and CASIER.autorise("casier_vierge", "cefore")
+    assert not CASIER.autorise("casier_vierge", "tribunal")
 
 
-# --- Passeport : interdiction de sortie du territoire (peine complémentaire), plus minimal que « casier vierge » ---
+# --- Désactivé (passeport retiré du catalogue) : interdiction de sortie du territoire (peine complémentaire), plus minimal que « casier vierge » ---
 
 def casier_du_depot(tmp_path):
     chemin = tmp_path / "casier.yaml"

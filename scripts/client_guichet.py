@@ -1,7 +1,7 @@
 """Client du guichet pour les scripts et les tests de bout en bout : se connecte comme un vrai agent
 (Keycloak : mot de passe + TOTP) et envoie une demande, contre la pile qui tourne.
 
-Comptes de test : agent.banc (Direction des concours) et agent.banc.bourses (Service des bourses).
+Comptes de test : agent.banc (Direction des concours) et agent.banc.cefore (Service des bourses).
 Leur secret TOTP est créé au premier passage et gardé dans tests/.secrets/ (ignoré par git).
 Ne pas utiliser ces comptes en démonstration manuelle.
 """
@@ -22,7 +22,7 @@ SECRETS = RACINE / "tests/.secrets"
 GUICHET = "https://guichet.griot.test"
 MOT_DE_PASSE = "Agent-Demo-2026!"
 # Compte de test à utiliser pour chaque service
-AGENTS = {"direction-concours": "agent.banc", "service-bourses": "agent.banc.bourses"}
+AGENTS = {"direction-concours": "agent.banc", "cefore": "agent.banc.cefore"}
 
 # Les noms *.griot.test pointent vers 127.0.0.1, même si le fichier hosts n'est pas encore à jour
 _resolution = socket.getaddrinfo

@@ -40,7 +40,7 @@ def egal(valeur: str, regle: dict) -> bool:
 
 def calculer(regle: dict, valeur: str, parametres: dict, format_date=None) -> dict:
     """Réponse minimale pour UNE règle. « valeur » = la case de la fiche, déjà lue par l'adaptateur
-    (inutilisée pour « existe »). Renvoie par exemple {"nationalite_burkinabe": True}."""
+    (inutilisée pour « existe »). Renvoie par exemple {"nationalite_bf": True}."""
     nom, claim = regle["regle"], regle["claim"]
     if nom == "existe":
         return {claim: True}                # une seule fiche, personne vivante : identité confirmée

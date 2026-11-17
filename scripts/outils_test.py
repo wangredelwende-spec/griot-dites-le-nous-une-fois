@@ -5,9 +5,9 @@
 
 Quatre comptes de service Keycloak (secret client, pas d'humain, pas de TOTP), chacun membre d'un service :
     outil-test-concours  -> Direction des concours – ministère des Serviteurs du peuple
-    outil-test-bourses   -> Service des bourses
-    outil-test-curieux   -> Service des bourses (sert à déclencher la limite « agent curieux »)
-    outil-test-passeport -> service des passeports (scénarios de panne du passeport)
+    outil-test-cefore   -> CEFORE – guichet des entreprises
+    outil-test-curieux   -> CEFORE – guichet des entreprises (sert à déclencher la limite « agent curieux »)
+    outil-test-tribunal -> service des passeports (scénarios de panne du passeport)
 Ils suivent EXACTEMENT les mêmes règles que les agents (catalogue, double clé, limites de débit : aucune exemption).
 Dans le journal, leurs actions apparaissent sous le nom « service-account-outil-test-… ».
 Ceinture et bretelles : si OUTILS_TEST n'est pas 1, le médiateur ET les registres refusent leurs jetons.
@@ -22,9 +22,9 @@ from pathlib import Path
 RACINE = Path(__file__).resolve().parents[1]
 COMPTES = {
     "outil-test-concours": "Direction des concours – ministère des Serviteurs du peuple",
-    "outil-test-bourses": "Service des bourses",
-    "outil-test-curieux": "Service des bourses",
-    "outil-test-passeport": "Service des passeports – ONI (ministère de la Sécurité)",
+    "outil-test-cefore": "CEFORE – guichet des entreprises",
+    "outil-test-curieux": "CEFORE – guichet des entreprises",
+    "outil-test-tribunal": "Tribunal – certificats de nationalité",
 }
 
 

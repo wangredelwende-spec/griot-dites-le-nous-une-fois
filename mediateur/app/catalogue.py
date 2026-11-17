@@ -104,9 +104,10 @@ def charger(brut: bytes | None = None) -> dict:
         raise CatalogueInvalide("  - demarches.yaml : « demarches » doit contenir des blocs nommés")
 
     # Attributs déclarés par les registres (et règle d'absence du casier)
-    attributs, absence_vierge = {}, set()
+    attributs, absence_vierge, bases = {}, set(), {}
     for registre in annuaire["registres"]:
         conf = yaml.safe_load((ADAPTATEURS / f"{registre}.yaml").read_text(encoding="utf-8"))
+        bases[registre] = conf.get("bases") or {}     # mode accepté par service (consentement / base légale)
         for code, a in conf["attributs"].items():
             attributs[code] = {"registre": registre, "regle": a["regle"], "claim": a["claim"],
                                "services": a.get("services", [])}
@@ -139,12 +140,26 @@ def charger(brut: bytes | None = None) -> dict:
                         comparable(p) == comparable(a["parametres"]) for p in autorisations[service] or []):
                     erreurs.append(f"démarche « {code} » : le registre {registre} n'autorise pas ces paramètres "
                                    f"pour {service} (seuil ou date non déclaré, double clé)")
+                if not base_declaree(bases[registre].get(service) or {}, d["base"], d.get("texte", "")):
+                    erreurs.append(f"démarche « {code} » : le registre {registre} n'accepte pas la base "
+                                   f"« {d['base']} » pour {service}"
+                                   + (" (aucune référence de texte déclarée par le registre dans le texte cité)"
+                                      if d["base"] == "base_legale" else "") + " (double clé)")
+    erreurs = list(dict.fromkeys(erreurs))          # une même erreur par registre, pas une par attribut
     if erreurs:
         raise CatalogueInvalide("\n".join(f"  - {e}" for e in erreurs))
     return {"services": annuaire["services"], "registres": annuaire["registres"], "attributs": attributs,
             "demarches": demarches, "absence_vierge": absence_vierge,
             "identifiant": identifiant,
             "empreinte": hashlib.sha256(brut).hexdigest()}
+
+
+def base_declaree(modes: dict, base: str, texte: str) -> bool:
+    """Même règle que le registre (Adaptateur.base_autorisee) : consentement déclaré pour ce service, ou base
+    légale dont le texte cité contient une référence déclarée pour ce service."""
+    if base == "consentement":
+        return modes.get("consentement") is True
+    return base == "base_legale" and any(r in (texte or "") for r in modes.get("base_legale") or [])
 
 
 def comparable(parametres: dict) -> dict:

@@ -135,6 +135,8 @@ class DemandeAttribut(BaseModel):
     parametres: dict[str, int | str | None] = {}    # ex. {"min": 18, "max": 37, "date_reference": "2026-12-31"}
     sujet_ref: str = Field(max_length=200)     # identifiant, ou clé composée « NOM|Prénoms|2001-03-14 »
     destinataire: str = Field(max_length=64)    # service demandeur : devient « aud » du jeton
+    base: str = Field("", max_length=32)        # consentement | base_legale (vérifiée : bases du YAML)
+    texte: str = Field("", max_length=1000)     # texte cité par la démarche (base légale)
 
 
 @app.get("/sante", include_in_schema=False)
@@ -158,6 +160,9 @@ def attribut(d: DemandeAttribut, authorization: str = Header("")):
         aujourdhui = datetime.now(timezone.utc).date()
         if not ADAPTATEUR.parametres_autorises(d.attribut, d.destinataire, d.parametres, aujourdhui):
             raise NonAutorise("paramètres non autorisés par le registre pour ce service")
+        # 3. Double clé sur le MODE : consentement ou base légale (avec un texte déclaré) pour CE service ?
+        if not ADAPTATEUR.base_autorisee(d.destinataire, d.base, d.texte):
+            raise NonAutorise("base juridique non autorisée par le registre pour ce service")
         charge |= {"statut": "ok", **ADAPTATEUR.calculer(d.attribut, d.sujet_ref, d.parametres)}
     except NonAutorise as motif:
         # Motif public précis : il concerne le DEMANDEUR, il ne dit rien du citoyen

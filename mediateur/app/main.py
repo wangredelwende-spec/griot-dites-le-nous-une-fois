@@ -314,7 +314,11 @@ async def interroger(demande: dict, code: str, parametres: dict, sujet_ref: str,
     attribut = CAT["attributs"][code]
     registre = CAT["registres"][attribut["registre"]]
     corps = {"id_demande": demande["id_demande"], "attribut": code, "parametres": parametres,
-             "sujet_ref": sujet_ref, "destinataire": demande["demandeur"]}
+             "sujet_ref": sujet_ref, "destinataire": demande["demandeur"],
+             # Mode de consultation et texte cité : le registre vérifie qu'il les a déclarés pour ce service
+             "base": demande["base"],
+             "texte": CAT["demarches"].get(demande["demarche"], {}).get("texte", "") if demande["base"] == "base_legale"
+             else ""}
     try:
         jeton = await registres.appeler(registre["url"], corps, DELAI_REGISTRE, jeton_agent)
         # La clé publique vient du volume du registre, monté en LECTURE SEULE ici

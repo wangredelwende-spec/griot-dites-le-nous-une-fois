@@ -37,6 +37,21 @@ groupes:
 # même si le médiateur a laissé passer la demande. Pour un attribut à paramètres, la double clé porte aussi
 # sur les PARAMÈTRES : seuls les seuils et dates listés ici sont acceptés. Sinon, un service pourrait
 # reconstituer une date de naissance en posant des questions avec des seuils différents.
+# Base juridique que CE registre accepte, PAR SERVICE (double clé sur le mode de consultation) :
+#   consentement: true  -> l'usager voit l'aperçu et confirme avant l'envoi ;
+#   base_legale: [...]  -> sans accord de l'usager, SEULEMENT si le texte cité par la démarche contient
+#                          l'une de ces références. Service ou mode absent d'ici : refus (au chargement du
+#                          catalogue par le médiateur, ET par le registre lui-même, réponse signée).
+bases:
+  direction-concours:
+    base_legale: ["loi n°081-2015/CNT", "loi n°012-2025/ALT"]   # concours (statut général) ; majorité civile
+  service-bourses:
+    consentement: true                                           # ex. aide au transport des étudiants
+    base_legale: ["loi n°012-2025/ALT"]                          # vérifier la majorité
+  mairie:
+    base_legale: ["loi n°012-2025/ALT"]
+  # service-passeport : absent. L'ONI connaît l'âge par la CNIB : l'état civil ne lui répond pas.
+
 attributs:
   age_entre:
     regle: age_entre                # paramètres de la demande : min, max (facultatif), date_reference

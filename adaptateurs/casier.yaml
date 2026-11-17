@@ -29,6 +29,17 @@ groupes:
   Mairie: mairie
   Service des passeports – ONI (ministère de la Sécurité): service-passeport
 
+# Base juridique que CE registre accepte, PAR SERVICE (double clé sur le mode de consultation) :
+#   consentement: true  -> l'usager voit l'aperçu et confirme avant l'envoi ;
+#   base_legale: [...]  -> sans accord de l'usager, SEULEMENT si le texte cité par la démarche contient
+#                          l'une de ces références. Service ou mode absent d'ici : refus (au chargement du
+#                          catalogue par le médiateur, ET par le registre lui-même, réponse signée).
+bases:
+  direction-concours:
+    base_legale: ["loi n°081-2015/CNT"]
+  service-passeport:
+    consentement: true                                           # passeport ordinaire : l'usager confirme
+
 attributs:
   casier_judiciaire_vierge:
     regle: nombre_nul               # « 0 » -> true ; « 2 » -> false ; vide ou illisible -> refus

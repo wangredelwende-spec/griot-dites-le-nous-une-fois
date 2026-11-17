@@ -744,3 +744,18 @@ def test_cle_composee_de_bout_en_bout(client, monkeypatch):
     assert client.get(f"/demandes/{d['id_demande']}").json()["statut"] == "remise"
     historique = client.get(f"/usagers/{quote(cle, safe='')}/historique", headers=CANAL).json()
     assert historique and cle not in json.dumps(historique)        # jamais l'identifiant en clair
+
+
+@respx.mock
+def test_base_et_texte_transmis_au_registre(client):
+    """Le registre reçoit le mode (base légale) et le texte cité, pour vérifier lui-même qu'il les a déclarés."""
+    recus = []
+
+    def registre(requete):
+        recus.append(json.loads(requete.content))
+        return httpx.Response(200, json={"jeton": jeton_registre(recus[-1])})
+    for url in (URL_REGISTRE, URL_NATIONALITE, URL_CASIER):
+        respx.post(url).mock(side_effect=registre)
+    client.post("/demandes", json=demande("concours-adjoints"))
+    assert len(recus) == 3
+    assert all(c["base"] == "base_legale" and "loi n°081-2015/CNT" in c["texte"] for c in recus)

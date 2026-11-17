@@ -51,6 +51,14 @@ docker compose logs mediateur --tail 5
 
 ## 3. La double clé : l'accord du registre
 
+Le registre décide aussi du **mode** : dans `bases:` de son YAML, il déclare pour chaque service s'il accepte le
+**consentement** (`consentement: true`) et/ou la **base légale**, avec la liste des références de textes acceptées
+(`base_legale: ["loi n°081-2015/CNT"]`). Une démarche en base légale n'est acceptée que si son `texte:` contient
+l'une de ces références. Sinon : refus au chargement du catalogue (le médiateur garde l'ancien) **et** refus signé
+du registre lui-même (« base juridique non autorisée par le registre pour ce service »). Exemple : passer le
+passeport en `base: base_legale` est refusé, car la nationalité et le casier n'ont déclaré que le consentement
+pour le service passeport.
+
 Le catalogue ne suffit pas : **chaque registre décide lui-même**, dans `adaptateurs/<registre>.yaml`,
 quels services peuvent lui demander quel attribut, **et avec quels paramètres**. Pour l'exemple ci-dessus,
 l'état civil doit ajouter les seuils du service des bourses :

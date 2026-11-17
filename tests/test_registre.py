@@ -29,7 +29,7 @@ MAJORITE = {"min": 18, "date_reference": AUJOURDHUI}
 # Faux Keycloak : une clé RSA de test. Le registre vérifie le jeton de l'agent avec SA clé publique.
 CLE_KEYCLOAK = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 GROUPES = {"service-bourses": "Service des bourses", "direction-concours": "Direction des concours – ministère des Serviteurs du peuple",
-           "mairie": "Mairie"}
+           "mairie": "Mairie", "service-passeport": "Service des passeports – ONI (ministère de la Sécurité)"}
 
 
 class FauxKeycloak:
@@ -48,13 +48,17 @@ def jeton_agent(service: str = "service-bourses", cle=CLE_KEYCLOAK, **modifs) ->
     return jwt.encode(charge, cle, algorithm="RS256")
 
 
+# Base juridique envoyée par défaut : base légale citant les deux textes déclarés par l'état civil
+BASE = {"base": "base_legale", "texte": "Code des personnes et de la famille, loi n°012-2025/ALT ; loi n°081-2015/CNT"}
+
+
 def demander(sujet: str, attribut: str = "age_entre", service: str = "service-bourses", parametres=None,
-             jeton: str | None = None) -> dict:
+             jeton: str | None = None, base: dict = BASE) -> dict:
     parametres = MAJORITE if parametres is None and attribut == "age_entre" else (parametres or {})
     # jeton="" : AUCUN en-tête Authorization (appel direct au registre, sans agent)
     entetes = {} if jeton == "" else {"Authorization": f"Bearer {jeton if jeton is not None else jeton_agent(service)}"}
     r = client.post("/attributs", headers=entetes, json={"id_demande": "d-1", "attribut": attribut, "sujet_ref": sujet,
-                                                         "parametres": parametres, "destinataire": service})
+                                                         "parametres": parametres, "destinataire": service} | base)
     assert set(r.json()) == {"jeton"}          # TOUJOURS une réponse signée, jamais du texte en clair
     return jwt.decode(r.json()["jeton"], CLE_PUBLIQUE, algorithms=["EdDSA"], audience=service)
 
@@ -91,7 +95,7 @@ def test_double_cle_le_registre_refuse_un_service_non_autorise():
 def test_mode_corrompu_casse_la_signature():
     jeton = client.post("/attributs", headers={"Authorization": f"Bearer {jeton_agent('mairie')}"},
                         json={"id_demande": "d-1", "attribut": "age_entre", "sujet_ref": "BF-0003",
-                              "parametres": MAJORITE, "destinataire": "mairie"}).json()["jeton"]
+                              "parametres": MAJORITE, "destinataire": "mairie"} | BASE).json()["jeton"]
     falsifie = registre.falsifier(jeton)
     with pytest.raises(jwt.InvalidSignatureError):
         jwt.decode(falsifie, CLE_PUBLIQUE, algorithms=["EdDSA"], audience="mairie")
@@ -184,6 +188,35 @@ def test_source_indisponible_503_non_signe(monkeypatch):
     monkeypatch.setattr(registre.ADAPTATEUR, "calculer", panne)
     r = client.post("/attributs", headers={"Authorization": f"Bearer {jeton_agent()}"},
                     json={"id_demande": "d-api", "attribut": "age_entre", "sujet_ref": "BF-0001",
-                          "destinataire": "service-bourses", "parametres": MAJORITE})
+                          "destinataire": "service-bourses", "parametres": MAJORITE} | BASE)
     assert r.status_code == 503 and "jeton" not in r.json()
     assert registre.TRACE_BASE.execute("SELECT COUNT(*) FROM reponses").fetchone()[0] == avant
+
+
+# --- Double clé sur le MODE : consentement / base légale déclarés par le registre, par service ---
+
+TEXTE_PASSEPORT = "Décret relatif au passeport ordinaire (texte inventé pour le test)"
+
+
+def test_registre_refuse_lui_meme_le_passeport_en_base_legale(monkeypatch):
+    """Le registre de la nationalité accepte le passeport SEULEMENT avec l'accord de l'usager (consentement)."""
+    sys.path.insert(0, str(RACINE / "tests"))
+    from test_adaptateur import charger
+    monkeypatch.setattr(registre, "ADAPTATEUR", charger("nationalite"))
+    passeport = {"attribut": "nationalite_burkinabe", "service": "service-passeport"}
+    assert demander("BF-0001", **passeport, base={"base": "consentement"})["statut"] == "ok"
+    for base in ({"base": "base_legale", "texte": TEXTE_PASSEPORT},
+                 {"base": "base_legale", "texte": "loi n°081-2015/CNT"},     # texte déclaré, mais pour le concours
+                 {"base": ""}, {"base": "deviner"}):
+        infos = demander("BF-0001", **passeport, base=base)
+        assert infos["statut"] == "refus" and infos["motif"] == "base juridique non autorisée par le registre pour ce service"
+        assert "nationalite_burkinabe" not in infos
+
+
+def test_base_legale_sans_reference_declaree_refusee():
+    """État civil, mairie : base légale acceptée avec la loi n°012-2025/ALT, refusée avec un autre texte ;
+    consentement refusé (non déclaré pour la mairie)."""
+    assert demander("BF-0001", service="mairie")["statut"] == "ok"
+    for base in ({"base": "base_legale", "texte": "arrêté municipal"}, {"base": "consentement"}):
+        motif = demander("BF-0001", service="mairie", base=base)["motif"]
+        assert motif == "base juridique non autorisée par le registre pour ce service"

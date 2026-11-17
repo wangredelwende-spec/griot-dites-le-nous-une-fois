@@ -176,7 +176,7 @@ def test_catalogue_invalide_refuse_ancien_garde(monkeypatch, tmp_path, ajout, ra
 DEMARCHE_VALIDE = """
   test-valide:
     libelle: Vérifier la majorité (test)
-    services: [mairie]
+    services: [service-bourses]
     finalite: vérification de la majorité civile
     base: consentement
     attributs:
@@ -195,3 +195,26 @@ def test_demarche_refusee_de_la_demo(monkeypatch, tmp_path):
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     with pytest.raises(catalogue.CatalogueInvalide, match="attribut inconnu « date_naissance »"):
         catalogue.charger(texte.encode("utf-8"))
+
+
+def test_passeport_en_base_legale_refuse_au_chargement(monkeypatch, tmp_path):
+    """Passer le passeport en base légale dans le catalogue : refusé au chargement (la nationalité et le casier
+    n'ont déclaré que le consentement pour le service passeport). Le registre refuse aussi : test_registre.py."""
+    dossier = tmp_path / "catalogue"
+    dossier.mkdir()
+    (dossier / "annuaire.yaml").write_bytes((RACINE / "catalogue/annuaire.yaml").read_bytes())
+    texte = (RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8")
+    avant = """    finalite: établissement d'un passeport ordinaire
+    base: consentement
+"""
+    assert avant in texte
+    texte = texte.replace(avant, """    finalite: établissement d'un passeport ordinaire
+    base: base_legale
+    texte: Décret relatif au passeport ordinaire
+""")
+    monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
+    with pytest.raises(catalogue.CatalogueInvalide) as refus:
+        catalogue.charger(texte.encode("utf-8"))
+    for registre in ("nationalite", "casier"):
+        assert (f"démarche « passeport-ordinaire » : le registre {registre} n'accepte pas la base « base_legale » "
+                f"pour service-passeport") in str(refus.value)

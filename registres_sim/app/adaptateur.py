@@ -93,6 +93,14 @@ class Adaptateur:
         self.motif_refus_public = conf["motif_refus_public"]
         self.attributs = conf["attributs"]
         self.groupes = conf.get("groupes", {})     # groupe Keycloak -> code du service
+        # Base juridique acceptée PAR SERVICE : {service: {"consentement": true, "base_legale": [références]}}
+        self.bases = conf.get("bases") or {}
+        for service, modes in self.bases.items():
+            if not isinstance(modes, dict) or set(modes) - {"consentement", "base_legale"} or (
+                    "consentement" in modes and type(modes["consentement"]) is not bool) or not all(
+                    isinstance(r, str) and r.strip() for r in modes.get("base_legale", []) or []):
+                raise ValueError(f"{chemin.name} : bases.{service} mal formé (consentement: true, "
+                                 "base_legale: [références de textes])")
         # Personne absente du registre : « refus » (par défaut) ou « vierge » (casier réel : une personne jamais
         # condamnée n'y figure pas). Avec « vierge », le MÉDIATEUR vérifie d'abord à l'état civil que la
         # personne existe : sinon, un identifiant inventé obtiendrait « casier vierge ».
@@ -153,6 +161,16 @@ class Adaptateur:
         """Double clé : le registre décide LUI-MÊME quels services peuvent demander quel attribut
         (« services » de l'attribut), même si le médiateur a laissé passer la demande."""
         return service in self.attributs.get(attribut, {}).get("services", [])
+
+    def base_autorisee(self, service: str, base: str, texte: str) -> bool:
+        """Double clé sur le MODE : consentement seulement s'il est déclaré pour ce service ; base légale seulement
+        si le texte cité contient une référence que le registre a déclarée pour ce service."""
+        modes = self.bases.get(service) or {}
+        if base == "consentement":
+            return modes.get("consentement") is True
+        if base == "base_legale":
+            return any(reference in (texte or "") for reference in modes.get("base_legale") or [])
+        return False                                     # base absente ou inconnue : on ne devine pas
 
     def parametres_autorises(self, attribut: str, service: str, parametres: dict, aujourdhui: date) -> bool:
         """Double clé sur les PARAMÈTRES : seuls les seuils et dates déclarés pour CE service sont acceptés

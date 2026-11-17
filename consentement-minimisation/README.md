@@ -10,10 +10,13 @@
 | `catalogue/` | `demarches.yaml` (démarche → service, finalité, base « consentement » ou « base_legale », attributs et paramètres) et `annuaire.yaml` (services, registres, format de l'identifiant) | lu par la passerelle et le guichet (lecture seule) |
 | `consentement/catalogue.py` | charge et **valide** le catalogue ; un catalogue invalide est refusé avec ses raisons, l'ancien reste en vigueur | processus de la passerelle |
 | `consentement/usager.py` | routes de l'usager : demandes en attente avec **aperçu**, confirmer, refuser, liste des accords, **retirer** un accord, langues ; **expiration** après 10 minutes | processus de la passerelle |
-| `regles_attributs/` | **calcul de l'attribut minimal** (âge entre deux seuils, égalité, mention, nombre nul, existence) | **dans le conteneur de chaque registre** (copié dans son image) |
+| `catalogue/attributs.yaml` | attributs **permis** (majeur, nationalite_bf, casier_vierge, identite, naissance_filiation) : registre, règle, champs logiques, services autorisés | passerelle |
+| `catalogue/correspondance.yaml` | nom logique → nom du champ dans le **contrat** des registres (seul endroit à changer avec le contrat) | passerelle |
+| `regles_attributs/` | **calcul de l'attribut minimal** (âge entre deux seuils, égalité, nombre nul, cases précises) ; `minimisation.py` : depuis la fiche brute du registre | processus de la passerelle |
 
-Pourquoi le calcul tourne chez le registre : la fiche du citoyen (date de naissance, filiation, détail du casier)
-ne quitte jamais le registre. Seule la réponse minimale signée en sort (« âge ≥ 18 : oui »).
+Depuis le 17/11, le calcul tourne dans la **passerelle** : les registres suivent le contrat et renvoient la fiche ;
+la passerelle la valide, en tire l'attribut permis (« majeur : oui ») et ne laisse sortir que lui. Accord par
+démarche : durée `duree_accord_heures`, retirable ; tant qu'il est valable, la réponse est immédiate.
 
 ## Contrat
 

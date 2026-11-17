@@ -22,8 +22,11 @@ passerelle).
 **Reçu** : les 16 premiers caractères de l'empreinte de la ligne, donnés à l'usager. Si quelqu'un recalculait toute
 la chaîne, les reçus déjà remis ne correspondraient plus.
 
-**Double trace** : chaque registre garde sa propre liste des réponses qu'il a signées (sans la valeur) ;
-`verifier.py --registres` la compare au journal. Une consultation cachée se voit.
+Chaque ligne porte aussi : l'agent ou le compte technique (`api-<service>`), le **statut** (autorisée, refusée,
+réussie, échouée, indisponible), l'`id_demande` (corrélation) et les **noms** des attributs demandés, transmis et
+refusés. `GET /journal/verification` : « OK » ou la première ligne modifiée (badge « journal intègre » de l'usager).
+
+**Double trace** (`verifier.py --registres`) : désactivée avec la signature des registres (LIMITES.md).
 
 ## Contrat
 

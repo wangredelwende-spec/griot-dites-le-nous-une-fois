@@ -1,38 +1,28 @@
-# Couche « registres » (état civil, nationalité, casier)
+# Couche « registres »
 
-**Rôle** : détenir la donnée et ne répondre que l'attribut demandé, **signé**. Un seul code, trois instances
-(`registre-etat-civil`, `registre-nationalite`, `registre-casier`), choisies par la variable `ADAPTATEUR`.
+**Rôle** : détenir la donnée des citoyens (registres SIMULÉS, données fictives) et la servir **selon le contrat
+commun** des trois registres : état civil, nationalité, casier judiciaire.
 
-## Une demande, côté registre
+Contrat actuel : **PROVISOIRE** (`contrat/contrat-provisoire.yaml`), en attendant celui du jury. Une route par registre :
+`GET /etat-civil/{id}`, `GET /nationalite/{id}`, `GET /casier/{id}` → la fiche du citoyen (exactement les champs du
+schéma de la réponse 200), ou **404** s'il est inconnu. Citoyens fictifs provisoires : `donnees/citoyens-provisoires.yaml`.
 
-1. Vérifie **lui-même** le jeton Keycloak de l'agent (signature, expiration, groupe = service).
-2. Double clé : l'attribut, la base (consentement ou texte de loi cité) et les paramètres (seuils d'âge, date de
-   référence) doivent être déclarés pour ce service dans **son** adaptateur. Sinon : refus signé.
-3. Retrouve la fiche (`app/adaptateur.py`) : 0 fiche → « introuvable », plusieurs → « identité ambiguë », personne
-   décédée → refus.
-4. Calcule l'attribut minimal avec `regles_attributs/` (couche consentement et minimisation, copiée dans son
-   image) : la fiche ne sort jamais du conteneur.
-5. Signe la réponse (JWT EdDSA / Ed25519, 10 minutes) avec **sa** clé privée. Les refus sont signés aussi, avec
-   un motif public générique. Seul « indisponible » n'est pas signé.
-6. Note la réponse dans sa **double trace** (numéro de demande, jti, date ; jamais la valeur).
+Un seul code (`app/main.py`), trois instances (docker-compose.yml) ; tout vient de la configuration :
+`GRIOT_CONTRAT` (le contrat), `GRIOT_CITOYENS` (la liste), `REGISTRE_CHEMIN` (la route de cette instance),
+`PANNE` (normal | lent | eteint | non_conforme, lue à chaque appel ; `resilience/panne.py`).
 
-## Ce que contient la couche
+Le registre ne calcule rien : c'est la **passerelle** qui valide la réponse contre le contrat puis ne garde que l'utile
+(couche consentement-minimisation). Joignable seulement par la passerelle (réseau Docker `registres`, sans Internet) ;
+**aucune authentification côté registre** (LIMITES.md).
 
-| Élément | Rôle |
-|---|---|
-| `adaptateurs/<registre>.yaml` | source, clé d'identité, champs, attributs et leur règle, services autorisés : brancher un registre = écrire ce fichier |
-| `app/sources.py` | lecture CSV, Excel, JSON, SQLite, dump SQL, PDF, API HTTP |
-| `app/main.py` | API, signature, interrupteur de panne (normal, lent, corrompu), double trace |
-| `donnees_fictives/` | une vingtaine de citoyens fictifs (mineur, « né vers », homonymes, décédé, casier non vierge) |
-| `import/ocr/` | conversion unique d'un PDF scanné en CSV, sans réseau |
+## Désactivé (conservé, plus utilisé par la pile)
 
-## Contrat
+L'ancien registre « signé » : `app/ancien_main.py` (signature Ed25519, jeton Keycloak, double clé, double trace),
+`app/adaptateur.py`, `app/sources.py` (CSV, JSON, SQL, Excel, PDF, API), `adaptateurs/`, `donnees_fictives/`, `import/ocr/`,
+`requirements-ancien.txt`. Leurs tests restent dans `tests/` (test_adaptateur, test_registre, test_formats).
 
-`openapi.yaml` (généré, vérifié par `tests/test_openapi.py`) : `POST /attributs` (appelé par la passerelle
-seulement, réseau `registres`) et `GET /trace` (double trace signée). Brancher un registre : `docs/JOUR_J_DONNEES_JURY.md`.
+## Contrat et tests
 
-## Tests
-
-`registres/tests/` : adaptateur (âges, dates incomplètes, homonymes, décès), formats de fichiers
-(`donnees_formats/`, `adaptateurs_formats/`), API du registre (jeton, double clé, signature).
-`.venv\Scripts\python -m pytest registres\tests`.
+`openapi.yaml` = le contrat des registres (généré depuis `contrat/contrat-provisoire.yaml`). Tests :
+`tests/test_registre_contrat.py` (chaque citoyen conforme au contrat, 404, champs exposés, pannes) et
+`tests/test_schemathesis.py` (tests générés depuis le contrat de `GRIOT_CONTRAT`).

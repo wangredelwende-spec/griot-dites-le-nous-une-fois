@@ -58,3 +58,16 @@ def test_verification_ok_puis_premiere_ligne_modifiee(tmp_path, monkeypatch, cli
     base.execute("UPDATE journal SET agent = 'intrus' WHERE n = 3")
     r = client.get("/journal/verification").json()
     assert r["statut"] == "ALTERE" and not r["integre"] and r["premiere_ligne_modifiee"] == 3
+
+
+@respx.mock
+def test_chaque_ligne_a_un_statut_et_l_agent(client):
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
+    d = demande()
+    client.post("/demandes", json=d)
+    lignes = [l for l in journal_de() if l["id_demande"] == d["id_demande"]]
+    assert [l["statut"] for l in lignes] == ["autorisée", "réussie", "réussie"]
+    assert {l["agent"] for l in lignes} == {"issa.sawadogo"}
+    from tracabilite.journal import statut_de
+    assert statut_de("demande", "refuse") == "refusée" and statut_de("reponse-registre", "indisponible") == "indisponible"
+    assert statut_de("alerte", "refuse") == "échouée" and statut_de("retrait", "ok") == "refusée"

@@ -44,3 +44,17 @@ def test_catalogue_restaure_avec_copie(depot, monkeypatch):
     remise.verifier_catalogue("D")
     assert depot.read_text(encoding="utf-8").replace("\r\n", "\n") == "demarches:\n  a: {}\n"
     assert "ajoutee" in (depot.parent / "demarches-avant-remise-D.yaml.bak").read_text(encoding="utf-8")
+
+
+def test_terminal_sans_saisie_ne_plante_pas(depot, capsys, monkeypatch):
+    """Git Bash : stdin ressemble à un terminal mais ne donne rien (EOF) -> on garde le catalogue, sans planter."""
+    depot.write_text("demarches:\n  a: {}\n  ajoutee: {}\n", encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["remise_a_zero.py", "--oui"])
+    monkeypatch.setattr("sys.stdin.isatty", lambda: True, raising=False)
+
+    def sans_saisie(_question):
+        raise EOFError
+    monkeypatch.setattr("builtins.input", sans_saisie)
+    remise.verifier_catalogue("D")
+    assert "Catalogue gardé tel quel" in capsys.readouterr().out
+    assert "ajoutee" in depot.read_text(encoding="utf-8")

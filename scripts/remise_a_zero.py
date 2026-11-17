@@ -65,7 +65,11 @@ def verifier_catalogue(date: str):
     elif "--garder-catalogue" in sys.argv or not sys.stdin.isatty():
         restaurer = False
     else:
-        restaurer = input("Restaurer la version committée (git checkout du fichier) ? [o/N] ").strip().lower() == "o"
+        try:
+            restaurer = input("Restaurer la version committée (git checkout du fichier) ? [o/N] ").strip().lower() == "o"
+        except EOFError:                             # terminal sans saisie possible : on ne touche à rien
+            restaurer = False
+            print()
     if not restaurer:
         print(f"Catalogue gardé tel quel. Pour le restaurer : git checkout HEAD -- {fichier}  "
               "(ou relancer avec --restaurer-catalogue)\n", flush=True)

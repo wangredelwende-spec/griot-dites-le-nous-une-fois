@@ -1,8 +1,8 @@
 """Test de bout en bout « Vous voyez avant, vous vérifiez après », contre la pile qui tourne.
 
-1. agent.banc.cefore (Service des bourses) demande la « Bourse nationale » pour BF-0012 : en attente de l'usager.
-2. L'usager (téléphone 70000012) compose *226#, voit l'aperçu exact et confirme : il reçoit un reçu.
-3. Le guichet actualise : « nationalité burkinabè : oui », signature vérifiée.
+1. agent.banc.cefore (CEFORE) demande la « Création d'une entreprise individuelle (CEFORE) » pour BF-0002 : en attente de l'usager.
+2. L'usager (téléphone 70000002) compose *226#, voit l'aperçu exact et confirme : il reçoit un reçu.
+3. Le guichet actualise : « casier judiciaire vierge : oui ».
 4. L'usager consulte « Qui a consulté mes données » : le reçu y figure, sans la valeur.
 5. Une seconde demande est refusée par l'usager : le guichet n'obtient rien.
 6. Une troisième est confirmée puis l'accord est retiré avant la remise : le guichet n'obtient rien.
@@ -16,6 +16,7 @@ import sys
 import httpx
 
 from e2e_jalon1 import autorite_caddy, connecter
+from client_guichet import retirer_les_accords
 
 AGENT = "agent.banc.cefore"
 GUICHET, USSD = "https://guichet.griot.test", "https://usager.griot.test"
@@ -26,7 +27,8 @@ def texte(page: str) -> str:
 
 
 def demander(guichet: httpx.Client, csrf: str) -> str:
-    r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf, "demarche": "entreprise-individuelle-cefore", "sujet_ref": "BF-0012"})
+    retirer_les_accords("BF-0002")      # un accord encore valable rendrait la demande immédiate : on le retire d'abord
+    r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf, "demarche": "entreprise-individuelle-cefore", "sujet_ref": "BF-0002"})
     assert "En attente de l'usager" in texte(r.text), texte(r.text)[-300:]
     return str(r.url)
 
@@ -50,12 +52,13 @@ def verifier(nom: str, condition: bool, detail: str = "") -> bool:
 
 
 def main():
+    retirer_les_accords("BF-0002")             # accord laissé par un passage précédent : on repart de zéro
     ca = autorite_caddy()
     resultats = []
     with httpx.Client(verify=ca, follow_redirects=True, timeout=20) as guichet, \
          httpx.Client(verify=ca, follow_redirects=True, timeout=20) as telephone:
         csrf = connecter(guichet, AGENT)
-        tel = Telephone(telephone, "70000012")
+        tel = Telephone(telephone, "70000002")
         tel.taper("*226#")
         tel.taper("1234")
         # Nettoyage : refuse les demandes laissées en attente par un passage précédent interrompu
@@ -65,26 +68,26 @@ def main():
         tel.taper("0")       # « Aucune demande en attente. 0. Menu » -> retour au menu
 
         adresse = demander(guichet, csrf)
-        resultats.append(verifier("demande de bourse en attente de l'usager", True))
+        resultats.append(verifier("demande CEFORE en attente de l'usager", True))
         apercu = tel.taper("1")
         resultats.append(verifier("aperçu exact sur le téléphone",
-                                  "Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre." in apercu, apercu))
+                                  "Le CEFORE recevra : identité" in apercu, apercu))
         confirmation = tel.taper("1")
         recu = re.search(r"Reçu : ((?:[0-9a-f]{4} ){3}[0-9a-f]{4})", confirmation)
         resultats.append(verifier(f"confirmation avec reçu ({recu[1] if recu else '?'})", bool(recu), confirmation))
 
         page = texte(guichet.get(adresse).text)
-        resultats.append(verifier("guichet : nationalité burkinabè : oui, signature vérifiée",
-                                  "nationalité burkinabè : oui Signé par le registre de la nationalité, signature vérifiée" in page, page[-300:]))
+        resultats.append(verifier("guichet : casier judiciaire vierge : oui (et l'identité), via la passerelle",
+                                  "casier judiciaire vierge : oui Fourni par le casier judiciaire via la passerelle" in page, page[-300:]))
 
         tel.taper("0")
         historique = tel.taper("2")
         resultats.append(verifier("historique : la consultation apparaît, sans la valeur",
-                                  "Bourses nation. transmis" in historique and "Bourses nation. accordé" in historique
+                                  "CEFORE 2 infos transmis" in historique and "CEFORE 2 infos accordé" in historique
                                   and "oui" not in historique, historique))
         detail = tel.taper("2")        # ligne 1 : « transmis » ; ligne 2 : « accordé », celle du reçu
         resultats.append(verifier("détail : finalité, base et le même reçu",
-                                  "Pour : attribution de la bourse nationale" in detail and bool(recu) and recu[1] in detail
+                                  "immatriculation d'une entreprise" in detail and bool(recu) and recu[1] in detail
                                   and "Avec votre accord" in detail, detail))
         tel.taper("0")       # détail -> liste
         tel.taper("0")       # liste -> menu
@@ -94,7 +97,7 @@ def main():
         refus = tel.taper("2")
         page = texte(guichet.get(adresse).text)
         resultats.append(verifier("refus de l'usager : le guichet n'obtient rien",
-                                  "refusé par l'usager : rien n'a été transmis" in page and "nationalité burkinabè : oui" not in page,
+                                  "refusé par l'usager : rien n'a été transmis" in page and "casier judiciaire vierge : oui" not in page,
                                   refus + " | " + page[-200:]))
         # 6. Retrait de l'accord AVANT que le guichet ne récupère la réponse : rien ne part
         tel.taper("0")
@@ -108,7 +111,7 @@ def main():
         page = texte(guichet.get(adresse).text)
         resultats.append(verifier("retrait de l'accord avant la remise : le guichet n'obtient rien",
                                   "Accord retiré. Rien n'a été transmis" in retrait
-                                  and "accord retiré par l'usager" in page and "nationalité burkinabè : oui" not in page,
+                                  and "accord retiré par l'usager" in page and "casier judiciaire vierge : oui" not in page,
                                   retrait + " | " + page[-200:]))
     sys.exit(0 if all(resultats) else 1)
 

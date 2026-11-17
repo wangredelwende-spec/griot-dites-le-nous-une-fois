@@ -1,10 +1,15 @@
 # Abonnés FICTIFS du service *226# (démonstration) : numéro de téléphone -> usager et code PIN.
 # En production : le numéro est fourni par l'opérateur (il n'est pas saisi) et le PIN est géré
 # par le fournisseur d'identité, jamais dans un fichier (voir LIMITES.md).
-"70000001": {sujet_ref: BF-0001, pin: "1234"}    # Aminata Kaboré, adulte
+# Citoyens de la liste PROVISOIRE (registres/donnees/citoyens-provisoires.yaml)
+"70000001": {sujet_ref: BF-0001, pin: "1234"}    # Aminata Kaboré, majeure (démonstration)
+"70000002": {sujet_ref: BF-0002, pin: "1234"}    # Moussa Ouédraogo, majeur (test de bout en bout USSD)
 "70000003": {sujet_ref: BF-0003, pin: "1234"}    # Fatimata Sawadogo, mineure
+"70000004": {sujet_ref: BF-0004, pin: "1234"}    # Issouf Traoré, casier non vierge
 "70000005": {sujet_ref: BF-0005, pin: "1234"}    # Salif Compaoré (homonyme de BF-0006)
 "70000006": {sujet_ref: BF-0006, pin: "1234"}    # Salif Compaoré (homonyme de BF-0005)
-"70000009": {sujet_ref: BF-0009, pin: "1234"}    # Rasmata Nikiéma, 18 ans le 20/11/2026
-"70000015": {sujet_ref: BF-0015, pin: "1234"}    # Karim Tiendrébéogo : casier incomplet (passeport)
-"70000012": {sujet_ref: BF-0012, pin: "1234"}    # Aïssata Diallo : démo « bourse » avec consentement
+"70000007": {sujet_ref: BF-0007, pin: "1234"}    # Ibrahim Diallo, non burkinabè
+"70000008": {sujet_ref: BF-0008, pin: "1234"}    # Rasmata Nikiéma, 18 ans le 20/11/2026 (test de bout en bout portail)
+"70000010": {sujet_ref: BF-0010, pin: "1234"}    # Karim Tiendrébéogo, né « vers 1990 »
+# Hors liste (tests unitaires de l'écran, médiateur simulé) : la passerelle répondrait « citoyen inconnu »
+"70000012": {sujet_ref: BF-0012, pin: "1234"}

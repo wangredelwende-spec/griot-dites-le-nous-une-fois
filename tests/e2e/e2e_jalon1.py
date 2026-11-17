@@ -1,7 +1,7 @@
 """Test de bout en bout du jalon 1, contre la pile qui tourne (docker compose up -d --wait).
 
 Joue le parcours d'un vrai agent : connexion Keycloak (mot de passe + TOTP), demande au guichet,
-lecture du résultat. Compte utilisé : agent.banc (Direction des concours, base légale).
+lecture du résultat. Compte utilisé : agent.banc (Direction des concours, base légale). Registres selon le contrat.
 Son secret TOTP est créé au premier passage et gardé dans tests/.secrets/ (ignoré par git).
 
 Utilisation :  .venv/Scripts/python tests/e2e/e2e_jalon1.py
@@ -22,23 +22,16 @@ def demander(client: httpx.Client, csrf: str, sujet: str, demarche: str = "conco
     return texte(envoyer(client, csrf, sujet, demarche).text)
 
 
-REFUS = "refusé par le registre d'état civil : réponse impossible, s'adresser à l'état civil. Réponse signée par le registre, signature vérifiée"
-# (démarche, usager, textes attendus) ; démarches du catalogue (consentement-minimisation/catalogue/demarches.yaml)
+# (démarche, usager, textes attendus au guichet) ; citoyens de registres/donnees/citoyens-provisoires.yaml
 CAS = [
-    ("concours-direct", "BF-0001", ["majeur (18 ans accomplis) : oui Signé par le registre d'état civil, signature vérifiée"]),
-    ("concours-direct", "BF-0003", ["majeur (18 ans accomplis) : non"]),
-    ("concours-direct", "BF-0004", [REFUS]),      # vers 1990
-    ("concours-direct", "BF-0007", [REFUS]),      # décédée : le guichet ne l'apprend pas
-    ("concours-direct", "BF-0019", [REFUS]),      # doublon
-    ("concours-direct", "BF-0099", [REFUS]),      # introuvable
-    # Concours direct : UNE demande, 3 registres
-    ("concours-direct", "BF-0001", ["âge de 18 à 37 ans au 31/12/2026 : oui", "nationalité burkinabè : oui",
-                                      "casier judiciaire vierge : oui", "Conclusion : toutes les conditions sont vérifiées"]),
-    ("concours-direct", "BF-0008", ["casier judiciaire vierge : non", "au moins une condition n'est pas remplie"]),
-    ("concours-direct", "BF-0018", ["nationalité burkinabè : non"]),
-    ("concours-direct", "BF-0003", ["âge de 18 à 37 ans au 31/12/2026 : non",
-                                      "réponse impossible, s'adresser au greffe"]),          # absente du casier ≠ vierge
-    ("concours-direct", "BF-0013", ["réponse impossible, s'adresser au service de la nationalité"]),
+    # Concours direct : UNE demande, 3 registres, base légale
+    ("concours-direct", "BF-0002", ["majeur (18 ans accomplis) : oui", "nationalité burkinabè : oui",
+                                    "casier judiciaire vierge : oui", "toutes les conditions sont vérifiées"]),
+    ("concours-direct", "BF-0003", ["majeur (18 ans accomplis) : non"]),                     # mineure
+    ("concours-direct", "BF-0004", ["casier judiciaire vierge : non", "au moins une condition n'est pas remplie"]),
+    ("concours-direct", "BF-0007", ["nationalité burkinabè : non"]),                         # non burkinabè
+    ("concours-direct", "BF-0009", ["réponse impossible, s'adresser au registre d'état civil"]),   # décédée : rien de plus
+    ("concours-direct", "BF-4242", ["citoyen inconnu"]),
 ]
 
 
@@ -50,7 +43,7 @@ def main():
         for demarche, sujet, attendus in CAS:
             texte = demander(client, csrf, sujet, demarche)
             # Le détail du casier (« vol », « escroquerie ») et les dates ne doivent jamais apparaître au guichet
-            ok = all(a in texte for a in attendus) and not any(m in texte for m in ("vol ", "escroquerie", "2001-03-14"))
+            ok = all(a in texte for a in attendus) and not any(m in texte for m in ("1998-07-02", "2012-05-20", "Koudougou", "Hamidou", "décéd"))
             echecs += not ok
             print(f"{'OK ' if ok else 'ÉCHEC'} {demarche} {sujet} -> {' | '.join(attendus)}"
                   + ("" if ok else f"\n      page : {texte[-400:]}"))

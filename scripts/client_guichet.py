@@ -92,3 +92,13 @@ def reponses_signees(page: str) -> dict[str, dict]:
     """Contenu décodé des réponses signées que le guichet a reçues et vérifiées ({attribut: claims})."""
     return {code: json.loads(html.unescape(contenu))
             for code, contenu in re.findall(r'<pre id="jeton-([^"]+)">(.*?)</pre>', page, re.S)}
+
+
+def retirer_les_accords(sujet: str):
+    """Retire, par l'API usager de la passerelle, les accords encore valables de ce citoyen (laissés par le banc ou un
+    passage précédent) : la démarche redemandera son accord, comme le veut le scénario de bout en bout."""
+    code = (f"import httpx\nC={{'X-Cle-Canal': open('/run/secrets/canal_usager').read().strip()}}\n"
+            f"for a in httpx.get('http://127.0.0.1:8000/usagers/{sujet}/accords', headers=C).json():\n"
+            f"    httpx.post(f\"http://127.0.0.1:8000/demandes/{{a['id_demande']}}/retirer\", json={{'sujet_ref': '{sujet}'}}, headers=C)\n")
+    subprocess.run(["docker", "compose", "exec", "-T", "mediateur", "python", "-"], input=code, cwd=RACINE,
+                   capture_output=True, text=True, check=True)

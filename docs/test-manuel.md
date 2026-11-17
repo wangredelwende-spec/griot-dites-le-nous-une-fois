@@ -142,10 +142,10 @@ apparaît dans l'historique de l'usager avec le texte cité.
 1. Guichet (fenêtre privée) → `awa.ouedraogo`. Démarche **Bourse nationale**, usager `BF-0012`, Envoyer.
 2. Attendu : « **En attente de l'usager** … délai : jusqu'à HH h MM ». Rien n'est encore transmis.
 3. Onglet téléphone https://usager.griot.test → numéro `70000012` → Allumer → taper `*226#` → PIN `1234`.
-4. Menu → `1` (Demandes en attente). Attendu :
+4. Menu → `1` (Accords à donner). Attendu :
    « Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre. 1. Confirmer 2. Refuser ».
 5. Taper `1`. Attendu : « Confirmé. Reçu : xxxx xxxx xxxx xxxx ». **Noter le reçu.**
-6. Guichet d'Awa → **Actualiser**. Attendu : « nationalité burkinabè : oui », signature vérifiée.
+6. Guichet d'Awa → **Actualiser**. Attendu : « nationalité burkinabè : oui » (les registres ne signent plus : LIMITES.md).
 7. Variante refus : refaire les étapes 1 à 4, puis taper `2` → « Refusé. Rien n'a été transmis. » ; au guichet :
    « nationalité burkinabè : refusé. refusé par l'usager : rien n'a été transmis ».
 8. Variante **retrait** : refaire 1 à 5 (confirmer), puis AVANT qu'Awa actualise : `0` → `3` (Retirer un accord)
@@ -197,14 +197,21 @@ apparaît dans l'historique de l'usager avec le texte cité.
 ## Scène 3 bis (facultative) : le portail web, même journal que le *226#
 
 1. Guichet d'Awa : **Bourse nationale**, usager `BF-0012`, Envoyer → « En attente de l'usager ».
-2. Sur un téléphone ou en fenêtre étroite : https://usager.griot.test/portail → numéro `70000012`, PIN `1234`.
-   Attendu : menu de 3 entrées, « Demandes en attente » avec la pastille « 1 en attente ».
-3. **Demandes en attente** : « Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre. »,
+2. Sur un téléphone ou en fenêtre étroite : https://usager.griot.test/portail → numéro `70000012`, PIN `1234`
+   (page de connexion : « Connexion simulée (démo) »). Attendu : **l'accueil s'affiche directement**, sans menu :
+   - « Bonjour, » suivi du prénom quand l'annuaire de démo en a un (`70000001` → « Bonjour, Aminata ») ;
+   - « Voici qui a consulté vos informations, quand et pourquoi. » ;
+   - le badge « **Journal intègre ✓ — vérifié à HH h MM** » (l'heure, jamais le nombre de lignes) ;
+   - le compteur « Vos informations ont été consultées N fois » ;
+   - la liste des consultations (date, service, informations, état, finalité) ; un clic ouvre le détail ;
+   - « Vos accords » (bouton **Retirer mon accord**), puis **Accords à donner** avec la pastille « 1 ».
+   Pas de « Retour au menu » sur l'accueil (les autres pages le gardent).
+3. Sous **Accords à donner** : « Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre. »,
    « À confirmer avant HHhMM » → **Confirmer**. Attendu : « Confirmé », **Reçu : xxxx xxxx xxxx xxxx**. Noter le reçu.
 4. Guichet d'Awa → **Actualiser** : « nationalité burkinabè : oui », signature vérifiée.
 5. Onglet téléphone https://usager.griot.test → `70000012` → `*226#` → `1234` → `2` (Qui a consulté mes données).
    Attendu : « … Bourses nation. accordé » ; taper son numéro : « … accordé **(web)** » et **le même reçu**.
-6. Portail → **Qui a consulté mes données** → la ligne « accordé » : finalité, « Avec votre accord »,
+6. Portail → accueil → la ligne « accordé » de la liste des consultations (clic = détail) : finalité, « Avec votre accord »,
    « Fait depuis : le portail web », le même reçu. Jamais « oui ».
 7. Le portail s'arrête seul : `docker compose stop portail` → /portail affiche « Portail web arrêté. Rien n'a été
    transmis. Le service *226# reste disponible » ; le *226# marche toujours. `docker compose start portail` pour revenir.

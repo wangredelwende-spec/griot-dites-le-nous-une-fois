@@ -1,7 +1,8 @@
 # Scénario : Aminata demande un passeport ordinaire
 
-Personne et données **fictives**. Pour Aminata, le parcours est tiré du code de `main` (commit `053d043`). Pour
-la démo écran par écran : [test-manuel.md](test-manuel.md), scène 1.
+Personne et données **fictives**. Pour Aminata, le parcours est tiré du code de `main` (commit `2e2b4e4`). Pour
+la démo écran par écran : [test-manuel.md](test-manuel.md), scène 1. Chaque étape indique la couche du socle
+concernée ([ARCHITECTURE.md](ARCHITECTURE.md)).
 
 ## Le contexte
 
@@ -29,7 +30,7 @@ Ensuite, Aminata ne sait pas qui a regardé ces papiers, ni ce qu'on en a fait.
 
 ## Après : avec Griot Secure
 
-### 1. Au guichet des passeports
+### 1. Au guichet des passeports (guichet, consentement et minimisation)
 
 Moussa Koné (`moussa.kone`), agent du **Service des passeports – ONI**, se connecte avec son mot de passe et un
 code à 6 chiffres, qui change toutes les 30 secondes. Il choisit **« Passeport ordinaire »**, tape `BF-0001` et
@@ -41,7 +42,7 @@ son service : le système le lit dans son compte.
 Son écran affiche : **« En attente de l'usager. Il voit exactement ce qui sera transmis et doit confirmer.
 Rien n'est encore transmis. »**
 
-### 2. Les registres répondent, sans rien envoyer de plus
+### 2. Les registres répondent, sans rien envoyer de plus (passerelle d'échange, registres)
 
 Le médiateur pose deux questions **en même temps** :
 
@@ -54,9 +55,10 @@ Chaque registre vérifie lui-même que c'est bien un agent des passeports qui de
 de poser cette question. Il répond seulement « oui » ou « non », **signé** avec sa propre clé. La fiche reste
 chez lui.
 
-### 3. Aminata voit avant
+### 3. Aminata voit avant (espace usager, consentement)
 
-Sur son téléphone, elle compose `*226#`, puis son code PIN, et choisit `1. Demandes en attente`. Elle lit :
+Sur son téléphone, elle compose `*226#`, puis son code PIN, et choisit `1. Demandes en attente`. (Avec un
+smartphone, elle pourrait faire la même chose sur le portail web.) Elle lit :
 
 > L'ONI (passeports) recevra : burkinabè = oui ; interdiction de sortie du territoire = non. Rien d'autre.
 > 1\. Confirmer 2. Refuser
@@ -67,7 +69,7 @@ Pour la loi n°001-2021/AN, ce consentement doit être « exprès, libre, spéci
 ([source](https://assembleenationale.bf/storage/Loi/kDsWHXOTUCQFVESChh8BlBdiZnCrdTsOpXe1rzmH.pdf)). Aminata
 sait exactement ce qui part, à qui, et pourquoi : « établissement d'un passeport ordinaire ».
 
-### 4. Le guichet reçoit la réponse utile
+### 4. Le guichet reçoit la réponse utile (guichet)
 
 Moussa clique sur **Actualiser**. Il voit :
 
@@ -79,13 +81,13 @@ Le guichet a revérifié lui-même chaque signature. L'ONI n'a reçu ni date de 
 casier. Il ne sait même pas si le casier d'Aminata est vierge : il sait seulement qu'il n'y a pas d'interdiction
 de sortie du territoire.
 
-### 5. Aminata vérifie après
+### 5. Aminata vérifie après (journal de traçabilité, espace usager)
 
 Plus tard, elle choisit `2. Qui a consulté mes données`. Elle voit la date, le service, la finalité, la base
 (« Avec votre accord ») et son reçu. Elle ne voit **jamais** la valeur, car le journal ne la contient pas.
 
-Avec le reçu, n'importe quel contrôleur peut retrouver la ligne dans le journal et vérifier que personne ne l'a
-modifiée (`journal/verifier.py --recu`).
+Avec le reçu, un contrôleur peut retrouver la ligne dans le journal et vérifier que personne ne l'a modifiée,
+avec l'outil de vérification du journal ([Où trouver quoi](OU_TROUVER_QUOI.md)).
 
 ### Ce que Griot Secure ne change pas
 

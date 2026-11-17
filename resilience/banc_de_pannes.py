@@ -5,7 +5,7 @@ usager de la passerelle (secret du canal, comme l'USSD).
     .venv\\Scripts\\python resilience\\banc_de_pannes.py
 
 Les pannes sont posées par resilience/panne.py (variable PANNE d'un registre, ou conteneur arrêté) puis TOUJOURS
-retirées. Le banc n'utilise jamais BF-0001 (citoyenne de la démonstration) ; il remplit l'historique des autres :
+retirées. Le banc n'utilise jamais la citoyenne de la démonstration (Aminata Kaboré) ; il remplit l'historique des autres :
 lancer scripts/remise_a_zero.py après, avant une démonstration.
 """
 import json

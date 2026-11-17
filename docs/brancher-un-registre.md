@@ -74,9 +74,25 @@ hors contrat, journal intègre), affiche ✅ / ❌ ligne par ligne et le **temps
 ## Sur la pile Docker
 
 Mêmes 3 gestes dans `consentement-minimisation/catalogue/` (monté en lecture seule dans la passerelle, relu à chaud).
-**Limite réseau** : le réseau `registres` de la passerelle n'a pas de sortie (`internal: true`). Pour joindre un
-registre sur une autre machine, il faut soit lancer leur conteneur sur notre réseau `registres`, soit un relais à
-destination unique (comme `relais-api-jury`). C'est un choix réseau dans `docker-compose.yml`, pas un changement de code.
+Réseau : la passerelle, **et elle seule**, est aussi reliée au réseau `sortie-registres` (avec sortie) : elle peut
+joindre une adresse IP du réseau local (`url: http://192.168.1.42:7000`). Nos registres restent sur le réseau
+`registres`, sans sortie. Vérifier depuis la passerelle :
+`docker compose exec mediateur python -c "import urllib.request as u; print(u.urlopen('http://192.168.1.42:7000/…').status)"`.
+
+## Brancher NOS registres chez une autre équipe
+
+Nos 3 registres sont publiés sur la machine hôte, en **lecture seule (GET)**, par la vitrine `vitrine-registres`
+(`socle/caddy/Caddyfile.vitrine`) :
+
+| Registre | Adresse à donner (IP de notre machine sur le réseau local : `ipconfig`) | Route |
+|---|---|---|
+| État civil | `http://<notre IP>:8101` | `/etat-civil/{id}` |
+| Nationalité | `http://<notre IP>:8102` | `/nationalite/{id}` |
+| Casier | `http://<notre IP>:8103` | `/casier/{id}` |
+
+Leur donner aussi `registres/contrat/contrat-registres.yaml`. Ports réglables (`PORT_REGISTRE_ETAT_CIVIL`,
+`PORT_REGISTRE_NATIONALITE`, `PORT_REGISTRE_CASIER`). Le pare-feu Windows doit autoriser ces ports en entrée.
+Essai : `Invoke-RestMethod http://127.0.0.1:8101/etat-civil/BF-0001`.
 
 ## Limites
 

@@ -170,12 +170,32 @@ services:
       registre-etat-civil: {condition: service_started}
       registre-nationalite: {condition: service_started}
       registre-casier: {condition: service_started}
-    networks: [interne, registres]
+    # « sortie-registres » : SEUL réseau avec sortie, réservé à la passerelle, pour joindre le registre d'une AUTRE
+    # équipe sur le réseau local (adresse dans annuaire.yaml). Nos registres, eux, restent sans sortie.
+    networks: [interne, registres, sortie-registres]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # Vitrine de NOS registres pour les autres équipes : publie leurs ports sur la machine hôte (réseau local), en
+  # lecture seule (GET). Les registres restent sur le réseau « registres » sans sortie : Docker ne publie pas les ports
+  # d'un conteneur relié seulement à des réseaux internes, d'où ce relais (même image que Caddy).
+  vitrine-registres:
+    image: caddy:2.11.7-alpine
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:${PORT_REGISTRE_ETAT_CIVIL:-8101}:8101"
+      - "0.0.0.0:${PORT_REGISTRE_NATIONALITE:-8102}:8102"
+      - "0.0.0.0:${PORT_REGISTRE_CASIER:-8103}:8103"
+    volumes:
+      - ./socle/caddy/Caddyfile.vitrine:/etc/caddy/Caddyfile:ro
+    depends_on:
+      registre-etat-civil: {condition: service_started}
+      registre-nationalite: {condition: service_started}
+      registre-casier: {condition: service_started}
+    networks: [registres, vitrine]
 
   # Guichet des agents (guichet.griot.test). Pas sur le réseau « registres » : il ne peut pas
   # contourner le médiateur.
@@ -320,6 +340,10 @@ networks:
     internal: true
   # Réseau ordinaire, utilisé uniquement par Caddy pour publier les ports 80 et 443
   externe: {}
+  # Sortie de la PASSERELLE seule vers le registre d'une autre équipe (réseau local) : aucun autre service n'y est relié
+  sortie-registres: {}
+  # Réseau ordinaire de la vitrine des registres (ports publiés pour les autres équipes) : elle seule y est reliée
+  vitrine: {}
   # Registres <-> relais de l'API du jury, SANS sortie : un registre ne peut joindre que le relais
   relais-jury:
     internal: true

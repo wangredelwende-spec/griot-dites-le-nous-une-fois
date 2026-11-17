@@ -1,0 +1,31 @@
+# Vitrine de NOS registres simulés pour les autres équipes (réseau local), selon registres/contrat/contrat-registres.yaml.
+# Lecture seule : GET uniquement, tout le reste -> 405. HTTP simple (pas de nom d'hôte, donc pas de certificat) :
+# registres simulés, données fictives. Les registres eux-mêmes restent sur un réseau Docker sans sortie.
+{
+	admin off
+	auto_https off
+}
+
+:8101 {
+	@lecture method GET
+	handle @lecture {
+		reverse_proxy registre-etat-civil:8000
+	}
+	respond "lecture seule (GET)" 405
+}
+
+:8102 {
+	@lecture method GET
+	handle @lecture {
+		reverse_proxy registre-nationalite:8000
+	}
+	respond "lecture seule (GET)" 405
+}
+
+:8103 {
+	@lecture method GET
+	handle @lecture {
+		reverse_proxy registre-casier:8000
+	}
+	respond "lecture seule (GET)" 405
+}

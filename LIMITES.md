@@ -46,8 +46,13 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
   `correspondance.yaml` relie leurs noms de champs à la passerelle.
 - Registre d'une autre équipe : `annuaire.yaml` (adresse, route, son contrat copié dans `catalogue/contrats/`) +
   `correspondance.yaml`, relus à chaud (`docs/brancher-un-registre.md`). Limites : fiche JSON « à plat », identifiant
-  dans la route, même identifiant de citoyen des deux côtés ; sur Docker, le réseau `registres` n'a pas de sortie
-  (leur conteneur sur ce réseau, ou un relais, à décider dans `docker-compose.yml`).
+  dans la route, même identifiant de citoyen des deux côtés.
+- **Réseau** : la passerelle seule est reliée à `sortie-registres`, un réseau AVEC sortie, pour joindre le registre
+  d'une autre équipe sur le réseau local. Elle n'appelle que les adresses de `annuaire.yaml`, mais rien ne l'empêche
+  techniquement de joindre Internet : en production, un pare-feu limiterait cette sortie aux registres déclarés.
+- **Nos registres publiés** (ports 8101, 8102, 8103 sur toutes les interfaces de la machine) par `vitrine-registres`,
+  GET seulement, **sans authentification** ni chiffrement (HTTP) : données fictives uniquement. Les registres eux-mêmes
+  restent sans sortie. En production : clé API ou TLS mutuel par administration, jamais de publication ouverte.
 - La passerelle appelle chaque registre en GET, valide la réponse contre le contrat (`jsonschema`, MIT), puis calcule
   l'attribut permis (`regles_attributs/minimisation.py`) : la fiche brute ne sort pas de la passerelle. Réponse non
   conforme : rejetée, ligne d'alerte « réponse corrompue : non conforme au contrat ». Citoyen inconnu : 404.

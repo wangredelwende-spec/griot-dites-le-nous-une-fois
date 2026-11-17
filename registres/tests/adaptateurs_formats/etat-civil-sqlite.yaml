@@ -1,4 +1,4 @@
-# Jeu d'essai : état civil au format sqlite (tests/donnees_formats). Aucune ligne de code changée : seulement ce fichier.
+# Jeu d'essai : état civil au format sqlite (registres/tests/donnees_formats). Aucune ligne de code changée : seulement ce fichier.
 registre: etat-civil
 emetteur: registre-etat-civil
 source:

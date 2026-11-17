@@ -1,7 +1,7 @@
 """Données du jury, format inconnu : PREUVE que tout se règle dans le YAML, sans changer le code.
 
-Les fichiers de tests/donnees_formats (fabriqués par fabriquer.py) contiennent les mêmes personnes fictives
-écrites autrement ; chaque YAML de tests/adaptateurs_formats les décrit. Les réponses doivent être les mêmes.
+Les fichiers de registres/tests/donnees_formats (fabriqués par fabriquer.py) contiennent les mêmes personnes fictives
+écrites autrement ; chaque YAML de registres/tests/adaptateurs_formats les décrit. Les réponses doivent être les mêmes.
 """
 import importlib
 import json
@@ -16,8 +16,8 @@ import pytest
 from conftest import RACINE, TMP
 
 adaptateur = importlib.import_module("registre_app.adaptateur")
-DONNEES = RACINE / "tests/donnees_formats"
-YAML = RACINE / "tests/adaptateurs_formats"
+DONNEES = RACINE / "registres/tests/donnees_formats"
+YAML = RACINE / "registres/tests/adaptateurs_formats"
 MAJEUR = {"min": 18, "date_reference": date(2026, 11, 16).isoformat()}
 
 

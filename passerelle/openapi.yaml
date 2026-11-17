@@ -1,0 +1,191 @@
+# Contrat d'API de la couche « Passerelle d'échange ». GÉNÉRÉ par scripts/generer_openapi.py : ne pas modifier
+# à la main (tests/test_openapi.py vérifie qu'il correspond au code).
+openapi: 3.1.0
+info:
+  title: 'Griot : Passerelle d''échange'
+  description: 'Fait circuler les pièces entre administrations : demande d''un agent (jeton Keycloak), appel des registres
+    en parallèle avec délai, vérification des réponses signées, remise au guichet. Réseau interne seulement, jamais publiée
+    par Caddy.'
+  version: '1.0'
+paths:
+  /catalogue:
+    get:
+      tags:
+      - passerelle d'échange
+      summary: Catalogue Public
+      description: 'Catalogue EN VIGUEUR (celui que le médiateur applique), pour le guichet. Ce sont des règles publiques
+        :
+
+        aucune donnée de citoyen. « refus » : dernière version refusée et sa raison (vide si aucune).'
+      operationId: catalogue_public_catalogue_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                type: object
+                title: Response Catalogue Public Catalogue Get
+  /demandes:
+    post:
+      tags:
+      - passerelle d'échange
+      summary: Creer Demande
+      operationId: creer_demande_demandes_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Demande'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /demandes/{id_demande}:
+    get:
+      tags:
+      - passerelle d'échange
+      summary: Suivre Demande
+      operationId: suivre_demande_demandes__id_demande__get
+      parameters:
+      - name: id_demande
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id Demande
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /controle:
+    get:
+      tags:
+      - passerelle d'échange
+      summary: Controle
+      operationId: controle_controle_get
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Demande:
+      properties:
+        id_demande:
+          type: string
+          pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$
+          title: Id Demande
+        demarche:
+          type: string
+          maxLength: 64
+          title: Demarche
+        sujet_ref:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Sujet Ref
+        finalite:
+          type: string
+          maxLength: 200
+          title: Finalite
+        attributs:
+          anyOf:
+          - items:
+              type: string
+            type: array
+            maxItems: 10
+          - type: 'null'
+          title: Attributs
+      additionalProperties: false
+      type: object
+      required:
+      - id_demande
+      - demarche
+      - sujet_ref
+      - finalite
+      title: Demande
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

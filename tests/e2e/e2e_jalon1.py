@@ -4,7 +4,7 @@ Joue le parcours d'un vrai agent : connexion Keycloak (mot de passe + TOTP), dem
 lecture du résultat. Compte utilisé : agent.banc (Direction des concours, base légale).
 Son secret TOTP est créé au premier passage et gardé dans tests/.secrets/ (ignoré par git).
 
-Utilisation :  .venv/Scripts/python tests/e2e_jalon1.py
+Utilisation :  .venv/Scripts/python tests/e2e/e2e_jalon1.py
 (connexion : scripts/client_guichet.py)
 """
 import subprocess
@@ -13,7 +13,7 @@ from pathlib import Path
 
 import httpx
 
-RACINE = Path(__file__).resolve().parents[1]
+RACINE = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(RACINE / "scripts"))
 from client_guichet import autorite_caddy, connecter, envoyer, texte  # noqa: E402
 

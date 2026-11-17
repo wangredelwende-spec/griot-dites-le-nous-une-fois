@@ -200,7 +200,6 @@ TEXTE_PASSEPORT = "Décret relatif au passeport ordinaire (texte inventé pour l
 
 def test_registre_refuse_lui_meme_le_passeport_en_base_legale(monkeypatch):
     """Le registre de la nationalité accepte le passeport SEULEMENT avec l'accord de l'usager (consentement)."""
-    sys.path.insert(0, str(RACINE / "tests"))
     from test_adaptateur import charger
     monkeypatch.setattr(registre, "ADAPTATEUR", charger("nationalite"))
     passeport = {"attribut": "nationalite_burkinabe", "service": "service-passeport"}

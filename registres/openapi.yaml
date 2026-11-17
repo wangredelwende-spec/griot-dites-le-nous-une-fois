@@ -1,0 +1,132 @@
+# Contrat d'API de la couche « Registres (état civil, nationalité, casier) ». GÉNÉRÉ par scripts/generer_openapi.py : ne pas modifier
+# à la main (tests/test_openapi.py vérifie qu'il correspond au code).
+openapi: 3.1.0
+info:
+  title: 'Griot : Registres (état civil, nationalité, casier)'
+  description: Chaque registre calcule l'attribut minimal demandé et le SIGNE avec sa propre clé Ed25519. Appelé par la passerelle
+    d'échange seulement (réseau « registres »), jamais publié.
+  version: '1.0'
+paths:
+  /attributs:
+    post:
+      summary: Attribut
+      description: 'Réponse TOUJOURS signée : {"statut": "ok", <attribut>} ou {"statut": "refus", "motif": <motif public>}.'
+      operationId: attribut_attributs_post
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Authorization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DemandeAttribut'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /trace:
+    get:
+      summary: Trace
+      description: 'Export SIGNÉ de la trace (pour verifier.py --registres) : le médiateur ne peut pas la falsifier.'
+      operationId: trace_trace_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+components:
+  schemas:
+    DemandeAttribut:
+      properties:
+        id_demande:
+          type: string
+          maxLength: 64
+          title: Id Demande
+        attribut:
+          type: string
+          maxLength: 64
+          title: Attribut
+        parametres:
+          additionalProperties:
+            anyOf:
+            - type: integer
+            - type: string
+            - type: 'null'
+          type: object
+          title: Parametres
+          default: {}
+        sujet_ref:
+          type: string
+          maxLength: 200
+          title: Sujet Ref
+        destinataire:
+          type: string
+          maxLength: 64
+          title: Destinataire
+        base:
+          type: string
+          maxLength: 32
+          title: Base
+          default: ''
+        texte:
+          type: string
+          maxLength: 1000
+          title: Texte
+          default: ''
+      type: object
+      required:
+      - id_demande
+      - attribut
+      - sujet_ref
+      - destinataire
+      title: DemandeAttribut
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

@@ -22,8 +22,11 @@ RACINE = Path(__file__).resolve().parents[1]
 
 
 def charger_paquet_registre():
-    """registres/app chargé sous le nom « registre_app » (comme dans les tests)."""
-    spec = importlib.util.spec_from_file_location("registre_app", RACINE / "registres/app/__init__.py",
+    """registres/app chargé sous le nom « registre_app » (comme dans les tests), avec le calcul des attributs
+    (consentement-minimisation/regles_attributs, copié dans l'image du registre)."""
+    if str(RACINE / "consentement-minimisation") not in sys.path:
+        sys.path.insert(0, str(RACINE / "consentement-minimisation"))
+    spec =importlib.util.spec_from_file_location("registre_app", RACINE / "registres/app/__init__.py",
                                                   submodule_search_locations=[str(RACINE / "registres/app")])
     sys.modules["registre_app"] = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(sys.modules["registre_app"])

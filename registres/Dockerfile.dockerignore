@@ -1,0 +1,6 @@
+# Contexte = racine du dépôt : on n'envoie QUE ce que le Dockerfile copie (jamais .env, donnees_jury/, .venv…)
+*
+!registres/requirements.txt
+!registres/app
+!consentement-minimisation/regles_attributs
+**/__pycache__

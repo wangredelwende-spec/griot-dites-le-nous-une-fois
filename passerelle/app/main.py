@@ -18,6 +18,7 @@ import importlib.util
 import json
 import re
 import sqlite3
+import sys
 import threading
 import time
 
@@ -26,7 +27,8 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from consentement import catalogue          # couche consentement-minimisation (même processus)
+from consentement import catalogue, usager  # couche consentement-minimisation (même processus)
+from consentement.usager import apercu, finalites_traduites, libelles, rafraichir  # noqa: F401 (apercu : tests)
 from . import registres
 from .agents import agent_connecte, controleur_connecte
 from .config import (CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FENETRE_LIMITE,
@@ -158,7 +160,11 @@ if REFUS_CATALOGUE:
                    motif=f"catalogue refusé (sha256 {REFUS_CATALOGUE['empreinte']}), le dernier catalogue valide "
                          f"reste en vigueur : {REFUS_CATALOGUE['raison'].strip()[:900]}")
 
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+# Pas de page /docs en service : le contrat est dans openapi.yaml de chaque couche (scripts/generer_openapi.py)
+app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None, title="Griot : passerelle d'échange",
+              version="1.0")
+# Une étiquette par couche, avec le vocabulaire du sujet : chaque openapi.yaml ne garde que les routes de sa couche
+PASSERELLE, JOURNAL = "passerelle d'échange", "journal de traçabilité"
 
 # --- Catalogue en direct : le fichier est relu dès qu'il change, sans redémarrer le médiateur ---
 _VU = {"date": 0.0, "verification": 0.0}
@@ -212,7 +218,7 @@ async def catalogue_a_jour(requete, suite):
     return await suite(requete)
 
 
-@app.get("/catalogue")
+@app.get("/catalogue", tags=[PASSERELLE])
 def catalogue_public() -> dict:
     """Catalogue EN VIGUEUR (celui que le médiateur applique), pour le guichet. Ce sont des règles publiques :
     aucune donnée de citoyen. « refus » : dernière version refusée et sa raison (vide si aucune)."""
@@ -274,13 +280,6 @@ def refuser(demande: dict, statut: str, evenement: str, motif: str, canal: str =
     tracer(demande, evenement, "refuse", motif, canal=canal, **transmis(demande))
     changer(demande, statut=statut, motif=motif)
     effacer_reponses(demande)
-    return demande
-
-
-def rafraichir(demande: dict) -> dict:
-    """Consentement non donné (ou réponse non retirée) dans le délai : on efface les réponses."""
-    if demande["statut"] in ("en_attente", "confirmee") and time.time() > demande["expire_le"]:
-        refuser(demande, "expiree", "expiration", "délai de 10 minutes dépassé : rien n'a été remis")
     return demande
 
 
@@ -460,7 +459,7 @@ def sante():
     return PlainTextResponse("ok")
 
 
-@app.post("/demandes")
+@app.post("/demandes", tags=[PASSERELLE])
 async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
     controler_identifiant(d.sujet_ref)
     demandeur = service_de(agent) or "inconnu"
@@ -525,7 +524,7 @@ async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
     return etat(demande)
 
 
-@app.get("/demandes/{id_demande}")
+@app.get("/demandes/{id_demande}", tags=[PASSERELLE])
 def suivre_demande(id_demande: str, agent: dict = Depends(agent_connecte)):
     demande = lire(id_demande)
     if demande is None or demande["agent"] != agent["nom"]:
@@ -546,139 +545,18 @@ def canal_usager(x_cle_canal: str = Header("")) -> str:
     raise HTTPException(401, "canal usager non authentifié")
 
 
-class Usager(BaseModel):
-    sujet_ref: str = Field(min_length=1, max_length=200)     # format : annuaire.yaml (controler_identifiant)
+# Couche consentement et minimisation : en attente (aperçu), confirmer, refuser, accords, retirer, langues.
+# Ses routes tournent ici et utilisent la base, le journal et le catalogue de la passerelle.
+usager.brancher(sys.modules[__name__])
+app.include_router(usager.routeur)
 
 
-def libelles(code_demarche: str) -> dict:
-    """{code d'attribut: sa demande dans le catalogue} pour une démarche (vide si elle a été retirée)."""
-    demarche = CAT["demarches"].get(code_demarche, {})
-    return {a["attribut"]: a for a in demarche.get("attributs", [])}
+# --- Journal de traçabilité, lu par l'usager : qui a consulté ses données ---
 
-
-def apercu(demande: dict) -> dict:
-    """Ce que l'usager voit AVANT : exactement ce qui partira, et rien d'autre."""
-    fiche = CAT["services"].get(demande["demandeur"], {})
-    # « nom_court » (annuaire) pour tenir dans un écran USSD de 160 caractères, sinon le nom complet
-    service = fiche.get("nom_court") or fiche.get("nom", demande["demandeur"])
-    connus = libelles(demande["demarche"])
-    attributs = [{"code": v["attribut"], "libelle": connus.get(v["attribut"], {}).get("libelle", v["attribut"]),
-                  "parametres": connus.get(v["attribut"], {}).get("parametres", {}),
-                  "valeur": "oui" if v["valeur"] else "non"}
-                 for v in demande["volets"] if v["statut"] == "ok"]
-    liste = " ; ".join(f"{a['libelle']} = {a['valeur']}" for a in attributs)
-    return {"id_demande": demande["id_demande"], "service": service, "code_service": demande["demandeur"],
-            "demarche": CAT["demarches"].get(demande["demarche"], {}).get("libelle", demande["demarche"]),
-            "finalite": demande["finalite"], "attributs": attributs, "expire_le": int(demande["expire_le"]),
-            "apercu": f"{service} recevra : {liste}. Rien d'autre."}
-
-
-@app.get("/usagers/{sujet_ref}/en-attente", dependencies=[Depends(canal_usager)])
-def en_attente(sujet_ref: str):
-    controler_identifiant(sujet_ref)
-    with VERROU:
-        ids = base.execute("SELECT id_demande FROM demandes WHERE sujet = ? AND statut = 'en_attente'",
-                           (pseudonyme(sujet_ref),)).fetchall()
-    demandes = [rafraichir(lire(i["id_demande"])) for i in ids]
-    return [apercu(d) for d in demandes if d["statut"] == "en_attente"]
-
-
-def demande_de_l_usager(id_demande: str, usager: Usager) -> dict:
-    controler_identifiant(usager.sujet_ref)
-    demande = lire(id_demande)
-    if demande is None or not hmac.compare_digest(demande["sujet"], pseudonyme(usager.sujet_ref)):
-        raise HTTPException(404, "demande introuvable")
-    rafraichir(demande)
-    if demande["statut"] != "en_attente":
-        raise HTTPException(409, f"demande déjà traitée (statut : {demande['statut']})")
-    return demande
-
-
-@app.post("/demandes/{id_demande}/confirmer")
-def confirmer(id_demande: str, usager: Usager, canal: str = Depends(canal_usager)):
-    """UNE confirmation pour tout l'aperçu (un ou plusieurs attributs)."""
-    demande = demande_de_l_usager(id_demande, usager)
-    ligne = tracer(demande, "confirmation", "ok", canal=canal, **transmis(demande))
-    changer(demande, statut="confirmee")
-    return {"id_demande": id_demande, "statut": "confirmee", "empreinte": ligne["hash"]}
-
-
-@app.post("/demandes/{id_demande}/refuser")
-def refuser_par_usager(id_demande: str, usager: Usager, canal: str = Depends(canal_usager)):
-    demande = demande_de_l_usager(id_demande, usager)
-    refuser(demande, "refuse", "refus-usager", "refusé par l'usager : rien n'a été transmis", canal)
-    return {"id_demande": id_demande, "statut": "refuse"}
-
-
-@app.get("/usagers/{sujet_ref}/accords", dependencies=[Depends(canal_usager)])
-def accords(sujet_ref: str):
-    controler_identifiant(sujet_ref)
-    """Accords donnés par l'usager, qu'il peut retirer : pas encore remis (« en cours ») ou déjà remis."""
-    with VERROU:
-        ids = base.execute("SELECT id_demande FROM demandes WHERE sujet = ? AND base = 'consentement' "
-                           "AND statut IN ('confirmee', 'remise') ORDER BY rowid DESC LIMIT 9",
-                           (pseudonyme(sujet_ref),)).fetchall()
-    resultat = []
-    for i in ids:
-        demande = rafraichir(lire(i["id_demande"]))
-        if demande["statut"] not in ("confirmee", "remise"):
-            continue
-        connus = libelles(demande["demarche"])
-        resultat.append({
-            "id_demande": demande["id_demande"], "code_service": demande["demandeur"],
-            "service": CAT["services"].get(demande["demandeur"], {}).get("nom", demande["demandeur"]),
-            "demarche": CAT["demarches"].get(demande["demarche"], {}).get("libelle", demande["demarche"]),
-            "attributs": [{"code": v["attribut"], "libelle": connus.get(v["attribut"], {}).get("libelle", v["attribut"])}
-                          for v in demande["volets"] if v["statut"] == "ok"],
-            "transmis": demande["statut"] == "remise"})
-    return resultat
-
-
-@app.post("/demandes/{id_demande}/retirer")
-def retirer(id_demande: str, usager: Usager, canal: str = Depends(canal_usager)):
-    """Retrait de l'accord. Pas encore remis : plus rien ne partira. Déjà remis : on ne peut pas rappeler une
-    réponse transmise, mais le retrait est écrit au journal (le service ne doit plus l'utiliser)."""
-    demande = lire(id_demande)
-    if demande is None or not hmac.compare_digest(demande["sujet"], pseudonyme(usager.sujet_ref)):
-        raise HTTPException(404, "demande introuvable")
-    rafraichir(demande)
-    if demande["base"] != "consentement":
-        raise HTTPException(409, "base légale : il n'y a pas d'accord à retirer")
-    if demande["statut"] in ("en_attente", "confirmee"):
-        motif = "accord retiré par l'usager : rien n'a été transmis"
-        ligne = tracer(demande, "retrait", "ok", motif, canal=canal, **transmis(demande))
-        changer(demande, statut="retiree", motif=motif)
-        effacer_reponses(demande)
-        return {"id_demande": id_demande, "statut": "retiree", "transmis": False, "empreinte": ligne["hash"]}
-    if demande["statut"] == "remise":
-        motif = "accord retiré après la transmission : le service ne doit plus utiliser la réponse"
-        ligne = tracer(demande, "retrait", "ok", motif, canal=canal, **transmis(demande))
-        changer(demande, statut="retiree_apres_remise", motif=motif)
-        return {"id_demande": id_demande, "statut": "retiree_apres_remise", "transmis": True,
-                "empreinte": ligne["hash"]}
-    raise HTTPException(409, f"rien à retirer (statut : {demande['statut']})")
-
-
-def finalites_traduites(demarche: dict, finalite: str) -> dict:
-    """{langue: finalité traduite} (champs finalite_mos… du catalogue). Seulement si la finalité écrite au journal
-    est celle du catalogue en vigueur : une traduction d'une AUTRE finalité serait fausse (l'écran garde le français)."""
-    if demarche.get("finalite") != finalite:
-        return {}
-    return {cle.removeprefix("finalite_"): v for cle, v in demarche.items() if cle.startswith("finalite_")}
-
-
-@app.get("/catalogue/langues", dependencies=[Depends(canal_usager)])
-def langues_du_catalogue():
-    """Langues dans lesquelles TOUTES les démarches actives ont leur finalité traduite. L'USSD ne propose une
-    langue que si elle est ici ET complète dans phrases-ussd.csv."""
-    par_demarche = [set(finalites_traduites(d, d.get("finalite"))) for d in CAT["demarches"].values()]
-    return {"langues": sorted(set.intersection(*par_demarche)) if par_demarche else []}
-
-
-@app.get("/usagers/{sujet_ref}/historique", dependencies=[Depends(canal_usager)])
+@app.get("/usagers/{sujet_ref}/historique", dependencies=[Depends(canal_usager)], tags=[JOURNAL])
 def historique(sujet_ref: str):
-    controler_identifiant(sujet_ref)
     """Qui a consulté, quand, pourquoi, sur quelle base. Jamais la valeur (le journal ne la contient pas)."""
+    controler_identifiant(sujet_ref)
     lignes = []
     for l in journal.lignes_du_sujet(pseudonyme(sujet_ref)):
         demarche = CAT["demarches"].get(l["demarche"], {})
@@ -766,7 +644,7 @@ def catalogue_en_vigueur() -> dict:
             "refus": REFUS_CATALOGUE}
 
 
-@app.get("/controle")
+@app.get("/controle", tags=[PASSERELLE])
 async def controle(_controleur: str = Depends(controleur_connecte)):
     etats = await asyncio.gather(*(etat_registre(code, r) for code, r in CAT["registres"].items()))
     return {"comptes_de_test_actifs": OUTILS_TEST,
@@ -775,7 +653,7 @@ async def controle(_controleur: str = Depends(controleur_connecte)):
             "registres": etats, "alertes": alertes(), "catalogue": catalogue_en_vigueur()}
 
 
-@app.get("/controle/verification")
+@app.get("/controle/verification", tags=[JOURNAL])
 def verification(_controleur: str = Depends(controleur_connecte)):
     """MÊME vérification que journal/verifier.py --registres (le même fichier est chargé, rien n'est réécrit)."""
     spec = importlib.util.spec_from_file_location("verifier", JOURNAL_VERIFIER)

@@ -1,0 +1,393 @@
+# Contrat d'API de la couche « Espace usager (USSD simulé et portail web) ». GÉNÉRÉ par scripts/generer_openapi.py : ne pas modifier
+# à la main (tests/test_openapi.py vérifie qu'il correspond au code).
+openapi: 3.1.0
+info:
+  title: 'Griot : Espace usager (USSD simulé et portail web)'
+  description: 'Écrans du citoyen, rendus côté serveur, sans JavaScript : USSD *226# à la racine, portail web sous /portail.
+    Formulaires HTML ; ils n''utilisent que l''API de la couche consentement et minimisation et l''historique du journal.'
+  version: '1.0'
+paths:
+  /:
+    get:
+      summary: Telephone
+      operationId: telephone__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+    post:
+      summary: Saisir
+      operationId: saisir__post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_saisir__post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /allumer:
+    post:
+      summary: Allumer
+      operationId: allumer_allumer_post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_allumer_allumer_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /raccrocher:
+    post:
+      summary: Raccrocher
+      operationId: raccrocher_raccrocher_post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_raccrocher_raccrocher_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /portail:
+    get:
+      summary: Accueil
+      operationId: accueil_portail_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /portail/connexion:
+    post:
+      summary: Connexion
+      description: 'Mêmes règles que l''USSD : 3 PIN faux -> numéro bloqué 5 minutes. Numéro inconnu et PIN faux donnent
+
+        le même message (on ne révèle pas qui est inscrit).'
+      operationId: connexion_portail_connexion_post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_connexion_portail_connexion_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /portail/deconnexion:
+    post:
+      summary: Deconnexion
+      operationId: deconnexion_portail_deconnexion_post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_deconnexion_portail_deconnexion_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /portail/attente:
+    get:
+      summary: Attente
+      operationId: attente_portail_attente_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /portail/attente/{id_demande}/{action}:
+    post:
+      summary: Repondre
+      operationId: repondre_portail_attente__id_demande___action__post
+      parameters:
+      - name: id_demande
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id Demande
+      - name: action
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Action
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_repondre_portail_attente__id_demande___action__post'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /portail/historique:
+    get:
+      summary: Historique
+      operationId: historique_portail_historique_get
+      parameters:
+      - name: page_n
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 0
+          title: Page N
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /portail/historique/{n}:
+    get:
+      summary: Detail
+      operationId: detail_portail_historique__n__get
+      parameters:
+      - name: n
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: N
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /portail/accords:
+    get:
+      summary: Accords
+      operationId: accords_portail_accords_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /portail/accords/{id_demande}/retirer:
+    post:
+      summary: Retirer
+      description: 'Deux temps, comme l''USSD : la question (« Retirer votre accord à … ? »), puis le retrait.'
+      operationId: retirer_portail_accords__id_demande__retirer_post
+      parameters:
+      - name: id_demande
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id Demande
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_retirer_portail_accords__id_demande__retirer_post'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Body_allumer_allumer_post:
+      properties:
+        csrf:
+          type: string
+          title: Csrf
+        numero:
+          type: string
+          title: Numero
+          default: ''
+      type: object
+      required:
+      - csrf
+      title: Body_allumer_allumer_post
+    Body_connexion_portail_connexion_post:
+      properties:
+        csrf:
+          type: string
+          title: Csrf
+        numero:
+          type: string
+          title: Numero
+          default: ''
+        pin:
+          type: string
+          title: Pin
+          default: ''
+      type: object
+      required:
+      - csrf
+      title: Body_connexion_portail_connexion_post
+    Body_deconnexion_portail_deconnexion_post:
+      properties:
+        csrf:
+          type: string
+          title: Csrf
+      type: object
+      required:
+      - csrf
+      title: Body_deconnexion_portail_deconnexion_post
+    Body_raccrocher_raccrocher_post:
+      properties:
+        csrf:
+          type: string
+          title: Csrf
+      type: object
+      required:
+      - csrf
+      title: Body_raccrocher_raccrocher_post
+    Body_repondre_portail_attente__id_demande___action__post:
+      properties:
+        csrf:
+          type: string
+          title: Csrf
+      type: object
+      required:
+      - csrf
+      title: Body_repondre_portail_attente__id_demande___action__post
+    Body_retirer_portail_accords__id_demande__retirer_post:
+      properties:
+        csrf:
+          type: string
+          title: Csrf
+        confirme:
+          type: string
+          title: Confirme
+          default: ''
+      type: object
+      required:
+      - csrf
+      title: Body_retirer_portail_accords__id_demande__retirer_post
+    Body_saisir__post:
+      properties:
+        csrf:
+          type: string
+          title: Csrf
+        reponse:
+          type: string
+          title: Reponse
+          default: ''
+      type: object
+      required:
+      - csrf
+      title: Body_saisir__post
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

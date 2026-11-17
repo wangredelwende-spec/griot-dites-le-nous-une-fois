@@ -1,0 +1,197 @@
+# Contrat d'API de la couche « Guichet agent ». GÉNÉRÉ par scripts/generer_openapi.py : ne pas modifier
+# à la main (tests/test_openapi.py vérifie qu'il correspond au code).
+openapi: 3.1.0
+info:
+  title: 'Griot : Guichet agent'
+  description: 'Écran de l''agent (Keycloak : mot de passe + TOTP) : choix de la démarche, envoi, résultat signé et revérifié
+    ; page /controle en lecture seule pour le rôle controleur. Formulaires HTML.'
+  version: '1.0'
+paths:
+  /connexion:
+    get:
+      summary: Connexion
+      operationId: connexion_connexion_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /auth/callback:
+    get:
+      summary: Retour Keycloak
+      operationId: retour_keycloak_auth_callback_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /deconnexion:
+    post:
+      summary: Deconnexion
+      operationId: deconnexion_deconnexion_post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_deconnexion_deconnexion_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /:
+    get:
+      summary: Accueil
+      operationId: accueil__get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+  /demandes:
+    post:
+      summary: Envoyer
+      operationId: envoyer_demandes_post
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Body_envoyer_demandes_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /demandes/{id_demande}:
+    get:
+      summary: Suivre
+      operationId: suivre_demandes__id_demande__get
+      parameters:
+      - name: id_demande
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Id Demande
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /controle:
+    get:
+      summary: Controle
+      description: 'Alertes, état des registres, catalogue en vigueur, vérification du journal. Aucune action possible :
+
+        le médiateur n''envoie ni valeur, ni identifiant de citoyen.'
+      operationId: controle_controle_get
+      parameters:
+      - name: verifier
+        in: query
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Verifier
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Body_deconnexion_deconnexion_post:
+      properties:
+        csrf:
+          type: string
+          title: Csrf
+      type: object
+      required:
+      - csrf
+      title: Body_deconnexion_deconnexion_post
+    Body_envoyer_demandes_post:
+      properties:
+        csrf:
+          type: string
+          title: Csrf
+        demarche:
+          type: string
+          title: Demarche
+          default: ''
+        sujet_ref:
+          type: string
+          title: Sujet Ref
+          default: ''
+      type: object
+      required:
+      - csrf
+      title: Body_envoyer_demandes_post
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

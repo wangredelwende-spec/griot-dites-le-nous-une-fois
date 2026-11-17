@@ -76,7 +76,7 @@ resultat = {}
 '''
 
 # Citoyens de la DÉMO devant le jury : le banc ne les utilise JAMAIS (sinon il consommerait leur limite de 5 demandes
-# par 24 h et remplirait leur historique). Vérifié par tests/test_banc.py. Ordre fixe : banc -> remise à zéro -> démo.
+# par 24 h et remplirait leur historique). Vérifié par resilience/tests/test_banc.py. Ordre fixe : banc -> remise à zéro -> démo.
 CITOYENS_DE_LA_DEMO = {"BF-0012", "BF-0005", "BF-0015", "BF-0001"}
 # BF-0021 : citoyen fictif RÉSERVÉ au banc (adulte ordinaire, burkinabè, casier vierge), jamais montré en démo.
 

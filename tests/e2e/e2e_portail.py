@@ -7,7 +7,7 @@
 5. Le détail web montre finalité, base, « Fait depuis : le portail web » et le reçu ; verifier.py retrouve le reçu.
 6. Pages légères : aucun script, aucune ressource externe.
 
-Utilisation :  .venv/Scripts/python tests/e2e_portail.py
+Utilisation :  .venv/Scripts/python tests/e2e/e2e_portail.py
 """
 import re
 import subprocess

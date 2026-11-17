@@ -147,7 +147,7 @@ Puis `docker compose restart mediateur guichet`. Rien d'autre :
 
 **Plus large, donc à ne faire que si la colonne manque** : avec le repli, le service des passeports apprend
 qu'une personne a été condamnée (casier non vierge) même sans interdiction de sortie. Revenir à l'attribut
-normal dès que la colonne existe. Testé : les deux réglages passent la suite (`tests\test_catalogue.py`).
+normal dès que la colonne existe. Testé : les deux réglages passent la suite (`consentement-minimisation\tests\test_catalogue.py`).
 
 ## API du jury
 

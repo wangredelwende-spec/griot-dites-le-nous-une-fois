@@ -1,0 +1,269 @@
+# Contrat d'API de la couche « Consentement et minimisation ». GÉNÉRÉ par scripts/generer_openapi.py : ne pas modifier
+# à la main (tests/test_openapi.py vérifie qu'il correspond au code).
+openapi: 3.1.0
+info:
+  title: 'Griot : Consentement et minimisation'
+  description: 'Ce que l''usager voit AVANT l''envoi (aperçu exact) et ce qu''il décide : confirmer, refuser, retirer un accord.
+    Appelé par les écrans de l''espace usager avec le secret de leur canal (en-tête X-Cle-Canal).'
+  version: '1.0'
+paths:
+  /usagers/{sujet_ref}/en-attente:
+    get:
+      tags:
+      - consentement et minimisation
+      summary: En Attente
+      operationId: en_attente_usagers__sujet_ref__en_attente_get
+      parameters:
+      - name: sujet_ref
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Sujet Ref
+      - name: x-cle-canal
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: X-Cle-Canal
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /demandes/{id_demande}/confirmer:
+    post:
+      tags:
+      - consentement et minimisation
+      summary: Confirmer
+      description: UNE confirmation pour tout l'aperçu (un ou plusieurs attributs).
+      operationId: confirmer_demandes__id_demande__confirmer_post
+      parameters:
+      - name: id_demande
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id Demande
+      - name: x-cle-canal
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: X-Cle-Canal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Usager'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /demandes/{id_demande}/refuser:
+    post:
+      tags:
+      - consentement et minimisation
+      summary: Refuser Par Usager
+      operationId: refuser_par_usager_demandes__id_demande__refuser_post
+      parameters:
+      - name: id_demande
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id Demande
+      - name: x-cle-canal
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: X-Cle-Canal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Usager'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /usagers/{sujet_ref}/accords:
+    get:
+      tags:
+      - consentement et minimisation
+      summary: Accords
+      description: 'Accords donnés par l''usager, qu''il peut retirer : pas encore remis (« en cours ») ou déjà remis.'
+      operationId: accords_usagers__sujet_ref__accords_get
+      parameters:
+      - name: sujet_ref
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Sujet Ref
+      - name: x-cle-canal
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: X-Cle-Canal
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /demandes/{id_demande}/retirer:
+    post:
+      tags:
+      - consentement et minimisation
+      summary: Retirer
+      description: 'Retrait de l''accord. Pas encore remis : plus rien ne partira. Déjà remis : on ne peut pas rappeler une
+
+        réponse transmise, mais le retrait est écrit au journal (le service ne doit plus l''utiliser).'
+      operationId: retirer_demandes__id_demande__retirer_post
+      parameters:
+      - name: id_demande
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Id Demande
+      - name: x-cle-canal
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: X-Cle-Canal
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Usager'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /catalogue/langues:
+    get:
+      tags:
+      - consentement et minimisation
+      summary: Langues Du Catalogue
+      description: 'Langues dans lesquelles TOUTES les démarches actives ont leur finalité traduite. L''USSD ne propose une
+
+        langue que si elle est ici ET complète dans phrases-ussd.csv.'
+      operationId: langues_du_catalogue_catalogue_langues_get
+      parameters:
+      - name: x-cle-canal
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: X-Cle-Canal
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    Usager:
+      properties:
+        sujet_ref:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Sujet Ref
+      type: object
+      required:
+      - sujet_ref
+      title: Usager
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

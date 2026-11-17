@@ -70,7 +70,9 @@ services:
   # Registre simulé de l'état civil : calcule l'attribut minimal et le SIGNE avec sa propre clé.
   # Uniquement sur le réseau « registres » : seul le médiateur peut l'appeler.
   registre-etat-civil:
-    build: ./registres
+    build:
+      context: .                         # racine : le registre embarque aussi regles_attributs/
+      dockerfile: registres/Dockerfile
     image: griot-registre:local
     restart: unless-stopped
     environment:
@@ -95,7 +97,9 @@ services:
       retries: 10
 
   registre-nationalite:
-    build: ./registres
+    build:
+      context: .                         # racine : le registre embarque aussi regles_attributs/
+      dockerfile: registres/Dockerfile
     image: griot-registre:local
     restart: unless-stopped
     environment:
@@ -120,7 +124,9 @@ services:
       retries: 10
 
   registre-casier:
-    build: ./registres
+    build:
+      context: .                         # racine : le registre embarque aussi regles_attributs/
+      dockerfile: registres/Dockerfile
     image: griot-registre:local
     restart: unless-stopped
     environment:

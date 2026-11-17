@@ -31,7 +31,7 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 > **Jamais de banc après la dernière remise à zéro.** Le banc consomme la limite de 5 demandes par service et par
 > citoyen sur 24 h et remplit les historiques : après lui, la démo pourrait tomber sur « bloqué » ou sur des lignes
 > parasites dans « Qui a consulté mes données ». Le banc n'utilise jamais les citoyens de la démo (Aïssata `BF-0012`,
-> Salif `BF-0005`, Karim `BF-0015` : vérifié par `tests\test_banc.py`), mais il utilise `BF-0001`, `BF-0002`,
+> Salif `BF-0005`, Karim `BF-0015` : vérifié par `resilience\tests\test_banc.py`), mais il utilise `BF-0001`, `BF-0002`,
 > `BF-0006`… que la démo montre aussi : seule la remise à zéro les remet à neuf.
 
 1. Comptes de test désactivés : dans `.env`, `OUTILS_TEST=0` (sinon : le mettre à 0 puis `python scripts\outils_test.py`).
@@ -240,7 +240,7 @@ connecté en `awa.ouedraogo` (service des bourses) ; PowerShell dans le dossier 
    la version committée (copie de la version modifiée gardée dans `catalogue\*.bak`).
 
 Pourquoi ça marche sans code : la démarche n'utilise que des attributs et des seuils que les registres autorisent
-déjà au service des bourses (double clé, `adaptateurs\*.yaml`). Testé : `tests\test_catalogue.py`.
+déjà au service des bourses (double clé, `adaptateurs\*.yaml`). Testé : `consentement-minimisation\tests\test_catalogue.py`.
 
 ## Scène 5 : en cas de doute, refuser (jamais deviner)
 
@@ -311,7 +311,7 @@ besoin d'Internet (réseaux Docker internes, certificats locaux, aucune ressourc
 Procédure complète : `docs/JOUR_J_DONNEES_JURY.md`. À montrer : `inspecter_donnees.py … --proposer-yaml` sur un
 fichier du jury, puis `tester_adaptateur.py etat-civil <identifiant>` (réponse ou motif de refus, sans rien signer).
 Preuve déjà faite sur 3 jeux fictifs (Excel en français jj/mm/aaaa, JSON imbriqué, CSV Windows-1252) :
-`.venv\Scripts\python -m pytest tests\test_formats.py -v`.
+`.venv\Scripts\python -m pytest registres\tests\test_formats.py -v`.
 
 ## Demande en ligne de commande (vrai agent)
 

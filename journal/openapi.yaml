@@ -1,0 +1,106 @@
+# Contrat d'API de la couche « Journal de traçabilité ». GÉNÉRÉ par scripts/generer_openapi.py : ne pas modifier
+# à la main (tests/test_openapi.py vérifie qu'il correspond au code).
+openapi: 3.1.0
+info:
+  title: 'Griot : Journal de traçabilité'
+  description: Qui a consulté quoi, quand et pourquoi (jamais la valeur), et vérification de la chaîne d'empreintes. Historique
+    lu par l'espace usager ; vérification par le contrôleur (lecture seule).
+  version: '1.0'
+paths:
+  /usagers/{sujet_ref}/historique:
+    get:
+      tags:
+      - journal de traçabilité
+      summary: Historique
+      description: Qui a consulté, quand, pourquoi, sur quelle base. Jamais la valeur (le journal ne la contient pas).
+      operationId: historique_usagers__sujet_ref__historique_get
+      parameters:
+      - name: sujet_ref
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Sujet Ref
+      - name: x-cle-canal
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: X-Cle-Canal
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /controle/verification:
+    get:
+      tags:
+      - journal de traçabilité
+      summary: Verification
+      description: MÊME vérification que journal/verifier.py --registres (le même fichier est chargé, rien n'est réécrit).
+      operationId: verification_controle_verification_get
+      parameters:
+      - name: authorization
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: Authorization
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+        input:
+          title: Input
+        ctx:
+          type: object
+          title: Context
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

@@ -16,7 +16,7 @@ import yaml
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-RACINE = Path(__file__).resolve().parents[1]
+RACINE = Path(__file__).resolve().parent
 TMP = Path(tempfile.mkdtemp(prefix="griot-tests-"))
 for dossier in ("secrets", "donnees", "publiques"):
     (TMP / dossier).mkdir()

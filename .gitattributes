@@ -1,2 +1,2 @@
 # Jeux d essai par format : octets exacts (CSV Windows-1252 avec CRLF, PDF, Excel, SQLite)
-tests/donnees_formats/** -text
+registres/tests/donnees_formats/** -text

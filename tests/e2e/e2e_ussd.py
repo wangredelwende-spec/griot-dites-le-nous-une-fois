@@ -7,7 +7,7 @@
 5. Une seconde demande est refusée par l'usager : le guichet n'obtient rien.
 6. Une troisième est confirmée puis l'accord est retiré avant la remise : le guichet n'obtient rien.
 
-Utilisation :  .venv/Scripts/python tests/e2e_ussd.py
+Utilisation :  .venv/Scripts/python tests/e2e/e2e_ussd.py
 """
 import html
 import re

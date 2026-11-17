@@ -220,6 +220,8 @@ connecté en `awa.ouedraogo` (service des bourses) ; PowerShell dans le dossier 
    Autres refus possibles (même comportement) : YAML cassé, finalité manquante, seuil d'âge non déclaré par l'état
    civil (ex. `min: 21`), service que le registre n'autorise pas (ex. la mairie qui demande la nationalité).
 6. **Après la démo** : retirer la démarche collée (`git checkout catalogue\demarches.yaml`), rien à redémarrer.
+   Oubli pendant une répétition : `remise_a_zero.py` le voit, montre les lignes ajoutées et propose de restaurer
+   la version committée (copie de la version modifiée gardée dans `catalogue\*.bak`).
 
 Pourquoi ça marche sans code : la démarche n'utilise que des attributs et des seuils que les registres autorisent
 déjà au service des bourses (double clé, `adaptateurs\*.yaml`). Testé : `tests\test_catalogue.py`.

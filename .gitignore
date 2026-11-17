@@ -41,3 +41,6 @@ tests/donnees_formats/etat_civil_scanne.csv
 
 # Archives d images Docker : jamais dans le dépôt, où qu elles soient
 *.tar
+
+# Copies du catalogue gardées par remise_a_zero.py avant restauration
+catalogue/*.bak

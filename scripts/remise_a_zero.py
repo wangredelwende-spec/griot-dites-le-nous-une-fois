@@ -2,6 +2,11 @@
 
     python scripts/remise_a_zero.py --oui
 
+Si catalogue/demarches.yaml diffère de la version committée (démarche ajoutée pendant une répétition), le script
+le montre et propose de le restaurer (git checkout du fichier, copie de la version modifiée gardée en .bak).
+    --restaurer-catalogue   restaurer sans poser la question
+    --garder-catalogue      garder le catalogue modifié sans poser la question
+
 N'EFFACE RIEN : le journal et la double trace sont ARCHIVÉS (renommés avec la date), puis le médiateur et les
 registres repartent sur un journal neuf et des traces vides. L'historique d'Aïssata ne montre donc plus les
 lignes des tests automatiques, et les limites de débit repartent de zéro.
@@ -42,11 +47,43 @@ def dans_le_volume(service: str, script: str, entree: str | None = None) -> str:
                     "-c", script, entree=entree)
 
 
+def verifier_catalogue(date: str):
+    """Une démarche ajoutée pendant une répétition (scène 4) ne doit pas rester pour la démo : si
+    catalogue/demarches.yaml diffère de la version committée, on le montre et on propose de le restaurer
+    (git checkout). Une copie de la version modifiée est gardée (rien n'est perdu)."""
+    fichier = "catalogue/demarches.yaml"
+    r = subprocess.run(["git", "diff", "HEAD", "--", fichier], cwd=RACINE, capture_output=True, text=True,
+                       encoding="utf-8")
+    if r.returncode or not r.stdout.strip():
+        return                                       # identique à la version committée (ou git absent)
+    print(f"ATTENTION : {fichier} diffère de la version committée (démarche ajoutée pendant une répétition ?) :")
+    for ligne in r.stdout.splitlines():
+        if ligne.startswith(("+", "-")) and not ligne.startswith(("+++", "---")):
+            print("    " + ligne)
+    if "--restaurer-catalogue" in sys.argv:
+        restaurer = True
+    elif "--garder-catalogue" in sys.argv or not sys.stdin.isatty():
+        restaurer = False
+    else:
+        restaurer = input("Restaurer la version committée (git checkout du fichier) ? [o/N] ").strip().lower() == "o"
+    if not restaurer:
+        print(f"Catalogue gardé tel quel. Pour le restaurer : git checkout HEAD -- {fichier}  "
+              "(ou relancer avec --restaurer-catalogue)\n", flush=True)
+        return
+    copie = RACINE / f"catalogue/demarches-avant-remise-{date}.yaml.bak"
+    copie.write_bytes((RACINE / fichier).read_bytes())
+    executer("git", "checkout", "HEAD", "--", fichier)
+    print(f"Catalogue restauré (version committée). Copie de la version modifiée : {copie.relative_to(RACINE)}\n",
+          flush=True)
+
+
 def main():
     if "--oui" not in sys.argv:
         print(__doc__)
         raise SystemExit("Rien n'a été fait. Ajoutez --oui pour confirmer.")
     date = time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+    # 0. Catalogue modifié pendant une répétition ? (avant le redémarrage : le journal neuf citera le bon catalogue)
+    verifier_catalogue(date)
 
     # 1. Plus aucune demande ne doit arriver : on arrête d'abord les écrans, puis le médiateur
     print("Arrêt des écrans et du médiateur…", flush=True)

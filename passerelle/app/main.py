@@ -218,7 +218,8 @@ def surveiller_catalogue():
                                  f"reste en vigueur : {raison.strip()[:900]}")
             return
         REFUS_CATALOGUE = {}
-        if nouveau["empreinte"] == CAT["empreinte"] and nouveau["services"] == CAT["services"]:
+        if (nouveau["empreinte"] == CAT["empreinte"] and nouveau["services"] == CAT["services"]
+                and nouveau["registres"] == CAT["registres"]):       # (une nouvelle URL de registre compte aussi)
             return                              # retour à la version en vigueur : rien à recharger
         CAT, FORMAT_IDENTIFIANT = nouveau, re.compile(nouveau["identifiant"]["format"])
         COPIE_VALIDE.write_bytes(brut)

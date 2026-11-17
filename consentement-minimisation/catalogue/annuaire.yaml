@@ -30,18 +30,20 @@ services:
   # Services retirés du catalogue actif le 17/11 (bourses, mairie, passeport) : voir LIMITES.md et
   # consentement-minimisation/catalogue/demarches-inactives.yaml (conservés, non chargés).
 
-# Registres joignables par le médiateur (réseau Docker « registres » uniquement).
-# La clé publique de chaque registre est lue dans /publiques/<registre>/cle.pem (volume du registre, lecture seule).
+# Registres joignables par la passerelle (réseau Docker « registres » uniquement) : brancher un registre = ajouter
+# un bloc ici. « url » : son adresse ; « chemin » : sa route DANS LE CONTRAT (GRIOT_CONTRAT), avec {id} pour
+# l'identifiant du citoyen. Facultatif : « en_tete_cle » + « cle_secret » (nom de l'en-tête de la clé API de ce registre
+# et fichier de /run/secrets qui la contient). Les noms de champs sont dans correspondance.yaml.
 registres:
   etat-civil:
     url: http://registre-etat-civil:8000
-    emetteur: registre-etat-civil       # « iss » attendu dans les réponses signées
+    chemin: /etat-civil/{id}
     nom: registre d'état civil
   nationalite:
     url: http://registre-nationalite:8000
-    emetteur: registre-nationalite
+    chemin: /nationalite/{id}
     nom: registre de la nationalité
   casier:
     url: http://registre-casier:8000
-    emetteur: registre-casier
+    chemin: /casier/{id}
     nom: casier judiciaire

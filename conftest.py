@@ -1,7 +1,8 @@
-"""Préparation des tests : dossiers temporaires, secrets de test, clé du registre simulée.
+"""Préparation des tests : dossiers temporaires, secrets de test, faux registres selon le contrat.
 
-Le médiateur est testé SANS Docker : le registre est remplacé par respx (faux serveur HTTP)
-qui signe ses réponses avec une clé Ed25519 de test.
+La passerelle est testée SANS Docker : les registres sont remplacés par respx (faux serveur HTTP) qui répondent
+comme le contrat (fiche JSON d'un citoyen, 404 s'il est inconnu). Le contrat et la liste des citoyens sont ceux du dépôt
+(PROVISOIRES) : les remplacer par ceux du jury et relancer les tests suffit (README.md).
 """
 import os
 import sys
@@ -26,6 +27,7 @@ for dossier in ("secrets", "donnees", "publiques"):
 os.environ.update(GRIOT_SECRETS=str(TMP / "secrets"), GRIOT_DONNEES=str(TMP / "donnees"),
                   GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_CATALOGUE=str(RACINE / "consentement-minimisation/catalogue"),
                   GRIOT_ADAPTATEURS=str(RACINE / "registres/adaptateurs"),
+                  GRIOT_CONTRAT=os.environ.get("GRIOT_CONTRAT", str(RACINE / "registres/contrat/contrat-provisoire.yaml")),
                   LIMITE_PAR_CITOYEN="1000", LIMITE_SUJETS="1000",   # des tests dédiés baissent les limites
                   DELAI_REGISTRE="0.5", GRIOT_VERIFIER=str(RACINE / "journal/verifier.py"))
 
@@ -35,9 +37,16 @@ for registre in ("etat-civil", "nationalite", "casier"):
     (TMP / "publiques" / registre).mkdir()
     (TMP / "publiques" / registre / "cle.pem").write_bytes(CLE_REGISTRE.public_key().public_bytes(
         serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
-URL_REGISTRE = "http://registre-etat-civil:8000/attributs"
-URL_NATIONALITE = "http://registre-nationalite:8000/attributs"
-URL_CASIER = "http://registre-casier:8000/attributs"
+# Routes des registres (expressions régulières pour respx : « respx.get(url__regex=URL_REGISTRE) »)
+ANNUAIRE_DE_TEST = yaml.safe_load((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_text(encoding="utf-8"))
+
+
+def _regex_de(registre: str) -> str:
+    r = ANNUAIRE_DE_TEST["registres"][registre]
+    return "^" + r["url"].replace(".", r"\.") + r["chemin"].replace(".", r"\.").replace("{id}", ".+")
+
+
+URL_REGISTRE, URL_NATIONALITE, URL_CASIER = (_regex_de(r) for r in ("etat-civil", "nationalite", "casier"))
 CANAL = {"X-Cle-Canal": "secret-de-test-canal"}
 CHEMIN_JOURNAL = TMP / "donnees/mediateur.sqlite3"
 
@@ -66,57 +75,106 @@ DEMARCHES_DE_TEST = {
     "test-nationalite": {"libelle": "Nationalité (test, consentement)", "services": ["cefore"],
                          "finalite": "vérification de la nationalité", "base": "consentement", "duree_accord_heures": 24,
                          "attributs": [{"attribut": "nationalite_bf", "libelle": "nationalité burkinabè"}]},
-    "test-passeport": {"libelle": "Passeport (test, désactivé au catalogue)", "services": ["tribunal"],
-                       "finalite": "établissement d'un passeport ordinaire", "base": "consentement",
-                       "duree_accord_heures": 24,
-                       "attributs": [{"attribut": "nationalite_bf", "libelle": "burkinabè"},
-                                     {"attribut": "interdiction_sortie_territoire", "attendu": False,
-                                      "libelle": "interdiction de sortie du territoire"}]},
 }
 for _d in DEMARCHES_DE_TEST.values():
     for _a in _d["attributs"]:
         _a.setdefault("parametres", {})          # le chargeur du catalogue le fait pour les vraies démarches
 mediateur.CAT["demarches"].update(DEMARCHES_DE_TEST)
 
-EMETTEURS = {"majeur": "registre-etat-civil", "personne_connue": "registre-etat-civil",
-             "identite": "registre-etat-civil", "naissance_filiation": "registre-etat-civil",
-             "nationalite_bf": "registre-nationalite", "casier_vierge": "registre-casier",
-             "interdiction_sortie_territoire": "registre-casier"}
+# --- Faux registres selon le contrat (PROVISOIRE) ---
+
+# Le contrat et la liste des citoyens : ceux du dépôt (PROVISOIRES), ou ceux désignés par GRIOT_CONTRAT / GRIOT_CITOYENS
+CHEMIN_CONTRAT = Path(os.environ["GRIOT_CONTRAT"])
+CHEMIN_CITOYENS = Path(os.environ.get("GRIOT_CITOYENS", RACINE / "registres/donnees/citoyens-provisoires.yaml"))
+CONTRAT_DE_TEST = yaml.safe_load(CHEMIN_CONTRAT.read_text(encoding="utf-8"))
+CITOYENS_DE_TEST = {str(c["id"]): c for c in yaml.safe_load(CHEMIN_CITOYENS.read_text(encoding="utf-8"))["citoyens"]}
+def champs_de_la_route(chemin: str) -> list[str]:
+    """Champs de la réponse 200 d'une route du contrat (les « $ref » locaux sont résolus)."""
+    schema = CONTRAT_DE_TEST["paths"][chemin]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
+    if "$ref" in schema:
+        schema = CONTRAT_DE_TEST["components"]["schemas"][schema["$ref"].rsplit("/", 1)[1]]
+    return list(schema["properties"])
 
 
-def claims_attribut(corps: dict) -> dict:
-    """Réponse « oui » que calculerait le registre pour l'attribut demandé."""
-    if corps["attribut"] == "majeur":
-        p = corps["parametres"]
-        ages = {str(p["min"]): True}
-        if p.get("max") is not None:
-            ages[str(p["max"] + 1)] = False             # « pas encore max + 1 ans »
-        return {"age_equal_or_over": ages, "date_reference": p["date_reference"]}
-    if corps["attribut"] == "identite":
-        return {"identite": {"nom": "KABORE", "prenoms": "Aminata"}}
-    if corps["attribut"] == "naissance_filiation":
-        return {"naissance_filiation": {"date_naissance": "2001-03-14", "lieu_naissance": "Ouagadougou",
-                                        "pere": "Issaka KABORE", "mere": "Salimata KABORE"}}
-    return {corps["attribut"]: True}
+CHAMPS_PAR_REGISTRE = {registre: champs_de_la_route(r["chemin"]) for registre, r in ANNUAIRE_DE_TEST["registres"].items()}
 
 
-def jeton_registre(corps: dict, cle=CLE_REGISTRE, **modifs) -> str:
-    """Réponse que signerait le vrai registre (on peut la modifier pour simuler une corruption)."""
-    maintenant = int(time.time())
-    charge = {"iss": EMETTEURS[corps["attribut"]], "aud": corps["destinataire"], "sub": corps["sujet_ref"],
-              "demande": corps["id_demande"], "iat": maintenant, "exp": maintenant + 600,
-              "jti": str(uuid.uuid4()), "statut": "ok", **claims_attribut(corps)}
-    charge.update(modifs)
-    for nom in [c for c, v in charge.items() if v is None]:     # modifs={"x": None} retire le claim x
-        del charge[nom]
-    return jwt.encode(charge, cle, algorithm="EdDSA")
+def fiche_de(sujet: str, registre: str, **modifs) -> dict:
+    """La fiche que renverrait le registre : celle du citoyen s'il est dans la liste, sinon la fiche de BF-0001 au nom de
+    ce sujet (les tests utilisent des identifiants quelconques : CUR-1, BF-0020…). « modifs » : champs remplacés ;
+    une valeur « ... » retire le champ ; un champ inconnu du contrat est ajouté (réponse non conforme)."""
+    source = CITOYENS_DE_TEST.get(sujet) or CITOYENS_DE_TEST["BF-0001"] | {"id": sujet}
+    fiche = {champ: source.get(champ) for champ in CHAMPS_PAR_REGISTRE[registre]} | modifs
+    return {c: v for c, v in fiche.items() if v is not ...}
 
 
-def refus_registre(corps: dict, cle=CLE_REGISTRE, **modifs) -> str:
-    """Refus signé, tel que l'émet le registre."""
-    sans_attribut = {c: None for c in claims_attribut(corps)}
-    return jeton_registre(corps, cle, **sans_attribut | {"statut": "refus",
-                          "motif": "réponse impossible, s'adresser à l'état civil"} | modifs)
+def registre_qui_repond(registre: str, **modifs):
+    """Faux registre pour respx : renvoie la fiche du citoyen demandé (identifiant = dernier morceau de l'adresse)."""
+    import httpx
+
+    def repondre(requete):
+        return httpx.Response(200, json=fiche_de(requete.url.path.rsplit("/", 1)[1], registre, **modifs))
+    return repondre
+
+
+_REGISTRES_REELS = {}
+
+
+def registres_reels() -> dict:
+    """Les VRAIS registres simulés (registres/app/main.py, selon le contrat), un par route du contrat, en mémoire :
+    {registre: TestClient}. Chaque instance a sa propre panne (module.PANNE_DE_TEST = normal | lent | eteint | non_conforme)."""
+    if not _REGISTRES_REELS:
+        for registre, r in ANNUAIRE_DE_TEST["registres"].items():
+            chemin = r["chemin"]
+            os.environ.update(GRIOT_CONTRAT=str(CHEMIN_CONTRAT), GRIOT_CITOYENS=str(CHEMIN_CITOYENS), REGISTRE_CHEMIN=chemin)
+            nom = "registre_reel_" + registre.replace("-", "_")
+            spec = importlib.util.spec_from_file_location(nom, RACINE / "registres/app/main.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+            module.PANNE_DE_TEST = "normal"
+            module.mode_de_panne = lambda m=module: m.PANNE_DE_TEST
+            _REGISTRES_REELS[registre] = module
+    return _REGISTRES_REELS
+
+
+def brancher_les_registres_reels():
+    """À appeler dans un test décoré par @respx.mock : les routes des registres sont servies par le vrai code."""
+    import httpx
+    import respx
+    reels = registres_reels()
+
+    def vers(registre):
+        async def repondre(requete):
+            # Transport ASGI de httpx : appelle le code du registre sans réseau (et sans repasser par respx)
+            transport = httpx.ASGITransport(app=reels[registre].app)
+            async with httpx.AsyncClient(transport=transport, base_url="http://registre") as c:
+                r = await c.get(requete.url.path)
+            return httpx.Response(r.status_code, json=r.json())
+        return repondre
+    for registre, url in (("etat-civil", URL_REGISTRE), ("nationalite", URL_NATIONALITE), ("casier", URL_CASIER)):
+        respx.get(url__regex=url).mock(side_effect=vers(registre))
+    return reels
+
+
+PREFIXES = {registre: r["chemin"].split("{id}")[0] for registre, r in ANNUAIRE_DE_TEST["registres"].items()}
+
+
+def registre_conforme(**modifs):
+    """Faux registre pour respx, quelle que soit la route : la fiche conforme au contrat (champs de « modifs » remplacés)."""
+    import httpx
+
+    def repondre(requete):
+        chemin = requete.url.path
+        registre = next(r for r, prefixe in PREFIXES.items() if chemin.startswith(prefixe))
+        return httpx.Response(200, json=fiche_de(chemin.rsplit("/", 1)[1], registre, **modifs))
+    return repondre
+
+
+def faux_registres(**modifs_par_registre):
+    """Les trois registres répondent normalement (à utiliser dans un test décoré par @respx.mock)."""
+    import respx
+    return {registre: respx.get(url__regex=url).mock(side_effect=registre_qui_repond(registre, **modifs_par_registre.get(registre, {})))
+            for registre, url in (("etat-civil", URL_REGISTRE), ("nationalite", URL_NATIONALITE), ("casier", URL_CASIER))}
 
 
 # Adaptateur de l'état civil lisant le CSV du dépôt (au lieu de /donnees dans Docker)

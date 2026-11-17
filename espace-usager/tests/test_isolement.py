@@ -14,7 +14,7 @@ import pytest
 import respx
 
 from conftest import CANAL, CHEMIN_JOURNAL, URL_NATIONALITE, demande, mediateur
-from test_mediateur import registre_qui_signe
+from test_mediateur import registre_conforme
 from test_portail import Navigateur, portail
 from test_ussd import Telephone, ussd
 
@@ -75,7 +75,7 @@ def preparer(client):
 @respx.mock
 def test_portail_isolement_entre_citoyens(vrai_mediateur):
     client = vrai_mediateur
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     en_attente_autre, accord_autre, a_moi, lignes_autre = preparer(client)
     nav = Navigateur()
     nav.connecter("70000012", "1234")
@@ -115,7 +115,7 @@ def test_portail_isolement_entre_citoyens(vrai_mediateur):
 @respx.mock
 def test_ussd_isolement_entre_citoyens(vrai_mediateur):
     client = vrai_mediateur
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     en_attente_autre, accord_autre, a_moi, _ = preparer(client)
     tel = Telephone("70000012")
     tel.connecter()
@@ -153,7 +153,7 @@ def test_ussd_isolement_entre_citoyens(vrai_mediateur):
 def test_mediateur_refuse_toute_action_sur_la_demande_d_un_autre(vrai_mediateur):
     """La seconde barrière seule : même un écran compromis qui enverrait le mauvais identifiant n'obtient rien."""
     client = vrai_mediateur
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     en_attente_autre, accord_autre, _, _ = preparer(client)
     for action in ("confirmer", "refuser", "retirer"):
         cible = accord_autre if action == "retirer" else en_attente_autre

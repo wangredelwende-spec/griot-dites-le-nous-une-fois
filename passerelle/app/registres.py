@@ -1,4 +1,10 @@
-"""Appel d'un registre et vérification de sa réponse signée.
+"""Appel d'un registre (selon le contrat) : lire la fiche d'un citoyen par son identifiant.
+
+DEPUIS LE 17/11 : lire_fiche() ci-dessous remplace le flux « réponse signée ». Les fonctions appeler() et verifier()
+plus bas (registres signés, Ed25519) sont DÉSACTIVÉES : conservées, plus appelées (LIMITES.md).
+
+Ancienne description :
+Appel d'un registre et vérification de sa réponse signée.
 
 Règle d'or : au moindre doute, on refuse ; on ne devine jamais.
 - Registre injoignable ou trop lent (délai TOTAL dépassé) -> Indisponible (« rien n'a été deviné »)
@@ -7,6 +13,7 @@ Le registre signe TOUT ce qu'il répond, y compris ses refus : un refus non sign
 """
 import asyncio
 import ssl
+from urllib.parse import quote
 
 import httpx
 import jwt
@@ -32,6 +39,33 @@ class CitoyenInconnu(Exception):
 
 
 TENTATIVES = 2     # un appel + 1 réessai, seulement si le registre n'a pas répondu à temps ou est injoignable
+
+
+async def lire_fiche(url: str, chemin: str, sujet_ref: str, delai: float, cle_api: tuple | None = None):
+    """GET {url}{chemin avec l'identifiant} ; renvoie le JSON de la fiche (pas encore validé contre le contrat).
+    Délai de 2 s par essai (httpx ET asyncio.wait_for) et UN réessai si le registre ne répond pas à temps ou est
+    injoignable. 404 -> CitoyenInconnu ; autre code, ou pas de réponse -> Indisponible ; corps illisible -> ReponseCorrompue."""
+    entetes = {cle_api[0]: cle_api[1]} if cle_api else {}
+    adresse = url + chemin.replace("{id}", quote(sujet_ref, safe=""))
+    for tentative in range(1, TENTATIVES + 1):
+        try:
+            async with httpx.AsyncClient(timeout=delai, verify=CONTEXTE_TLS) as client:
+                r = await asyncio.wait_for(client.get(adresse, headers=entetes), timeout=delai)
+            break
+        except (asyncio.TimeoutError, httpx.TimeoutException):
+            if tentative == TENTATIVES:
+                raise Indisponible(f"délai dépassé ({delai:g} s, {TENTATIVES} essais)")
+        except httpx.HTTPError:
+            if tentative == TENTATIVES:
+                raise Indisponible("registre injoignable")
+    if r.status_code == 404:
+        raise CitoyenInconnu("citoyen inconnu de ce registre")
+    if r.status_code != 200:
+        raise Indisponible(f"registre en erreur (HTTP {r.status_code})")
+    try:
+        return r.json()
+    except ValueError:
+        raise ReponseCorrompue("réponse illisible (pas du JSON)")
 
 
 async def appeler(url: str, corps: dict, delai: float, jeton_agent: str = "", cle_api: tuple | None = None) -> str:

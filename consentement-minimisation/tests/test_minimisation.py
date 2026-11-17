@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 import yaml
-from conftest import RACINE
+from conftest import RACINE, champs_de_la_route
 
 from regles_attributs import Refus
 from regles_attributs.minimisation import minimiser
@@ -63,8 +63,21 @@ def test_donnee_incomplete_refusee(fiche, motif):
         minimiser(NAISSANCE, "etat-civil", fiche, CORRESPONDANCE)
 
 
-def test_correspondance_du_depot_vide_refuse_sans_deviner():
-    """Le fichier du dépôt n'est pas encore rempli (contrat du jury attendu) : tout est refusé, rien n'est deviné."""
-    vide = yaml.safe_load((RACINE / "consentement-minimisation/catalogue/correspondance.yaml").read_text(encoding="utf-8"))
+def test_correspondance_non_renseignee_refuse_sans_deviner():
+    """Tant qu'un nom de champ n'est pas reporté dans la correspondance, on refuse : on ne devine jamais."""
+    vide = {"registres": {"etat-civil": {"date_naissance": None}}}
     with pytest.raises(Refus, match="correspondance non renseignée"):
         minimiser(MAJEUR, "etat-civil", FICHE, vide, {"min": 18, "date_reference": AUJOURDHUI})
+
+
+def test_correspondance_du_depot_couvre_le_contrat_et_les_attributs():
+    """Le fichier du dépôt relie chaque nom logique à un champ qui existe dans le contrat configuré, et couvre tous les
+    champs que les attributs permis utilisent : remplacer le contrat sans mettre ce fichier à jour casse ici."""
+    corr = yaml.safe_load((RACINE / "consentement-minimisation/catalogue/correspondance.yaml").read_text(encoding="utf-8"))
+    annuaire = yaml.safe_load((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_text(encoding="utf-8"))
+    attributs = yaml.safe_load((RACINE / "consentement-minimisation/catalogue/attributs.yaml").read_text(encoding="utf-8"))["attributs"]
+    for code, a in attributs.items():
+        proprietes = champs_de_la_route(annuaire["registres"][a["registre"]]["chemin"])
+        for nom in a.get("champs") or [a["champ"]]:
+            champ = (corr["registres"].get(a["registre"]) or {}).get(nom)
+            assert champ in proprietes, f"{code} : « {nom} » -> « {champ} » absent du contrat"

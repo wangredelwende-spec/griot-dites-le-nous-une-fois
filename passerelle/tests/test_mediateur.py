@@ -1,4 +1,4 @@
-"""Médiateur : catalogue, signature, délai, rejeu, finalité, consentement, journal."""
+"""Passerelle : catalogue, validation selon le contrat, délai, rejeu, finalité, consentement, journal."""
 import asyncio
 from datetime import datetime, timezone
 import importlib.util
@@ -8,17 +8,9 @@ import time
 
 import httpx
 import respx
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from conftest import (CANAL, CHEMIN_JOURNAL, RACINE, URL_CASIER, URL_NATIONALITE, URL_REGISTRE, demande,
-                      JETON_AGENT, jeton_registre, mediateur, refus_registre)
-
-
-def registre_qui_signe(**modifs):
-    """Faux registre : signe une réponse pour la demande reçue."""
-    def repondre(requete):
-        return httpx.Response(200, json={"jeton": jeton_registre(json.loads(requete.content), **modifs)})
-    return repondre
+from conftest import (CANAL, CHEMIN_JOURNAL, JETON_AGENT, RACINE, URL_CASIER, URL_NATIONALITE, URL_REGISTRE, demande,
+                      mediateur, registre_conforme)
 
 
 def journal_de(id_demande_ignore=None):
@@ -28,34 +20,48 @@ def journal_de(id_demande_ignore=None):
 
 
 @respx.mock
-def test_signature_valide_acceptee(client):
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+def test_fiche_conforme_acceptee_et_valeur_remise(client):
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     r = client.post("/demandes", json=demande()).json()
-    assert r["statut"] == "remise" and r["volets"][0]["jeton"]
+    assert r["statut"] == "remise" and r["volets"][0]["valeur"] is True       # « majeur : oui », calculé par la passerelle
     evenements = [l["evenement"] for l in journal_de()[-3:]]
     assert evenements == ["demande", "reponse-registre", "remise"]
+    assert "date_naissance" not in json.dumps(r)                             # la fiche brute ne sort jamais
 
 
 @respx.mock
-def test_signature_fausse_refusee(client):
-    autre_cle = Ed25519PrivateKey.generate()
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe(cle=autre_cle))
-    r = client.post("/demandes", json=demande()).json()
-    assert r["statut"] == "refuse" and "signature invalide" in r["motif"] and "jeton" not in r["volets"][0]
-    assert journal_de()[-1]["evenement"] == "alerte"
+def test_valeur_remise_une_seule_fois_puis_effacee(client):
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
+    d = demande()
+    assert client.post("/demandes", json=d).json()["volets"][0]["valeur"] is True
+    assert "valeur" not in client.get(f"/demandes/{d['id_demande']}").json()["volets"][0]
 
 
 @respx.mock
-def test_claims_modifies_refuses(client):
-    # Le registre (ou quelqu'un sur le chemin) ajoute la date de naissance : refusé
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe(date_naissance="2001-03-14"))
+def test_reponse_non_conforme_au_contrat_rejetee_et_au_journal(client):
+    cas = {"champ en trop": {"mot_de_passe": "x"},          # le contrat est strict : rien en plus
+           "champ manquant": {"lieu_naissance": ...},        # « ... » retire le champ
+           "mauvais type": {"nom": 12},
+           "date_deces de mauvais type": {"date_deces": 5}}
+    for nom, modifs in cas.items():
+        respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme(**modifs))
+        d = demande()
+        r = client.post("/demandes", json=d).json()
+        assert r["statut"] == "refuse" and "non conforme au contrat" in r["motif"], nom
+        assert "valeur" not in r["volets"][0]
+        assert [l["evenement"] for l in journal_de() if l["id_demande"] == d["id_demande"]][-1] == "alerte", nom
+
+
+@respx.mock
+def test_reponse_qui_n_est_pas_du_json_rejetee(client):
+    respx.get(url__regex=URL_REGISTRE).mock(return_value=httpx.Response(200, text="<html>erreur</html>"))
     r = client.post("/demandes", json=demande()).json()
-    assert r["statut"] == "refuse" and "contenu inattendu" in r["motif"]
+    assert r["statut"] == "refuse" and "illisible" in r["motif"]
 
 
 @respx.mock
 def test_delai_depasse_refuse(client):
-    respx.post(URL_REGISTRE).mock(side_effect=httpx.ReadTimeout("trop lent"))
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=httpx.ReadTimeout("trop lent"))
     r = client.post("/demandes", json=demande()).json()
     assert r["statut"] == "indisponible" and "rien n'a été deviné" in r["motif"]
     assert journal_de()[-1]["resultat"] == "indisponible"
@@ -63,48 +69,27 @@ def test_delai_depasse_refuse(client):
 
 @respx.mock
 def test_registre_coupe_refuse(client):
-    respx.post(URL_REGISTRE).mock(side_effect=httpx.ConnectError("injoignable"))
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=httpx.ConnectError("injoignable"))
     r = client.post("/demandes", json=demande()).json()
     assert r["statut"] == "indisponible" and "injoignable" in r["motif"]
 
 
-def registre_qui_refuse(**modifs):
-    def repondre(requete):
-        return httpx.Response(200, json={"jeton": refus_registre(json.loads(requete.content), **modifs)})
-    return repondre
+@respx.mock
+def test_citoyen_decede_refuse_sans_detail(client):
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
+    r = client.post("/demandes", json=demande(sujet="BF-0009")).json()           # BF-0009 : décédée
+    assert r["statut"] == "refuse" and r["motif"] == "réponse impossible, s'adresser au registre d'état civil"
+    assert "décéd" not in json.dumps(r, ensure_ascii=False) and "2024" not in json.dumps(r)
+    assert "décéd" not in json.dumps(journal_de()[-1], ensure_ascii=False)
 
 
 @respx.mock
-def test_refus_signe_transmis_sans_detail(client):
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_refuse())
-    r = client.post("/demandes", json=demande(sujet="BF-0007")).json()
-    assert r["statut"] == "refuse" and r["motif"] == "réponse impossible, s'adresser à l'état civil"
-    assert r["volets"][0]["jeton"]        # le refus signé part au guichet, qui en revérifie la signature
-    assert "décéd" not in json.dumps(r, ensure_ascii=False)
-    assert journal_de()[-1]["evenement"] == "reponse-registre"
-
-
-@respx.mock
-def test_refus_non_signe_rejete(client):
-    # Un refus en clair pourrait être fabriqué par n'importe qui sur le chemin : alerte
-    respx.post(URL_REGISTRE).mock(return_value=httpx.Response(200, json={"refus": "personne décédée"}))
-    r = client.post("/demandes", json=demande(sujet="BF-0007")).json()
-    assert r["statut"] == "refuse" and "mal formée" in r["motif"]
-    assert journal_de()[-1]["evenement"] == "alerte"
-
-
-@respx.mock
-def test_refus_signe_par_une_autre_cle_rejete(client):
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_refuse(cle=Ed25519PrivateKey.generate()))
-    r = client.post("/demandes", json=demande()).json()
-    assert "signature invalide" in r["motif"] and journal_de()[-1]["evenement"] == "alerte"
-
-
-@respx.mock
-def test_refus_qui_revele_un_detail_rejete(client):
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_refuse(detail="décédée le 2024-06-01"))
-    r = client.post("/demandes", json=demande()).json()
-    assert "refus au contenu inattendu" in r["motif"] and journal_de()[-1]["evenement"] == "alerte"
+def test_naissance_incomplete_refusee_sans_rien_deviner(client):
+    client.agent["nom"] = "moussa.kone"
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
+    d = demande(demarche="certificat-nationalite", sujet="BF-0010")              # BF-0010 : « né vers 1990 »
+    r = client.post("/demandes", json=d).json()
+    assert r["statut"] == "refuse" and "s'adresser au registre d'état civil" in r["motif"]
 
 
 class GoutteAGoutte(httpx.AsyncByteStream):
@@ -117,7 +102,7 @@ class GoutteAGoutte(httpx.AsyncByteStream):
 
 @respx.mock
 def test_registre_goutte_a_goutte_coupe_au_delai_total(client):
-    respx.post(URL_REGISTRE).mock(return_value=httpx.Response(200, stream=GoutteAGoutte()))
+    respx.get(url__regex=URL_REGISTRE).mock(return_value=httpx.Response(200, stream=GoutteAGoutte()))
     debut = time.monotonic()
     r = client.post("/demandes", json=demande()).json()
     assert time.monotonic() - debut < 1.5                  # délai total des tests : 0,5 s (et non 10 s)
@@ -126,18 +111,18 @@ def test_registre_goutte_a_goutte_coupe_au_delai_total(client):
 
 @respx.mock
 def test_rejeu_une_seule_execution(client):
-    route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    route = respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     d = demande()
     premiere = client.post("/demandes", json=d).json()
     seconde = client.post("/demandes", json=d).json()
     assert route.call_count == 1
     assert premiere["statut"] == seconde["statut"] == "remise"
-    assert "jeton" not in seconde["volets"][0]        # déjà remis : le médiateur l'a effacé
+    assert "valeur" not in seconde["volets"][0]       # déjà remise : la passerelle l'a effacée
 
 
 @respx.mock
 def test_meme_id_pour_une_autre_demande_refuse(client):
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     d = demande()
     client.post("/demandes", json=d)
     r = client.post("/demandes", json={**d, "sujet_ref": "BF-0002"})
@@ -146,7 +131,7 @@ def test_meme_id_pour_une_autre_demande_refuse(client):
 
 @respx.mock
 def test_mauvaise_finalite_refusee(client):
-    route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    route = respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     r = client.post("/demandes", json=demande(finalite="curiosité")).json()
     assert r["statut"] == "refuse" and r["motif"] == "finalité non autorisée"
     assert route.call_count == 0
@@ -162,11 +147,11 @@ def test_demarche_d_un_autre_service_refusee(client):
 @respx.mock
 def test_consentement_apercu_puis_confirmation(client):
     client.agent["nom"] = "awa.ouedraogo"
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d = demande(demarche="test-nationalite", sujet="BF-0012")
     assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
     suivi = client.get(f"/demandes/{d['id_demande']}").json()
-    assert suivi["statut"] == "en_attente" and "jeton" not in suivi["volets"][0]   # rien avant l'accord
+    assert suivi["statut"] == "en_attente" and "valeur" not in suivi["volets"][0]   # rien avant l'accord
 
     attente = client.get("/usagers/BF-0012/en-attente", headers=CANAL).json()
     assert attente[0]["apercu"] == "Le CEFORE recevra : nationalité burkinabè = oui. Rien d'autre."
@@ -174,25 +159,25 @@ def test_consentement_apercu_puis_confirmation(client):
     assert confirmation.json()["statut"] == "confirmee" and len(confirmation.json()["empreinte"]) == 64
 
     remise = client.get(f"/demandes/{d['id_demande']}").json()
-    assert remise["statut"] == "remise" and remise["volets"][0]["jeton"]
-    assert "jeton" not in client.get(f"/demandes/{d['id_demande']}").json()["volets"][0]   # remis une seule fois
+    assert remise["statut"] == "remise" and remise["volets"][0]["valeur"] is True
+    assert "valeur" not in client.get(f"/demandes/{d['id_demande']}").json()["volets"][0]   # remise une seule fois
 
 
 @respx.mock
 def test_refus_par_l_usager(client):
     client.agent["nom"] = "awa.ouedraogo"
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d = demande(demarche="test-nationalite", sujet="BF-0013")
     client.post("/demandes", json=d)
     client.post(f"/demandes/{d['id_demande']}/refuser", json={"sujet_ref": "BF-0013"}, headers=CANAL)
     r = client.get(f"/demandes/{d['id_demande']}").json()
-    assert r["statut"] == "refuse" and "jeton" not in r["volets"][0]
+    assert r["statut"] == "refuse" and "valeur" not in r["volets"][0]
 
 
 @respx.mock
 def test_un_autre_usager_ne_peut_pas_confirmer(client):
     client.agent["nom"] = "awa.ouedraogo"
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d = demande(demarche="test-nationalite", sujet="BF-0014")
     client.post("/demandes", json=d)
     r = client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": "BF-0015"}, headers=CANAL)
@@ -202,13 +187,13 @@ def test_un_autre_usager_ne_peut_pas_confirmer(client):
 @respx.mock
 def test_consentement_expire(client):
     client.agent["nom"] = "awa.ouedraogo"
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d = demande(demarche="test-nationalite", sujet="BF-0016")
     client.post("/demandes", json=d)
     sqlite3.connect(CHEMIN_JOURNAL, isolation_level=None).execute(
         "UPDATE demandes SET expire_le = 0 WHERE id_demande = ?", (d["id_demande"],))
     r = client.get(f"/demandes/{d['id_demande']}").json()
-    assert r["statut"] == "expiree" and "jeton" not in r["volets"][0]
+    assert r["statut"] == "expiree" and "valeur" not in r["volets"][0]
 
 
 def test_canal_usager_sans_secret_refuse(client):
@@ -217,7 +202,7 @@ def test_canal_usager_sans_secret_refuse(client):
 
 @respx.mock
 def test_historique_sans_la_valeur(client):
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     client.post("/demandes", json=demande(sujet="BF-0018"))
     historique = client.get("/usagers/BF-0018/historique", headers=CANAL).json()
     assert [l["evenement"] for l in historique] == ["remise", "reponse-registre", "demande"]
@@ -263,7 +248,7 @@ def test_verifier_recu_avec_ou_sans_espaces():
 
 def demande_casier(sujet="BF-0003"):
     """Le casier n'est demandé que par le concours direct : on coupe les deux autres registres."""
-    respx.post(URL_NATIONALITE).mock(side_effect=httpx.ConnectError("hors sujet"))
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=httpx.ConnectError("hors sujet"))
     return demande("concours-direct", sujet)
 
 
@@ -272,42 +257,23 @@ def volet(reponse: dict, attribut: str) -> dict:
 
 
 @respx.mock
-def test_casier_absence_vierge_verifie_l_identite(client, monkeypatch):
-    """Casier « absence: vierge » : identité non confirmée par l'état civil -> refus, casier jamais appelé."""
-    monkeypatch.setattr(mediateur, "CAT", mediateur.CAT | {"absence_vierge": {"casier"}})
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_refuse())
-    casier = respx.post(URL_CASIER).mock(return_value=httpx.Response(500))
-    r = client.post("/demandes", json=demande_casier("BF-0099")).json()
-    assert volet(r, "casier_vierge")["motif"] == "identité non confirmée par l'état civil"
-    assert not casier.called
-
-
-@respx.mock
-def test_casier_absence_vierge_identite_confirmee(client, monkeypatch):
-    monkeypatch.setattr(mediateur, "CAT", mediateur.CAT | {"absence_vierge": {"casier"}})
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
-    respx.post(URL_CASIER).mock(side_effect=registre_qui_signe())
-    r = client.post("/demandes", json=demande_casier()).json()
-    assert volet(r, "casier_vierge")["jeton"]
-    attributs = [l["attribut"] for l in journal_de() if l["evenement"] == "reponse-registre"][-4:]
-    assert "personne_connue" in attributs and "casier_vierge" in attributs
-
-
-@respx.mock
-def test_casier_absence_vierge_etat_civil_coupe(client, monkeypatch):
-    monkeypatch.setattr(mediateur, "CAT", mediateur.CAT | {"absence_vierge": {"casier"}})
-    respx.post(URL_REGISTRE).mock(side_effect=httpx.ConnectError("coupé"))
-    r = client.post("/demandes", json=demande_casier()).json()
-    v = volet(r, "casier_vierge")
-    assert v["statut"] == "indisponible" and "rien n'a été deviné" in v["motif"]
+def test_casier_inconnu_n_est_jamais_un_casier_vierge(client):
+    """Un citoyen absent du casier (404) n'obtient JAMAIS « casier vierge » : refus « citoyen inconnu » pour ce volet."""
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
+    respx.get(url__regex=URL_CASIER).mock(return_value=httpx.Response(404, json={"detail": "citoyen inconnu"}))
+    r = client.post("/demandes", json=demande("concours-direct")).json()
+    casier = volet(r, "casier_vierge")
+    assert casier["statut"] == "refuse" and casier["motif"] == "citoyen inconnu" and "valeur" not in casier
+    assert volet(r, "majeur")["valeur"] is True                    # les autres registres répondent quand même
 
 
 # --- Catalogue et concours direct (3 registres en parallèle) ---
 
 def tous_les_registres(etat_civil=None, nationalite=None, casier=None):
-    respx.post(URL_REGISTRE).mock(side_effect=etat_civil or registre_qui_signe())
-    respx.post(URL_NATIONALITE).mock(side_effect=nationalite or registre_qui_signe())
-    respx.post(URL_CASIER).mock(side_effect=casier or registre_qui_signe())
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=etat_civil or registre_conforme())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=nationalite or registre_conforme())
+    respx.get(url__regex=URL_CASIER).mock(side_effect=casier or registre_conforme())
 
 
 @respx.mock
@@ -316,10 +282,9 @@ def test_concours_direct_trois_registres_une_demande(client):
     r = client.post("/demandes", json=demande("concours-direct")).json()
     assert r["statut"] == "remise"
     assert [v["attribut"] for v in r["volets"]] == ["majeur", "nationalite_bf", "casier_vierge"]
-    assert all(v["jeton"] and v["statut"] == "ok" for v in r["volets"])
-    # Les paramètres viennent du catalogue, jamais du guichet
-    corps = json.loads(respx.calls[0].request.content)
-    assert corps["parametres"] == {"min": 18, "date_reference": datetime.now(timezone.utc).date().isoformat()}
+    assert all(v["valeur"] is True and v["statut"] == "ok" for v in r["volets"])      # BF-0001 : oui, oui, oui
+    # La passerelle n'a demandé que les fiches des registres, rien d'autre (aucun paramètre ne part au registre)
+    assert {c.request.method for c in respx.calls} == {"GET"} and respx.calls.call_count == 3
     evenements = [l["evenement"] for l in journal_de()[-5:]]
     assert evenements == ["demande", "reponse-registre", "reponse-registre", "reponse-registre", "remise"]
     assert journal_de()[-1]["attribut"] == "majeur+nationalite_bf+casier_vierge"
@@ -329,7 +294,7 @@ def test_concours_direct_trois_registres_une_demande(client):
 def test_concours_direct_registres_appeles_en_parallele(client):
     async def lent(requete):
         await asyncio.sleep(0.3)
-        return httpx.Response(200, json={"jeton": jeton_registre(json.loads(requete.content))})
+        return registre_conforme()(requete)
     tous_les_registres(lent, lent, lent)
     debut = time.monotonic()
     r = client.post("/demandes", json=demande("concours-direct")).json()
@@ -342,8 +307,8 @@ def test_concours_direct_un_registre_en_panne(client):
     tous_les_registres(etat_civil=httpx.ConnectError("coupé"))
     r = client.post("/demandes", json=demande("concours-direct")).json()
     age = volet(r, "majeur")
-    assert age["statut"] == "indisponible" and "rien n'a été deviné" in age["motif"] and "jeton" not in age
-    assert volet(r, "nationalite_bf")["jeton"] and volet(r, "casier_vierge")["jeton"]
+    assert age["statut"] == "indisponible" and "rien n'a été deviné" in age["motif"] and "valeur" not in age
+    assert volet(r, "nationalite_bf")["valeur"] is True and volet(r, "casier_vierge")["valeur"] is True
 
 
 @respx.mock
@@ -355,34 +320,18 @@ def test_tous_les_registres_en_panne(client):
 
 
 @respx.mock
-def test_date_de_reference_falsifiee_refusee(client):
-    tous_les_registres(etat_civil=lambda req: httpx.Response(200, json={"jeton": jeton_registre(
-        json.loads(req.content), date_reference="2030-01-01")}))
-    r = client.post("/demandes", json=demande("concours-direct")).json()
-    assert "date de référence" in volet(r, "majeur")["motif"]
-
-
-@respx.mock
-def test_seuil_d_age_manquant_refuse(client):
-    # Le registre répond sur un AUTRE seuil que celui demandé (18 ans) : on ne peut pas conclure
-    tous_les_registres(etat_civil=lambda req: httpx.Response(200, json={"jeton": jeton_registre(
-        json.loads(req.content), age_equal_or_over={"19": True})}))
-    r = client.post("/demandes", json=demande("concours-direct")).json()
-    assert "seuils d'âge" in volet(r, "majeur")["motif"]
-
-
-@respx.mock
-def test_majorite_date_du_jour(client):
-    route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
-    client.post("/demandes", json=demande())
-    from datetime import datetime, timezone
-    corps = json.loads(route.calls[0].request.content)
-    assert corps["parametres"] == {"min": 18, "date_reference": datetime.now(timezone.utc).date().isoformat()}
+def test_majorite_calculee_dans_la_passerelle_a_la_date_du_jour(client):
+    """« majeur » vient de la date de naissance, calculée ICI : un mineur et une majeure, sans date en sortie."""
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
+    mineure = client.post("/demandes", json=demande(sujet="BF-0003")).json()         # née en 2012
+    majeure = client.post("/demandes", json=demande(sujet="BF-0001")).json()         # née en 2001
+    assert mineure["volets"][0]["valeur"] is False and majeure["volets"][0]["valeur"] is True
+    assert "2012" not in json.dumps(mineure) and "2001" not in json.dumps(majeure)
 
 
 @respx.mock
 def test_attributs_en_plus_refuses(client):
-    route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    route = respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     r = client.post("/demandes", json=demande(attributs=["majeur", "casier_vierge"])).json()
     assert r["statut"] == "refuse" and "attributs non autorisés" in r["motif"] and not route.called
     # Aucun champ libre (ex. « date_naissance ») : la demande est rejetée avant tout traitement
@@ -407,7 +356,7 @@ def test_consentement_plusieurs_attributs_un_apercu_une_confirmation(client, mon
     assert attente[0]["apercu"] == "Le CEFORE recevra : majeur = oui ; nationalité burkinabè = oui. Rien d'autre."
     client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": "BF-0002"}, headers=CANAL)
     r = client.get(f"/demandes/{d['id_demande']}").json()
-    assert r["statut"] == "remise" and all(v["jeton"] for v in r["volets"])
+    assert r["statut"] == "remise" and all(v["valeur"] is True for v in r["volets"])
 
 
 def test_empreinte_du_catalogue_au_journal(client):
@@ -439,24 +388,14 @@ def test_catalogue_invalide_refuse_de_demarrer():
         assert catalogue.valider({"d": demarche}, services, attributs), f"{nom} : aurait dû être refusé"
 
 
-# --- A. Le jeton de l'agent accompagne chaque demande au registre ---
+# --- A. Plus de jeton Keycloak côté registre (désactivé le 17/11, LIMITES.md) ---
 
 @respx.mock
-def test_jeton_de_l_agent_transmis_au_registre(client):
-    route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+def test_aucun_jeton_d_agent_n_est_envoye_au_registre(client):
+    route = respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     client.post("/demandes", json=demande())
-    assert route.calls[0].request.headers["Authorization"] == f"Bearer {JETON_AGENT}"
-    # Il n'est jamais stocké par le médiateur
-    assert JETON_AGENT.encode() not in CHEMIN_JOURNAL.read_bytes()
-
-
-@respx.mock
-def test_refus_du_registre_faute_de_jeton_valide(client):
-    """Le registre refuse (signé) un jeton d'agent qu'il ne peut pas vérifier : le guichet voit ce refus."""
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_refuse(motif="jeton d'agent invalide ou expiré"))
-    r = client.post("/demandes", json=demande()).json()
-    assert r["statut"] == "refuse" and r["volets"][0]["motif"] == "jeton d'agent invalide ou expiré"
-    assert r["volets"][0]["jeton"]
+    assert "authorization" not in route.calls[0].request.headers
+    assert JETON_AGENT.encode() not in CHEMIN_JOURNAL.read_bytes()        # et il n'est jamais stocké
 
 
 # --- B. Limite par (service, citoyen) ---
@@ -464,7 +403,7 @@ def test_refus_du_registre_faute_de_jeton_valide(client):
 @respx.mock
 def test_limite_par_service_et_par_citoyen(client, monkeypatch):
     monkeypatch.setattr(mediateur, "LIMITE_PAR_CITOYEN", 3)
-    route = respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    route = respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     statuts = [client.post("/demandes", json=demande(sujet="BF-0020")).json()["statut"] for _ in range(4)]
     assert statuts == ["remise", "remise", "remise", "bloquee"]
     assert route.call_count == 3                            # le registre n'est pas appelé la 4e fois
@@ -473,7 +412,7 @@ def test_limite_par_service_et_par_citoyen(client, monkeypatch):
     assert alerte["evenement"] == "alerte" and "plus de 3 demandes du même service" in alerte["motif"]
     # Un AUTRE service peut toujours interroger cette personne ; le même service, une autre personne aussi
     client.agent["nom"] = "awa.ouedraogo"
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     assert client.post("/demandes", json=demande(demarche="test-nationalite", sujet="BF-0020")).json()["statut"] == "en_attente"
     client.agent["nom"] = "issa.sawadogo"
     assert client.post("/demandes", json=demande(sujet="BF-0016")).json()["statut"] == "remise"
@@ -483,7 +422,7 @@ def test_limite_par_service_et_par_citoyen(client, monkeypatch):
 def test_comptes_de_test_exemptes_seulement_si_outils_test(client, monkeypatch):
     monkeypatch.setattr(mediateur, "LIMITE_PAR_CITOYEN", 1)
     monkeypatch.setattr(mediateur, "LIMITE_EXEMPTES", {"issa.sawadogo"})
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     monkeypatch.setattr(mediateur, "OUTILS_TEST", True)       # mode test : exemption active
     assert [client.post("/demandes", json=demande(sujet="BF-0014")).json()["statut"] for _ in range(3)] == ["remise"] * 3
     monkeypatch.setattr(mediateur, "OUTILS_TEST", False)      # démonstration : mêmes limites que tout le monde
@@ -504,21 +443,21 @@ def demande_confirmee(client, sujet: str, confirmer: bool = True) -> dict:
 
 @respx.mock
 def test_retrait_avant_la_remise_rien_ne_part(client):
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d = demande_confirmee(client, "BF-0010")
     accords = client.get("/usagers/BF-0010/accords", headers=CANAL).json()
     assert accords[0]["id_demande"] == d["id_demande"] and accords[0]["transmis"] is False
     r = client.post(f"/demandes/{d['id_demande']}/retirer", json={"sujet_ref": "BF-0010"}, headers=CANAL).json()
     assert r["statut"] == "retiree" and r["transmis"] is False and len(r["empreinte"]) == 64
     guichet = client.get(f"/demandes/{d['id_demande']}").json()       # l'agent actualise : rien
-    assert guichet["statut"] == "retiree" and "jeton" not in guichet["volets"][0]
+    assert guichet["statut"] == "retiree" and "valeur" not in guichet["volets"][0]
     assert journal_de()[-1]["evenement"] == "retrait"
     assert client.get("/usagers/BF-0010/accords", headers=CANAL).json() == []
 
 
 @respx.mock
 def test_retrait_avant_meme_la_confirmation(client):
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d = demande_confirmee(client, "BF-0011", confirmer=False)
     r = client.post(f"/demandes/{d['id_demande']}/retirer", json={"sujet_ref": "BF-0011"}, headers=CANAL).json()
     assert r["statut"] == "retiree"
@@ -526,7 +465,7 @@ def test_retrait_avant_meme_la_confirmation(client):
 
 @respx.mock
 def test_retrait_apres_la_remise_ecrit_au_journal(client):
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d = demande_confirmee(client, "BF-0017")
     assert client.get(f"/demandes/{d['id_demande']}").json()["statut"] == "remise"
     assert client.get("/usagers/BF-0017/accords", headers=CANAL).json()[0]["transmis"] is True
@@ -540,7 +479,7 @@ def test_retrait_apres_la_remise_ecrit_au_journal(client):
 
 @respx.mock
 def test_retrait_impossible_en_base_legale_ou_pour_un_autre(client):
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     d = demande(sujet="BF-0016")
     client.post("/demandes", json=d)
     r = client.post(f"/demandes/{d['id_demande']}/retirer", json={"sujet_ref": "BF-0016"}, headers=CANAL)
@@ -555,7 +494,7 @@ def test_retrait_impossible_en_base_legale_ou_pour_un_autre(client):
 def test_agent_curieux_bloque_et_citoyens_alertes(client, monkeypatch):
     monkeypatch.setattr(mediateur, "LIMITE_SUJETS", 3)
     client.agent["nom"] = "agent.curieux"
-    route = respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    route = respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     statuts = [client.post("/demandes", json=demande(demarche="test-nationalite", sujet=f"CUR-{i}")).json()["statut"]
                for i in range(1, 5)]
     assert statuts == ["en_attente", "en_attente", "en_attente", "bloquee"] and route.call_count == 3
@@ -589,6 +528,8 @@ def trace(*ids, debut="2026-11-16T14:00:00Z"):
                                        "jti": "j", "destinataire": "mairie", "statut": "ok"} for i in ids]}
 
 
+# La double trace (verifier.py --registres) est DÉSACTIVÉE côté registres (plus de signature) ; la fonction de
+# comparaison reste testée avec des données fabriquées.
 def test_double_trace_concordante():
     verifier = charger_verifier()
     lignes = [ligne("", "catalogue", ts="2026-11-16T14:30:00Z"), ligne("d1"), ligne("d2", "alerte", "refuse"),
@@ -616,7 +557,7 @@ def test_double_trace_registre_illisible():
 
 @respx.mock
 def test_les_lignes_du_journal_portent_l_id_de_demande(client):
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     d = demande()
     client.post("/demandes", json=d)
     assert {l["id_demande"] for l in journal_de()[-3:]} == {d["id_demande"]}
@@ -635,7 +576,7 @@ def test_controle_exige_le_role_controleur(client, monkeypatch):
 @respx.mock
 def test_controle_montre_les_alertes_sans_identifiant_de_citoyen(client):
     mediateur.app.dependency_overrides[mediateur.controleur_connecte] = lambda: "controle.cil"
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe(cle=Ed25519PrivateKey.generate()))  # corrompue
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme(mot_de_passe="x"))  # non conforme
     respx.get("http://registre-etat-civil:8000/sante").mock(return_value=httpx.Response(200))
     respx.get("http://registre-nationalite:8000/sante").mock(side_effect=httpx.ConnectError("coupé"))
     respx.get("http://registre-casier:8000/sante").mock(return_value=httpx.Response(200))
@@ -644,7 +585,7 @@ def test_controle_montre_les_alertes_sans_identifiant_de_citoyen(client):
     assert r.status_code == 200
     c = r.json()
     assert c["comptes_de_test_actifs"] is False
-    assert any("signature invalide" in a["motif"] for a in c["alertes"])
+    assert any("non conforme au contrat" in a["motif"] for a in c["alertes"])
     assert {e["code"]: e["joignable"] for e in c["registres"]} == {"etat-civil": True, "nationalite": False,
                                                                    "casier": True}
     assert c["catalogue"]["empreinte"] == mediateur.CAT["empreinte"]
@@ -679,48 +620,37 @@ def test_controle_ne_peut_rien_demander(client):
 
 
 
-# --- Passeport (scénario principal) : consentement, deux registres (pas d'âge : l'ONI le connaît par la CNIB) ---
-
-def reponses_passeport(interdiction=False):
-    def repondre(requete):
-        corps = json.loads(requete.content)
-        valeurs = {"nationalite_bf": {"nationalite_bf": True},
-                   "interdiction_sortie_territoire": {"interdiction_sortie_territoire": interdiction}}
-        return httpx.Response(200, json={"jeton": jeton_registre(corps, **valeurs[corps["attribut"]])})
-    return repondre
-
+# --- Certificat de nationalité (tribunal) : consentement, naissance et filiation précises ---
 
 @respx.mock
-def test_passeport_apercu_puis_confirmation(client):
+def test_certificat_apercu_exact_puis_confirmation_puis_valeurs(client):
     client.agent["nom"] = "moussa.kone"
-    etat_civil = respx.post(URL_REGISTRE).mock(return_value=httpx.Response(500))
-    for url in (URL_NATIONALITE, URL_CASIER):
-        respx.post(url).mock(side_effect=reponses_passeport())
-    d = demande(demarche="test-passeport", sujet="BF-0001")
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
+    d = demande(demarche="certificat-nationalite", sujet="BF-0001")
     r = client.post("/demandes", json=d).json()
-    assert r["statut"] == "en_attente" and all("jeton" not in v for v in r["volets"])     # rien ne part avant
+    assert r["statut"] == "en_attente" and all("valeur" not in v for v in r["volets"])     # rien ne part avant
     attente = client.get("/usagers/BF-0001/en-attente", headers=CANAL).json()
-    assert attente[0]["apercu"] == ("Le tribunal recevra : burkinabè = oui ; "
-                                    "interdiction de sortie du territoire = non. Rien d'autre.")
-    assert not etat_civil.called            # l'état civil n'est jamais interrogé pour un passeport
+    assert attente[0]["apercu"] == ("Le tribunal recevra : naissance et filiation = 2001-03-14, Ouagadougou, "
+                                    "Issaka KABORE, Salimata KABORE. Rien d'autre.")
     client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": "BF-0001"}, headers=CANAL)
     remise = client.get(f"/demandes/{d['id_demande']}").json()
-    assert remise["statut"] == "remise" and all(v["jeton"] for v in remise["volets"])
+    assert remise["statut"] == "remise" and remise["volets"][0]["valeur"] == {
+        "date_naissance": "2001-03-14", "lieu_naissance": "Ouagadougou", "pere": "Issaka KABORE", "mere": "Salimata KABORE"}
+    assert "nom" not in remise["volets"][0]["valeur"] and "burkinabe" not in json.dumps(remise)    # rien d autre
 
 
-def test_passeport_ne_peut_pas_demander_l_age(client):
-    """L'ONI ne peut pas ajouter « majeur » à sa demande : le catalogue ne le prévoit pas."""
+def test_tribunal_ne_peut_pas_ajouter_l_age(client):
+    """Le tribunal ne peut pas ajouter « majeur » à sa demande : le catalogue ne le prévoit pas."""
     client.agent["nom"] = "moussa.kone"
-    d = demande(demarche="test-passeport", sujet="BF-0001") | {
-        "attributs": ["majeur", "nationalite_bf", "interdiction_sortie_territoire"]}
-    r = client.post("/demandes", json=d).json()
-    assert r["statut"] == "refuse" and r["motif"].startswith("attributs non autorisés")
+    d = demande(demarche="certificat-nationalite", sujet="BF-0001") | {"attributs": ["majeur", "naissance_filiation"]}
+    r = client.post("/demandes", json=d)
+    assert r.status_code == 403 and r.json()["motif"].startswith("attributs non autorisés")
 
 
-def test_passeport_reserve_a_la_police(client):
-    client.agent["nom"] = "awa.ouedraogo"       # service des bourses
-    r = client.post("/demandes", json=demande(demarche="test-passeport", sujet="BF-0001")).json()
-    assert r["statut"] == "refuse" and r["motif"] == "démarche non autorisée pour ce service"
+def test_certificat_reserve_au_tribunal(client):
+    client.agent["nom"] = "awa.ouedraogo"       # CEFORE
+    r = client.post("/demandes", json=demande(demarche="certificat-nationalite", sujet="BF-0001"))
+    assert r.status_code == 403 and r.json()["motif"] == "démarche non autorisée pour ce service"
 
 
 # --- Format de l'identifiant réglable (annuaire.yaml) : clé composée des données du jury ---
@@ -737,7 +667,7 @@ def test_cle_composee_de_bout_en_bout(client, monkeypatch):
     monkeypatch.setattr(mediateur, "FORMAT_IDENTIFIANT", re_.compile(r"^[^|/]{1,60}\|[^|/]{1,80}\|\d{4}-\d{2}-\d{2}$"))
     cle = "KABORÉ|Aminata Rosine|2001-03-14"
     client.agent["nom"] = "awa.ouedraogo"
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d = demande(demarche="test-nationalite", sujet=cle)
     assert client.post("/demandes", json=d).json()["statut"] == "en_attente"
     # La clé passe dans l'adresse (« | », espace, accent encodés), comme le fait l'USSD
@@ -748,18 +678,3 @@ def test_cle_composee_de_bout_en_bout(client, monkeypatch):
     assert client.get(f"/demandes/{d['id_demande']}").json()["statut"] == "remise"
     historique = client.get(f"/usagers/{quote(cle, safe='')}/historique", headers=CANAL).json()
     assert historique and cle not in json.dumps(historique)        # jamais l'identifiant en clair
-
-
-@respx.mock
-def test_base_et_texte_transmis_au_registre(client):
-    """Le registre reçoit le mode (base légale) et le texte cité, pour vérifier lui-même qu'il les a déclarés."""
-    recus = []
-
-    def registre(requete):
-        recus.append(json.loads(requete.content))
-        return httpx.Response(200, json={"jeton": jeton_registre(recus[-1])})
-    for url in (URL_REGISTRE, URL_NATIONALITE, URL_CASIER):
-        respx.post(url).mock(side_effect=registre)
-    client.post("/demandes", json=demande("concours-direct"))
-    assert len(recus) == 3
-    assert all(c["base"] == "base_legale" and "loi n°081-2015/CNT" in c["texte"] for c in recus)

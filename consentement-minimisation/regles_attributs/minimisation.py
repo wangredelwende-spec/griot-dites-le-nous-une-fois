@@ -28,6 +28,12 @@ def lire(brut: dict, correspondance: dict, registre: str, nom: str) -> str:
     return str(valeur).strip()
 
 
+def lire_ou_vide(brut: dict, correspondance: dict, registre: str, nom: str) -> str:
+    """Comme lire(), mais un champ absent ou vide donne « » (ex. date de décès : vivant). Correspondance non
+    renseignée : refus (on ne sait pas lire ce champ, donc on ne conclut pas)."""
+    return str(brut.get(champ_du_contrat(correspondance, registre, nom)) or "").strip()
+
+
 def valeur_date_complete(texte: str) -> str:
     try:
         return date.fromisoformat(texte).isoformat()

@@ -48,6 +48,7 @@ def test_finalite_mos_vide_ou_pas_un_texte_refusee(monkeypatch, tmp_path, valeur
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
     (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
+    (dossier / "attributs.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/attributs.yaml").read_bytes())
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
     ancre = "    finalite: immatriculation d'une entreprise individuelle au CEFORE\n"
@@ -61,6 +62,7 @@ def test_finalite_mos_remplie_acceptee(monkeypatch, tmp_path):
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
     (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
+    (dossier / "attributs.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/attributs.yaml").read_bytes())
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
     ancre = "    finalite: immatriculation d'une entreprise individuelle au CEFORE\n"

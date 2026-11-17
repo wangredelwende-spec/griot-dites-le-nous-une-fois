@@ -8,6 +8,7 @@ COPY passerelle/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY passerelle/app ./app
 COPY consentement-minimisation/consentement ./consentement
+COPY consentement-minimisation/regles_attributs ./regles_attributs
 COPY journal/tracabilite ./tracabilite
 RUN useradd --system --uid 10001 griot && mkdir /donnees && chown griot /donnees
 USER griot

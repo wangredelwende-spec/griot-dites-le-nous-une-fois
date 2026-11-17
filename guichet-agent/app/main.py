@@ -49,10 +49,9 @@ async def catalogue_courant() -> dict:
 
 # Format de l'identifiant de l'usager (réglable pour les données du jury), le même que celui du médiateur
 IDENTIFIANT = ANNUAIRE.get("identifiant_usager") or {"format": r"^[A-Za-z0-9-]{1,64}$", "exemple": "BF-0001"}
-ATTRIBUTS = {}
-for _registre in ANNUAIRE["registres"]:
-    _conf = yaml.safe_load((ADAPTATEURS / f"{_registre}.yaml").read_text(encoding="utf-8"))
-    ATTRIBUTS |= {code: a | {"registre": _registre} for code, a in _conf["attributs"].items()}
+# Attributs permis (attributs.yaml, le même fichier que la passerelle). Depuis le 17/11 les registres ne signent plus :
+# verifier_volet() et lire_valeur() plus bas (signature Ed25519) sont DÉSACTIVÉES, conservées (LIMITES.md).
+ATTRIBUTS = (yaml.safe_load((CATALOGUE / "attributs.yaml").read_text(encoding="utf-8")) or {}).get("attributs") or {}
 
 # Jetons Keycloak des agents connectés, gardés EN MÉMOIRE côté serveur (trop gros pour un cookie).
 # Le cookie de session ne contient qu'un numéro de session aléatoire.
@@ -323,12 +322,10 @@ def noter(suivi: dict, etat: dict, session: dict, id_demande: str):
         code = volet["attribut"]
         if code not in demandes or suivi["volets"].get(code, {}).get("signe"):
             continue
-        if volet.get("jeton"):
-            try:
-                suivi["volets"][code] = verifier_volet(volet["jeton"], demandes[code], session["service"],
-                                                       id_demande, suivi["sujet_ref"])
-            except (jwt.PyJWTError, KeyError, TypeError, AttributeError, FileNotFoundError) as e:
-                suivi["volets"][code] = {"echec": f"signature du registre non vérifiée au guichet ({e})"}
+        if volet.get("valeur") is not None:
+            # La passerelle a validé la réponse du registre contre le contrat et calculé la valeur : on l'affiche
+            suivi["volets"][code] = {"signe": True, "valeur": volet["valeur"],
+                                     "registre": ANNUAIRE["registres"].get(volet["registre"], {}).get("nom", volet["registre"])}
         elif volet["statut"] == "en_attente":
             suivi["volets"][code] = {"attente": True}
         elif volet["statut"] == "indisponible":

@@ -4,8 +4,8 @@ openapi: 3.1.0
 info:
   title: 'Griot : Passerelle d''échange'
   description: 'Fait circuler les pièces entre administrations : demande d''un agent (jeton Keycloak), appel des registres
-    en parallèle avec délai, vérification des réponses signées, remise au guichet. Réseau interne seulement, jamais publiée
-    par Caddy.'
+    en parallèle avec délai, validation des réponses contre le contrat, minimisation, remise au guichet. Réseau interne seulement,
+    jamais publiée par Caddy.'
   version: '1.0'
 paths:
   /catalogue:

@@ -3,5 +3,6 @@
 !passerelle/requirements.txt
 !passerelle/app
 !consentement-minimisation/consentement
+!consentement-minimisation/regles_attributs
 !journal/tracabilite
 **/__pycache__

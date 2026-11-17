@@ -3,7 +3,7 @@ import time
 
 import respx
 from conftest import CANAL, URL_NATIONALITE, demande, mediateur
-from test_mediateur import journal_de, registre_qui_signe
+from test_mediateur import journal_de, registre_conforme
 
 SUJET = "BF-0030"
 
@@ -21,19 +21,19 @@ def confirmer(client, d, sujet=SUJET):
 
 @respx.mock
 def test_premiere_demande_attend_l_usager_puis_la_suivante_est_immediate(client):
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d1, r1 = demander(client)
     assert r1["statut"] == "en_attente"                      # pas d'accord encore : l'usager voit l'aperçu et confirme
     assert confirmer(client, d1)["statut"] == "remise"
     d2, r2 = demander(client)
-    assert r2["statut"] == "remise" and all(v["jeton"] for v in r2["volets"])     # accord valable : immédiat
+    assert r2["statut"] == "remise" and all(v["valeur"] is True for v in r2["volets"])     # accord valable : immédiat
     evenements = [l["evenement"] for l in journal_de() if l["id_demande"] == d2["id_demande"]]
     assert evenements == ["demande", "reponse-registre", "accord-valide", "remise"]
 
 
 @respx.mock
 def test_accord_retire_la_demande_suivante_attend_a_nouveau(client):
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d1, _ = demander(client, "BF-0031")
     confirmer(client, d1, "BF-0031")
     liste = client.get("/usagers/BF-0031/accords", headers=CANAL).json()
@@ -46,7 +46,7 @@ def test_accord_retire_la_demande_suivante_attend_a_nouveau(client):
 
 @respx.mock
 def test_accord_expire_la_demande_suivante_attend_a_nouveau(client):
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d1, _ = demander(client, "BF-0032")
     confirmer(client, d1, "BF-0032")
     with mediateur.VERROU:
@@ -57,7 +57,7 @@ def test_accord_expire_la_demande_suivante_attend_a_nouveau(client):
 
 @respx.mock
 def test_accord_propre_a_une_personne_et_a_un_service(client):
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     d1, _ = demander(client, "BF-0033")
     confirmer(client, d1, "BF-0033")
     assert demander(client, "BF-0034")[1]["statut"] == "en_attente"      # une autre personne n'est pas concernée

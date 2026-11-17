@@ -6,13 +6,13 @@ import threading
 import respx
 
 from conftest import CHEMIN_JOURNAL, URL_REGISTRE, demande, mediateur
-from test_mediateur import journal_de, registre_qui_signe
+from test_mediateur import journal_de, registre_conforme
 from tracabilite.journal import Journal
 
 
 @respx.mock
 def test_les_trois_listes_d_attributs_sont_des_noms_jamais_des_valeurs(client):
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     d = demande()
     r = client.post("/demandes", json=d).json()
     assert r["statut"] == "remise"
@@ -30,7 +30,7 @@ def test_les_trois_listes_d_attributs_sont_des_noms_jamais_des_valeurs(client):
 @respx.mock
 def test_un_refus_est_range_dans_attributs_refuses(client):
     import httpx
-    respx.post(URL_REGISTRE).mock(side_effect=httpx.ConnectError("injoignable"))
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=httpx.ConnectError("injoignable"))
     d = demande()
     r = client.post("/demandes", json=d).json()
     assert r["statut"] == "indisponible"

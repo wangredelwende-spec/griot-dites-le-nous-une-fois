@@ -35,8 +35,26 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
 | Relais vers l'API du jury (`relais-api-jury`) | profil docker `api-jury`, jamais démarré | `--profile api-jury` |
 | Mooré | non proposé : aucune langue complète (colonnes vides dans `traduction-moore/`), l'écran reste en français | traduire, puis `integrer.py` |
 | Démarches passeport, bourse nationale, vérification de la majorité (+ services bourses, mairie, passeport, attribut « interdiction de sortie du territoire ») | retirées du catalogue actif le 17/11 : `consentement-minimisation/catalogue/demarches-inactives.yaml` (non chargé) ; les services sont retirés de `annuaire.yaml`, les groupes Keycloak de `realm-griot.json` | recopier le bloc dans `demarches.yaml`, ré-ajouter le service |
-| Signature Ed25519 des réponses des registres + double clé côté registre | **à désactiver à l'adaptation des registres au contrat du jury** (le contrat ne prévoit pas de signature) | — |
-| Double trace des registres (`verifier.py --registres`) | idem, liée à la signature | — |
+| Signature Ed25519 des réponses des registres, jeton Keycloak vérifié par chaque registre, double clé côté registre | **désactivés le 17/11** : les registres suivent le contrat (fiche JSON, 404) ; `registres/app/ancien_main.py`, `adaptateur.py`, `sources.py` et `registres/adaptateurs/*.yaml` sont conservés, plus utilisés par la pile ; `passerelle/app/registres.py` garde `appeler()` / `verifier()` ; le guichet garde `verifier_volet()` | rebrancher `ancien_main` dans le Dockerfile des registres |
+| Double trace des registres (`verifier.py --registres`) | désactivée avec la signature : les registres ne tiennent plus de trace ; le code de comparaison reste testé | idem |
+
+## Registres selon le contrat PROVISOIRE (17/11)
+
+- Le contrat du jury n'étant pas arrivé, `registres/contrat/contrat-provisoire.yaml` (une route par registre, 404 si le
+  citoyen est inconnu) et `registres/donnees/citoyens-provisoires.yaml` (10 citoyens fictifs) sont **provisoires** : leurs
+  noms de champs sont nos hypothèses. `correspondance.yaml` les relie à la passerelle ; tout est à refaire avec le contrat
+  du jury (README.md : deux fichiers + la liste des citoyens).
+- La passerelle appelle chaque registre en GET, valide la réponse contre le contrat (`jsonschema`, MIT), puis calcule
+  l'attribut permis (`regles_attributs/minimisation.py`) : la fiche brute ne sort pas de la passerelle. Réponse non
+  conforme : rejetée, ligne d'alerte « réponse corrompue : non conforme au contrat ». Citoyen inconnu : 404.
+  Décédé ou donnée insuffisante (« né vers 1990 » pour une naissance exacte) : refus au motif générique.
+- **Plus de confidentialité côté registre** : un registre répond à qui l'appelle ; seule la passerelle (réseau Docker
+  « registres », sans Internet) y accède. La signature, le jeton de l'agent et les doubles clés du registre ne protègent plus.
+  La passerelle garde ses propres contrôles : service autorisé par attribut (`attributs.yaml`), finalité, base, accord.
+- Le « casier vierge » d'un citoyen absent du casier n'existe plus : un 404 du casier est un refus « citoyen inconnu ».
+- Panne par variable d'environnement `PANNE` (normal, lent, eteint, non_conforme) ; `resilience/panne.py`.
+- Le banc de pannes, `tests/e2e/` et les scripts de `scripts/` parlent encore des anciens registres signés : à reprendre
+  avant de les relancer. Tests de l'ancien code des registres conservés (`registres/tests/`, via `ancien_main`).
 
 ## Catalogue du cadre, accords et minimisation (17/11)
 

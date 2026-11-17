@@ -1,0 +1,39 @@
+# ATTRIBUTS PERMIS : ce que la passerelle sait calculer pour un service, et RIEN d'autre.
+# (Remplace, depuis le 17/11, les déclarations des anciens registres signés : registres/adaptateurs/*.yaml, désactivés.)
+#
+# Pour chaque attribut :
+#   registre : le registre qui fournit la fiche (annuaire.yaml)
+#   regle    : age_entre (majeur…) | egal (nationalité) | nombre_nul (casier vierge) | champs (identité, naissance
+#              et filiation : les cases listées, jamais les autres) ; voir regles_attributs/
+#   champ(s) : NOMS LOGIQUES des champs de la fiche ; leur nom dans le contrat est dans correspondance.yaml
+#   services : qui a le droit de le demander (liste), et pour age_entre les seuils/dates autorisés PAR service
+# Ajouter un attribut = un bloc ici ; changer de contrat = correspondance.yaml, jamais ce fichier.
+attributs:
+  majeur:
+    registre: etat-civil
+    regle: age_entre            # paramètres de la démarche : min, max (facultatif), date_reference
+    champ: date_naissance
+    services:
+      direction-concours:
+        - {min: 18, date_reference: aujourd'hui}             # majorité civile (loi n°012-2025/ALT)
+  nationalite_bf:
+    registre: nationalite
+    regle: egal                 # égal à « valeur » -> oui ; autre valeur -> non ; vide -> refus
+    champ: nationalite
+    valeur: burkinabe
+    services: [direction-concours]
+  casier_vierge:
+    registre: casier
+    regle: nombre_nul           # « 0 » -> oui ; « 2 » -> non ; vide ou illisible -> refus
+    champ: nombre_condamnations
+    services: [direction-concours, cefore]
+  identite:
+    registre: etat-civil
+    regle: champs               # nom et prénoms SEULEMENT (ni date de naissance, ni filiation)
+    champs: [nom, prenoms]
+    services: [cefore]
+  naissance_filiation:
+    registre: etat-civil
+    regle: champs
+    champs: [date_naissance, lieu_naissance, pere, mere]     # date complète exigée (« né vers 1990 » : refus)
+    services: [tribunal]

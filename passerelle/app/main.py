@@ -16,6 +16,7 @@ import hashlib
 import hmac
 import importlib.util
 import json
+import yaml
 import re
 import sqlite3
 import sys
@@ -29,12 +30,17 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from consentement import catalogue, usager  # couche consentement-minimisation (même processus)
 from consentement.usager import apercu, finalites_traduites, libelles, rafraichir  # noqa: F401 (apercu : tests)
-from . import agents as modele_agents, registres
+from . import agents as modele_agents, contrat, registres
 from .agents import agent_connecte, controleur_connecte
-from .config import (CLES_PUBLIQUES, SECRETS, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FENETRE_LIMITE,
+from .config import (CATALOGUE, CLES_PUBLIQUES, SECRETS, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FENETRE_LIMITE,
                      JOURNAL_VERIFIER, LIMITE_EXEMPTES, LIMITE_PAR_CITOYEN, LIMITE_SUJETS, OUTILS_TEST,
                      lire_secret)
 from tracabilite.journal import Journal     # couche journal (même processus)
+from regles_attributs import Refus, minimisation     # couche consentement-minimisation (même processus)
+
+# Le contrat des registres et la correspondance de ses champs : lus au démarrage (CONFIGURATION, pas du code)
+CONTRAT_CHARGE = contrat.charger()
+CORRESPONDANCE = yaml.safe_load((CATALOGUE / "correspondance.yaml").read_text(encoding="utf-8"))
 
 # Catalogue validé au démarrage. Copie du dernier catalogue VALIDE gardée dans le volume du médiateur :
 # si le fichier est invalide au démarrage, on repart de cette copie au lieu de s'arrêter devant le jury.
@@ -302,8 +308,8 @@ def refuser(demande: dict, statut: str, evenement: str, motif: str, canal: str =
 
 
 def etat(demande: dict, remise: bool = False) -> dict:
-    """Ce que voit le guichet : jamais une valeur en clair. Les réponses signées « ok » ne partent
-    qu'au moment de la remise ; un refus signé par un registre part tout de suite (il ne contient aucune donnée)."""
+    """Ce que voit le guichet : une valeur (« majeur : oui ») n'existe dans la réponse qu'au moment de la remise ;
+    avant, seulement le statut de chaque volet et son motif."""
     volets = []
     for v in demande.get("volets", []):
         statut = v["statut"]
@@ -312,8 +318,8 @@ def etat(demande: dict, remise: bool = False) -> dict:
         elif statut == "ok" and not remise:
             statut = "remise" if demande["statut"] == "remise" else "non_transmis"
         volet = {"attribut": v["attribut"], "registre": v["registre"], "statut": statut, "motif": v["motif"]}
-        if v.get("jeton") and (v["statut"] != "ok" or remise):
-            volet["jeton"] = v["jeton"]
+        if v["statut"] == "ok" and remise:      # la valeur n'existe côté guichet qu'à la remise, une seule fois
+            volet["valeur"] = json.loads(v["valeur"]) if isinstance(v["valeur"], str) else bool(v["valeur"])
         volets.append(volet)
     reponse = {"id_demande": demande["id_demande"], "statut": demande["statut"], "motif": demande["motif"],
                "demarche": demande["demarche"], "volets": volets}
@@ -331,7 +337,7 @@ def remettre(demande: dict) -> dict:
     return reponse
 
 
-# --- Appel des registres ---
+# --- Appel des registres (selon le contrat) ---
 
 def cle_du_registre(registre: dict) -> tuple[str, str] | None:
     """Clé API d'un registre, si annuaire.yaml en déclare une : « en_tete_cle » (nom de l'en-tête) et « cle_secret »
@@ -344,85 +350,67 @@ def cle_du_registre(registre: dict) -> tuple[str, str] | None:
         raise registres.Indisponible(f"{registre['nom']} : clé API illisible")
 
 
-async def interroger(demande: dict, code: str, parametres: dict, sujet_ref: str,
-                     jeton_agent: str) -> tuple[str, bool | str, str]:
-    """Demande UN attribut à son registre et vérifie TOUTE la réponse signée.
-    Renvoie (« ok », oui/non, jeton) ou (« refus », motif public, jeton).
-    Lève Indisponible (rien n'est deviné) ou ReponseCorrompue (ligne d'alerte)."""
-    attribut = CAT["attributs"][code]
-    registre = CAT["registres"][attribut["registre"]]
-    corps = {"id_demande": demande["id_demande"], "attribut": code, "parametres": parametres,
-             "sujet_ref": sujet_ref, "destinataire": demande["demandeur"],
-             # Mode de consultation et texte cité : le registre vérifie qu'il les a déclarés pour ce service
-             "base": demande["base"],
-             "texte": CAT["demarches"].get(demande["demarche"], {}).get("texte", "") if demande["base"] == "base_legale"
-             else ""}
+async def lire_registre(registre_code: str, sujet_ref: str) -> dict:
+    """Lit la fiche d'un citoyen dans UN registre et la VALIDE contre le contrat. Ne lève jamais d'exception :
+    {"etat": "ok", "fiche": {...}} | {"etat": "inconnu"} | {"etat": "indisponible", "motif": …} | {"etat": "corrompu", "motif": …}.
+    La fiche brute reste dans cette fonction et dans minimiser() : elle n'est jamais écrite ni renvoyée."""
+    registre = CAT["registres"][registre_code]
     try:
-        jeton = await registres.appeler(registre["url"], corps, DELAI_REGISTRE, jeton_agent, cle_du_registre(registre))
-        # La clé publique vient du volume du registre, monté en LECTURE SEULE ici
-        cle_publique = (CLES_PUBLIQUES / attribut["registre"] / "cle.pem").read_bytes()
+        fiche = await registres.lire_fiche(registre["url"], registre["chemin"], sujet_ref, DELAI_REGISTRE,
+                                           cle_du_registre(registre))
+        ecarts = contrat.erreurs_de_conformite(CONTRAT_CHARGE, registre["chemin"], fiche)
+        if ecarts:
+            raise registres.ReponseCorrompue("non conforme au contrat (" + " ; ".join(ecarts[:3]) + ")")
+        return {"etat": "ok", "fiche": fiche}
+    except registres.CitoyenInconnu:
+        return {"etat": "inconnu"}
     except registres.Indisponible as e:
-        raise registres.Indisponible(f"{registre['nom']} indisponible ({e})")
-    except FileNotFoundError:
-        raise registres.Indisponible(f"{registre['nom']} : clé publique absente")
-    statut, contenu, infos = registres.verifier(jeton, cle_publique, registre["emetteur"], demande["demandeur"],
-                                                sujet_ref, demande["id_demande"], attribut, parametres)
-    try:
-        with VERROU:
-            base.execute("INSERT INTO jti_vus (jti) VALUES (?)", (infos["jti"],))
-    except sqlite3.IntegrityError:
-        raise registres.ReponseCorrompue("réponse déjà utilisée (rejeu du jeton)")
-    return statut, contenu, jeton
+        return {"etat": "indisponible", "motif": f"{registre['nom']} indisponible ({e})"}
+    except registres.ReponseCorrompue as e:
+        return {"etat": "corrompu", "motif": str(e)}
+    except Exception as e:                   # jamais de plantage : une erreur imprévue = « indisponible », au journal
+        return {"etat": "imprevu", "motif": type(e).__name__}
 
 
-async def traiter_volet(demande: dict, demande_attribut: dict, sujet_ref: str, jeton_agent: str) -> dict:
-    """Un volet = un attribut demandé à son registre. Renvoie toujours un volet, jamais une exception :
-    un registre en panne n'empêche pas les autres de répondre."""
+def volet_depuis_registre(demande: dict, demande_attribut: dict, lecture: dict) -> dict:
+    """Un volet = un attribut demandé. Calcule l'attribut (minimisation) depuis la fiche lue, ou dit pourquoi pas.
+    Renvoie toujours un volet, jamais une exception : un registre en panne n'empêche pas les autres de répondre."""
     code = demande_attribut["attribut"]
-    registre = CAT["attributs"][code]["registre"]
+    definition = CAT["attributs"][code]
+    registre = definition["registre"]
+    nom = CAT["registres"][registre]["nom"]
     volet = {"id_demande": demande["id_demande"], "attribut": code, "registre": registre,
              "statut": "refuse", "motif": "", "valeur": None, "jeton": None}
-    try:
-        if registre in CAT["absence_vierge"]:
-            # Casier « absence: vierge » : on vérifie D'ABORD à l'état civil que la personne existe
-            # (sinon un identifiant inventé obtiendrait « casier vierge »)
-            ou = {"attribut": "personne_connue", "registre": CAT["attributs"]["personne_connue"]["registre"]}
-            connue, _, _ = await interroger(demande, "personne_connue", {}, sujet_ref, jeton_agent)
-            tracer(demande, "reponse-registre", "ok" if connue == "ok" else "refuse", **ou)
-            if connue != "ok":
-                volet["motif"] = "identité non confirmée par l'état civil"
-                tracer(demande, "demande", "refuse", volet["motif"], attribut=code, registre=registre)
-                return volet
-        statut, contenu, jeton = await interroger(demande, code, catalogue.resoudre(demande_attribut["parametres"]),
-                                                  sujet_ref, jeton_agent)
-    except registres.Indisponible as e:
-        motif = f"{e}, rien n'a été deviné"
-        volet.update(statut="indisponible", motif=motif[0].upper() + motif[1:])
+    etat_lecture = lecture["etat"]
+    if etat_lecture == "indisponible":
+        volet.update(statut="indisponible", motif=lecture["motif"][0].upper() + lecture["motif"][1:] + ", rien n'a été deviné")
         tracer(demande, "reponse-registre", "indisponible", volet["motif"], attribut=code, registre=registre)
-        return volet
-    except registres.CitoyenInconnu:
+    elif etat_lecture == "imprevu":
+        volet.update(statut="indisponible", motif="Erreur interne, rien n'a été deviné")
+        tracer(demande, "alerte", "indisponible", f"erreur interne ({lecture['motif']})", attribut=code, registre=registre)
+    elif etat_lecture == "inconnu":
         volet["motif"] = MOTIF_INCONNU
         tracer(demande, "reponse-registre", "refuse", MOTIF_INCONNU, attribut=code, registre=registre)
-        return volet
-    except registres.ReponseCorrompue as e:
-        volet["motif"] = f"réponse corrompue : {e}"
+    elif etat_lecture == "corrompu":
+        volet["motif"] = f"réponse corrompue : {lecture['motif']}"
         tracer(demande, "alerte", "refuse", volet["motif"], attribut=code, registre=registre)
-        return volet
-    except Exception as e:                   # jamais de plantage : une erreur imprévue = « indisponible », au journal
-        volet.update(statut="indisponible", motif="Erreur interne, rien n'a été deviné")
-        tracer(demande, "alerte", "indisponible", f"erreur interne ({type(e).__name__})", attribut=code,
-               registre=registre)
-        return volet
-
-    if statut == "refus":
-        # Refus signé par le registre : transmis tel quel, le guichet en revérifie la signature
-        volet.update(motif=contenu, jeton=jeton)
-        tracer(demande, "reponse-registre", "refuse", contenu, attribut=code, registre=registre)
-        return volet
-    tracer(demande, "reponse-registre", "ok", attribut=code, registre=registre)
-    # Oui/non : 1 ou 0. Cases précises (identité, naissance et filiation) : texte JSON, effacé dès la remise.
-    return volet | {"statut": "ok", "valeur": json.dumps(contenu, ensure_ascii=False) if isinstance(contenu, dict)
-                    else int(contenu), "jeton": jeton}
+    else:
+        try:
+            fiche = lecture["fiche"]
+            if registre == "etat-civil" and minimisation.lire_ou_vide(fiche, CORRESPONDANCE, registre, "date_deces"):
+                raise Refus("personne décédée")
+            resultat = minimisation.minimiser(definition, registre, fiche, CORRESPONDANCE,
+                                              catalogue.resoudre(demande_attribut["parametres"]))
+        except Refus as e:
+            # Le motif précis (décédé, date incomplète…) reste ici : le guichet n'apprend rien de plus que « impossible »
+            volet["motif"] = f"réponse impossible, s'adresser au {nom}"
+            tracer(demande, "reponse-registre", "refuse", volet["motif"], attribut=code, registre=registre)
+        else:
+            tracer(demande, "reponse-registre", "ok", attribut=code, registre=registre)
+            # Oui/non : 1 ou 0. Cases précises (identité, naissance et filiation) : texte JSON, effacé dès la remise.
+            return volet | {"statut": "ok", "valeur": json.dumps(resultat, ensure_ascii=False)
+                            if isinstance(resultat, dict) else int(resultat)}
+    return volet
 
 
 # --- Limites de débit ---
@@ -574,8 +562,11 @@ async def traiter_demande(d: Demande, agent: dict) -> dict:
     tracer(demande, "demande", "ok")
 
     # 2. Un appel par attribut, tous EN PARALLÈLE : chaque registre a son délai, sa clé, son résultat
-    volets = await asyncio.gather(*(traiter_volet(demande, a, d.sujet_ref, agent["jeton"])
-                                    for a in demarche["attributs"]))
+    # (un appel par REGISTRE, tous en parallèle ; la fiche brute ne sort pas de lire_registre / minimiser)
+    utiles = sorted({CAT["attributs"][a["attribut"]]["registre"] for a in demarche["attributs"]})
+    lectures = dict(zip(utiles, await asyncio.gather(*(lire_registre(r, d.sujet_ref) for r in utiles))))
+    volets = [volet_depuis_registre(demande, a, lectures[CAT["attributs"][a["attribut"]]["registre"]])
+              for a in demarche["attributs"]]
     demande["volets"] = volets
     with VERROU:
         for v in volets:

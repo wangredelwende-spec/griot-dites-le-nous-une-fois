@@ -1,132 +1,150 @@
-# Contrat d'API de la couche « Registres (état civil, nationalité, casier) ». GÉNÉRÉ par scripts/generer_openapi.py : ne pas modifier
-# à la main (tests/test_openapi.py vérifie qu'il correspond au code).
+# Contrat d'API de la couche « Registres ». GÉNÉRÉ par scripts/generer_openapi.py à partir de
+# registres/contrat/contrat-provisoire.yaml (PROVISOIRE) : ne pas modifier à la main.
 openapi: 3.1.0
 info:
   title: 'Griot : Registres (état civil, nationalité, casier)'
-  description: Chaque registre calcule l'attribut minimal demandé et le SIGNE avec sa propre clé Ed25519. Appelé par la passerelle
-    d'échange seulement (réseau « registres »), jamais publié.
   version: '1.0'
+  description: 'Chaque registre expose la fiche d''un citoyen par son identifiant (404 si inconnu), selon le contrat commun
+    (PROVISOIRE : registres/contrat/contrat-provisoire.yaml, à remplacer par celui du jury). Appelé par la passerelle d''échange
+    seulement (réseau « registres »), jamais publié.'
 paths:
-  /attributs:
-    post:
-      summary: Attribut
-      description: 'Réponse TOUJOURS signée : {"statut": "ok", <attribut>} ou {"statut": "refus", "motif": <motif public>}.'
-      operationId: attribut_attributs_post
+  /etat-civil/{id}:
+    get:
+      summary: Fiche d'état civil d'un citoyen
+      operationId: lireEtatCivil
       parameters:
-      - name: authorization
-        in: header
-        required: false
+      - name: id
+        in: path
+        required: true
         schema:
           type: string
-          default: ''
-          title: Authorization
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DemandeAttribut'
       responses:
         '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema: {}
-        '422':
-          description: Validation Error
+          description: La fiche
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /trace:
-    get:
-      summary: Trace
-      description: 'Export SIGNÉ de la trace (pour verifier.py --registres) : le médiateur ne peut pas la falsifier.'
-      operationId: trace_trace_get
-      responses:
-        '200':
-          description: Successful Response
+                $ref: '#/components/schemas/EtatCivil'
+        '404':
+          description: Citoyen inconnu
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/Erreur'
+  /nationalite/{id}:
+    get:
+      summary: Nationalité d'un citoyen
+      operationId: lireNationalite
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: La fiche
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Nationalite'
+        '404':
+          description: Citoyen inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+  /casier/{id}:
+    get:
+      summary: Casier judiciaire d'un citoyen (nombre de condamnations)
+      operationId: lireCasier
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '200':
+          description: La fiche
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Casier'
+        '404':
+          description: Citoyen inconnu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
 components:
   schemas:
-    DemandeAttribut:
+    EtatCivil:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - nom
+      - prenoms
+      - date_naissance
+      - lieu_naissance
+      - pere
+      - mere
+      - date_deces
       properties:
-        id_demande:
+        id:
           type: string
-          maxLength: 64
-          title: Id Demande
-        attribut:
+          minLength: 1
+        nom:
           type: string
-          maxLength: 64
-          title: Attribut
-        parametres:
-          additionalProperties:
-            anyOf:
-            - type: integer
-            - type: string
-            - type: 'null'
-          type: object
-          title: Parametres
-          default: {}
-        sujet_ref:
+          minLength: 1
+        prenoms:
           type: string
-          maxLength: 200
-          title: Sujet Ref
-        destinataire:
+          minLength: 1
+        date_naissance:
           type: string
-          maxLength: 64
-          title: Destinataire
-        base:
+          minLength: 1
+        lieu_naissance:
           type: string
-          maxLength: 32
-          title: Base
-          default: ''
-        texte:
+          minLength: 1
+        pere:
           type: string
-          maxLength: 1000
-          title: Texte
-          default: ''
+        mere:
+          type: string
+        date_deces:
+          type:
+          - string
+          - 'null'
+    Nationalite:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - nationalite
+      properties:
+        id:
+          type: string
+          minLength: 1
+        nationalite:
+          type: string
+          minLength: 1
+    Casier:
+      type: object
+      additionalProperties: false
+      required:
+      - id
+      - nombre_condamnations
+      properties:
+        id:
+          type: string
+          minLength: 1
+        nombre_condamnations:
+          type: integer
+          minimum: 0
+    Erreur:
       type: object
       required:
-      - id_demande
-      - attribut
-      - sujet_ref
-      - destinataire
-      title: DemandeAttribut
-    HTTPValidationError:
+      - detail
       properties:
         detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          type: array
-          title: Detail
-      type: object
-      title: HTTPValidationError
-    ValidationError:
-      properties:
-        loc:
-          items:
-            anyOf:
-            - type: string
-            - type: integer
-          type: array
-          title: Location
-        msg:
           type: string
-          title: Message
-        type:
-          type: string
-          title: Error Type
-        input:
-          title: Input
-        ctx:
-          type: object
-          title: Context
-      type: object
-      required:
-      - loc
-      - msg
-      - type
-      title: ValidationError

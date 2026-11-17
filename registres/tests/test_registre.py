@@ -19,7 +19,7 @@ for dossier in ("cles", "publique", "trace"):
     (TMP / dossier).mkdir(exist_ok=True)
 os.environ.update(ADAPTATEUR=str(ADAPTATEUR_TEST), CLES=str(TMP / "cles"), PUBLIQUE=str(TMP / "publique"),
                   TRACE=str(TMP / "trace"))
-from registre_app import main as registre  # noqa: E402  (paquet enregistré par conftest.py)
+from registre_app import ancien_main as registre  # noqa: E402  (paquet enregistré par conftest.py)
 
 client = TestClient(registre.app)
 CLE_PUBLIQUE = (TMP / "publique/cle.pem").read_bytes()

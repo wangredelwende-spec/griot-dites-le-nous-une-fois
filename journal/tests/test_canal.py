@@ -7,7 +7,7 @@ import threading
 import respx
 
 from conftest import CANAL, CHEMIN_JOURNAL, RACINE, URL_NATIONALITE, demande, mediateur
-from test_mediateur import registre_qui_signe
+from test_mediateur import registre_conforme
 
 WEB = {"X-Cle-Canal": "secret-de-test-canal-web"}
 
@@ -31,7 +31,7 @@ def demande_bourse(client, sujet: str) -> str:
 
 @respx.mock
 def test_confirmation_par_le_web_ecrite_avec_canal_web_et_visible_partout(client):
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     id_demande = demande_bourse(client, "BF-0017")
     r = client.post(f"/demandes/{id_demande}/confirmer", json={"sujet_ref": "BF-0017"}, headers=WEB).json()
     assert ligne_du_journal(r["empreinte"])["canal"] == "web"
@@ -45,7 +45,7 @@ def test_confirmation_par_le_web_ecrite_avec_canal_web_et_visible_partout(client
 
 @respx.mock
 def test_refus_et_retrait_par_ussd_ecrits_avec_canal_ussd(client):
-    respx.post(URL_NATIONALITE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_NATIONALITE).mock(side_effect=registre_conforme())
     id_demande = demande_bourse(client, "BF-0019")
     client.post(f"/demandes/{id_demande}/refuser", json={"sujet_ref": "BF-0019"}, headers=CANAL)
     id_retrait = demande_bourse(client, "BF-0019")
@@ -99,7 +99,7 @@ def test_ajout_de_la_colonne_canal_garde_les_anciennes_empreintes(tmp_path):
 @respx.mock
 def test_historique_donne_les_seuils_de_la_demarche(client):
     from conftest import URL_REGISTRE
-    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    respx.get(url__regex=URL_REGISTRE).mock(side_effect=registre_conforme())
     client.agent["nom"] = "issa.sawadogo"
     client.post("/demandes", json=demande(sujet="BF-0010"))
     ligne = client.get("/usagers/BF-0010/historique", headers=CANAL).json()[0]

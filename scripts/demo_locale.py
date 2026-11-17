@@ -3,12 +3,12 @@
     .venv\Scripts\python scripts\demo_locale.py
 
 Puis ouvrir dans le navigateur :
-    http://127.0.0.1:8081/portail      portail web (numéro 70000012, PIN 1234)
+    http://127.0.0.1:8081/portail      portail web (numéro 70000001, PIN 1234)
     http://127.0.0.1:8082/             simulateur du téléphone *226# (même numéro, même PIN)
     http://127.0.0.1:8000/journal/verification   le badge « journal intègre » en JSON
 
-Pour voir quelque chose, le script prépare 3 consultations fictives de « Aïssata Diallo » (BF-0012) avec des
-registres SIMULÉS EN MÉMOIRE (aucune donnée du jury) : un concours (base légale), une création d'entreprise
+Pour voir quelque chose, le script prépare 3 consultations fictives de « Aminata Kaboré » (BF-0001) avec des
+registres simulés RÉELS, branchés en mémoire selon le contrat provisoire (aucune donnée du jury) : un concours (base légale), une création d'entreprise
 au CEFORE (confirmée, accord valable 7 jours) et une demande de certificat de nationalité EN ATTENTE, à confirmer ou
 refuser vous-même. Tout est jeté à l'arrêt (Ctrl+C). Ce n'est PAS la pile Docker : les données ne sont pas conservées.
 """
@@ -23,16 +23,15 @@ sys.path.insert(0, str(RACINE))
 os.environ.update(COOKIE_SECURE="0", MEDIATEUR="http://127.0.0.1:8000",
                   ABONNES=str(RACINE / "espace-usager/ussd/abonnes.yaml"))
 
-import httpx  # noqa: E402
 import respx  # noqa: E402
 import uvicorn  # noqa: E402
 
 # conftest.py prépare tout comme pour les tests : dossier temporaire, secrets de démonstration, clés des faux registres,
 # passerelle en mémoire. On le réutilise tel quel pour ne pas écrire deux fois la même préparation.
 import conftest  # noqa: E402
-from conftest import CANAL, demande, jeton_registre, mediateur  # noqa: E402
+from conftest import CANAL, brancher_les_registres_reels, demande, mediateur  # noqa: E402
 
-SUJET = "BF-0012"
+SUJET = "BF-0001"
 
 
 def preparer_les_consultations():
@@ -42,13 +41,8 @@ def preparer_les_consultations():
     mediateur.app.dependency_overrides[conftest.agent_connecte] = lambda: {
         "nom": agent["nom"], "jeton": conftest.JETON_AGENT, "groupes": conftest.AGENTS[agent["nom"]]}
 
-    def registre(requete):
-        corps = __import__("json").loads(requete.content)
-        return httpx.Response(200, json={"jeton": jeton_registre(corps)})
-
-    with respx.mock(assert_all_called=False) as faux, TestClient(mediateur.app) as client:
-        for url in (conftest.URL_REGISTRE, conftest.URL_NATIONALITE, conftest.URL_CASIER):
-            faux.post(url).mock(side_effect=registre)
+    with respx.mock, TestClient(mediateur.app) as client:
+        brancher_les_registres_reels()          # le vrai code des registres simulés, sans réseau
         # 1. Concours direct : base légale, réponse immédiate, l'usager le voit dans son historique
         client.post("/demandes", json=demande("concours-direct", sujet=SUJET))
         # 2. CEFORE : l'usager confirme (comme sur son téléphone), l'agent récupère la réponse
@@ -87,7 +81,7 @@ def main():
     servir(ussd.app, 8082)
     time.sleep(1)
     print("Démonstration locale prête (Ctrl+C pour arrêter) :\n"
-          "  portail web : http://127.0.0.1:8081/portail   (numéro 70000012, PIN 1234)\n"
+          "  portail web : http://127.0.0.1:8081/portail   (numéro 70000001, PIN 1234)\n"
           "  téléphone   : http://127.0.0.1:8082/          (même numéro, même PIN)\n"
           "  journal     : http://127.0.0.1:8000/journal/verification\n"
           "Registres simulés, données fictives.", flush=True)

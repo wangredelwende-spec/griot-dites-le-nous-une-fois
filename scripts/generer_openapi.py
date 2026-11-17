@@ -27,11 +27,12 @@ RACINE = Path(__file__).resolve().parents[1]
 # couche -> (fichier écrit, titre, description). Vocabulaire du sujet.
 COUCHES = {
     "registres": ("registres/openapi.yaml", "Registres (état civil, nationalité, casier)",
-                  "Chaque registre calcule l'attribut minimal demandé et le SIGNE avec sa propre clé Ed25519. "
+                  "Chaque registre expose la fiche d'un citoyen par son identifiant (404 si inconnu), selon le contrat "
+                  "commun (PROVISOIRE : registres/contrat/contrat-provisoire.yaml, à remplacer par celui du jury). "
                   "Appelé par la passerelle d'échange seulement (réseau « registres »), jamais publié."),
     "passerelle": ("passerelle/openapi.yaml", "Passerelle d'échange",
                    "Fait circuler les pièces entre administrations : demande d'un agent (jeton Keycloak), appel des "
-                   "registres en parallèle avec délai, vérification des réponses signées, remise au guichet. "
+                   "registres en parallèle avec délai, validation des réponses contre le contrat, minimisation, remise au guichet. "
                    "Réseau interne seulement, jamais publiée par Caddy."),
     "consentement-minimisation": ("consentement-minimisation/openapi.yaml", "Consentement et minimisation",
                                   "Ce que l'usager voit AVANT l'envoi (aperçu exact) et ce qu'il décide : confirmer, "
@@ -75,6 +76,7 @@ def preparer_dossiers() -> Path:
                       GRIOT_PUBLIQUES=str(tmp / "publiques"),
                       GRIOT_CATALOGUE=str(RACINE / "consentement-minimisation/catalogue"),
                       GRIOT_ADAPTATEURS=str(RACINE / "registres/adaptateurs"),
+                      GRIOT_CONTRAT=str(RACINE / "registres/contrat/contrat-provisoire.yaml"),
                       GRIOT_VERIFIER=str(RACINE / "journal/verifier.py"))
     return tmp
 
@@ -147,6 +149,13 @@ def garder_la_couche(schema: dict, etiquette: str) -> dict:
 def contrat(couche: str) -> str:
     from fastapi.openapi.utils import get_openapi
     _, titre, description = COUCHES[couche]
+    if couche == "registres":
+        # Le contrat des registres EST leur OpenAPI : on le publie tel quel (c'est lui, pas le code, qui fait foi)
+        schema = yaml.safe_load((RACINE / "registres/contrat/contrat-provisoire.yaml").read_text(encoding="utf-8"))
+        schema["info"] = {"title": f"Griot : {titre}", "version": "1.0", "description": description}
+        entete = ("# Contrat d'API de la couche « Registres ». GÉNÉRÉ par scripts/generer_openapi.py à partir de\n"
+                  "# registres/contrat/contrat-provisoire.yaml (PROVISOIRE) : ne pas modifier à la main.\n")
+        return entete + yaml.safe_dump(schema, allow_unicode=True, sort_keys=False, width=120)
     schema = get_openapi(title=f"Griot : {titre}", version="1.0", description=description, routes=routes_de(couche))
     if couche in ETIQUETTES:
         schema = garder_la_couche(schema, ETIQUETTES[couche])

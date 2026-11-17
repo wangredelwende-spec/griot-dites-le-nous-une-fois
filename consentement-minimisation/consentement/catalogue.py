@@ -3,7 +3,9 @@ Aucune démarche n'est écrite dans le code.
 
 Trois sources, toutes en lecture seule :
 - consentement-minimisation/catalogue/annuaire.yaml  : les services demandeurs et les registres ;
-- registres/adaptateurs/<registre>.yaml : les attributs que chaque registre DÉCLARE savoir calculer ;
+- consentement-minimisation/catalogue/attributs.yaml : les attributs PERMIS (majeur, nationalite_bf…), pour quels services,
+  et comment la passerelle les calcule depuis la fiche du registre (noms de champs logiques ; ceux du contrat sont
+  dans correspondance.yaml) ;
 - consentement-minimisation/catalogue/demarches.yaml : les démarches (service, finalité, base, attributs et leurs paramètres).
 Un catalogue invalide est REFUSÉ avec toutes ses raisons : on ne devine pas une règle manquante. Le médiateur
 garde alors le dernier catalogue valide et continue de tourner (main.surveiller_catalogue).
@@ -14,7 +16,7 @@ from datetime import date, datetime, timezone
 
 import yaml
 
-from app.config import ADAPTATEURS, CATALOGUE      # chemins de la passerelle (même processus)
+from app.config import CATALOGUE, CONTRAT      # chemins de la passerelle (même processus)
 
 BASES = ("consentement", "base_legale")
 AUJOURDHUI = "aujourd'hui"
@@ -110,20 +112,32 @@ def charger(brut: bytes | None = None) -> dict:
     if not isinstance(demarches, dict):
         raise CatalogueInvalide("  - demarches.yaml : « demarches » doit contenir des blocs nommés")
 
-    # Attributs déclarés par les registres (et règle d'absence du casier)
-    attributs, absence_vierge, bases = {}, set(), {}
-    for registre in annuaire["registres"]:
-        conf = yaml.safe_load((ADAPTATEURS / f"{registre}.yaml").read_text(encoding="utf-8"))
-        bases[registre] = conf.get("bases") or {}     # mode accepté par service (consentement / base légale)
-        for code, a in conf["attributs"].items():
-            attributs[code] = {"registre": registre, "regle": a["regle"], "claim": a["claim"],
-                               "services": a.get("services", []),
-                               "champs": a.get("champs") or []}      # règle « champs » : cases renvoyées, rien d'autre
-        if conf.get("absence") == "vierge":
-            absence_vierge.add(registre)
+    # Attributs permis (attributs.yaml) : chacun dit quel registre le fournit, comment le calculer, pour quels services
+    try:
+        declares = (yaml.safe_load((CATALOGUE / "attributs.yaml").read_text(encoding="utf-8")) or {}).get("attributs") or {}
+    except (OSError, yaml.YAMLError) as e:
+        raise CatalogueInvalide(f"  - attributs.yaml illisible : {str(e)[:300]}")
+    attributs = {}
+    problemes_registres = []
+    for code, a in declares.items():
+        if a.get("registre") not in annuaire["registres"]:
+            problemes_registres.append(f"attribut « {code} » : registre « {a.get('registre')} » absent de l'annuaire")
+            continue
+        attributs[code] = {"registre": a["registre"], "regle": a["regle"], "champ": a.get("champ"),
+                           "valeur": a.get("valeur"), "services": a.get("services", []),
+                           "champs": a.get("champs") or []}      # règle « champs » : cases renvoyées, rien d'autre
+    # Chaque registre de l'annuaire doit avoir sa route DANS LE CONTRAT (le contrat se remplace par configuration)
+    try:
+        routes = (yaml.safe_load(CONTRAT.read_text(encoding="utf-8")) or {}).get("paths") or {}
+    except (OSError, yaml.YAMLError) as e:
+        raise CatalogueInvalide(f"  - contrat illisible ({CONTRAT}) : {str(e)[:300]}")
+    for code, r in annuaire["registres"].items():
+        if r.get("chemin") not in routes:
+            problemes_registres.append(f"registre « {code} » : route « {r.get('chemin')} » absente du contrat")
+    absence_vierge = set()          # (ancien réglage du casier simulé, désactivé : un citoyen inconnu = 404 = refus)
 
     identifiant = annuaire.get("identifiant_usager") or {"format": r"^[A-Za-z0-9-]{1,64}$", "exemple": "BF-0001"}
-    erreurs = valider(demarches, annuaire["services"], attributs)
+    erreurs = problemes_registres + valider(demarches, annuaire["services"], attributs)
     try:
         if not re.fullmatch(identifiant["format"], str(identifiant["exemple"])):
             erreurs.append("annuaire : l'exemple d'identifiant ne respecte pas son propre format")
@@ -132,8 +146,8 @@ def charger(brut: bytes | None = None) -> dict:
     if erreurs:
         raise CatalogueInvalide("\n".join(f"  - {e}" for e in erreurs))
 
-    # Double clé (services ET paramètres) : une démarche que le REGISTRE refuserait est refusée dès le
-    # chargement, au lieu d'apparaître au guichet puis d'échouer à chaque demande.
+    # Attributs permis (services ET paramètres) : une démarche qui demanderait ce que son service n'a pas le droit
+    # d'obtenir est refusée dès le chargement, au lieu d'apparaître au guichet puis d'échouer à chaque demande.
     for code, d in demarches.items():
         for a in d["attributs"]:
             a["parametres"] = {k: v.isoformat() if isinstance(v, date) else v
@@ -142,17 +156,12 @@ def charger(brut: bytes | None = None) -> dict:
             registre = attributs[a["attribut"]]["registre"]
             for service in d["services"]:
                 if service not in autorisations:
-                    erreurs.append(f"démarche « {code} » : le registre {registre} n'autorise pas {service} "
+                    erreurs.append(f"démarche « {code} » : attributs.yaml n'autorise pas {service} "
                                    f"à demander « {a['attribut']} » (double clé)")
                 elif isinstance(autorisations, dict) and not any(
                         comparable(p) == comparable(a["parametres"]) for p in autorisations[service] or []):
-                    erreurs.append(f"démarche « {code} » : le registre {registre} n'autorise pas ces paramètres "
+                    erreurs.append(f"démarche « {code} » : attributs.yaml n'autorise pas ces paramètres "
                                    f"pour {service} (seuil ou date non déclaré, double clé)")
-                if not base_declaree(bases[registre].get(service) or {}, d["base"], d.get("texte", "")):
-                    erreurs.append(f"démarche « {code} » : le registre {registre} n'accepte pas la base "
-                                   f"« {d['base']} » pour {service}"
-                                   + (" (aucune référence de texte déclarée par le registre dans le texte cité)"
-                                      if d["base"] == "base_legale" else "") + " (double clé)")
     erreurs = list(dict.fromkeys(erreurs))          # une même erreur par registre, pas une par attribut
     if erreurs:
         raise CatalogueInvalide("\n".join(f"  - {e}" for e in erreurs))

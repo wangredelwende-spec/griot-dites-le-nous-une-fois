@@ -1,0 +1,100 @@
+# PROVISOIRE — à remplacer par le contrat du jury
+#
+# Contrat OpenAPI commun aux 3 registres (état civil, nationalité, casier), écrit par l'équipe en attendant le
+# contrat officiel du jury. Une route par registre : lire la fiche d'un citoyen par son identifiant ; 404 si le
+# citoyen est inconnu. Les noms de champs ci-dessous sont NOS hypothèses : ils ne sont écrits qu'ici et dans
+# consentement-minimisation/catalogue/correspondance.yaml.
+#
+# Remplacer ce contrat = remplacer ce fichier (GRIOT_CONTRAT), remplir correspondance.yaml, remplacer la liste des
+# citoyens, puis relancer les tests (README.md). Les réponses des registres sont validées contre ce fichier :
+# une réponse non conforme est rejetée et écrite au journal.
+openapi: 3.1.0
+info:
+  title: Contrat des registres (PROVISOIRE)
+  version: 0.0.1-provisoire
+paths:
+  /etat-civil/{id}:
+    get:
+      summary: Fiche d'état civil d'un citoyen
+      operationId: lireEtatCivil
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: La fiche
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/EtatCivil"}
+        "404":
+          description: Citoyen inconnu
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Erreur"}
+  /nationalite/{id}:
+    get:
+      summary: Nationalité d'un citoyen
+      operationId: lireNationalite
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: La fiche
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Nationalite"}
+        "404":
+          description: Citoyen inconnu
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Erreur"}
+  /casier/{id}:
+    get:
+      summary: Casier judiciaire d'un citoyen (nombre de condamnations)
+      operationId: lireCasier
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: La fiche
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Casier"}
+        "404":
+          description: Citoyen inconnu
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Erreur"}
+components:
+  schemas:
+    EtatCivil:
+      type: object
+      additionalProperties: false
+      required: [id, nom, prenoms, date_naissance, lieu_naissance, pere, mere, date_deces]
+      properties:
+        id: {type: string, minLength: 1}
+        nom: {type: string, minLength: 1}
+        prenoms: {type: string, minLength: 1}
+        date_naissance: {type: string, minLength: 1}      # AAAA-MM-JJ ; une date incomplète est refusée par la passerelle
+        lieu_naissance: {type: string, minLength: 1}
+        pere: {type: string}
+        mere: {type: string}
+        date_deces: {type: [string, "null"]}               # vide ou null : vivant
+    Nationalite:
+      type: object
+      additionalProperties: false
+      required: [id, nationalite]
+      properties:
+        id: {type: string, minLength: 1}
+        nationalite: {type: string, minLength: 1}
+    Casier:
+      type: object
+      additionalProperties: false
+      required: [id, nombre_condamnations]
+      properties:
+        id: {type: string, minLength: 1}
+        nombre_condamnations: {type: integer, minimum: 0}
+    Erreur:
+      type: object
+      required: [detail]
+      properties:
+        detail: {type: string}

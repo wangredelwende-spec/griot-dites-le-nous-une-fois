@@ -73,6 +73,7 @@ def test_demarche_a_coller_en_direct(monkeypatch, tmp_path):
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
     (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
+    (dossier / "attributs.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/attributs.yaml").read_bytes())
     a_coller = "\n".join(l for l in (RACINE / "docs/demarche_a_coller.yaml").read_text(encoding="utf-8").splitlines()
                          if not l.startswith("#"))
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8").rstrip("\n") + "\n" + a_coller + "\n"
@@ -150,6 +151,7 @@ def test_catalogue_invalide_refuse_ancien_garde(monkeypatch, tmp_path, ajout, ra
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
     (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
+    (dossier / "attributs.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/attributs.yaml").read_bytes())
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     monkeypatch.setattr(mediateur, "CAT", mediateur.CAT)
@@ -193,27 +195,10 @@ def test_demarche_refusee_de_la_demo(monkeypatch, tmp_path):
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
     (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
+    (dossier / "attributs.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/attributs.yaml").read_bytes())
     a_coller = "\n".join(l for l in (RACINE / "docs/demarche_refusee.yaml").read_text(encoding="utf-8").splitlines()
                          if not l.startswith("#"))
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8").rstrip("\n") + "\n" + a_coller + "\n"
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     with pytest.raises(catalogue.CatalogueInvalide, match="attribut inconnu « date_naissance »"):
         catalogue.charger(texte.encode("utf-8"))
-
-
-def test_cefore_en_base_legale_refuse_au_chargement(monkeypatch, tmp_path):
-    """Passer le CEFORE en base légale dans le catalogue : refusé au chargement (l'état civil et le casier n'ont
-    déclaré que le consentement pour le CEFORE). Le registre refuse aussi : test_registre.py."""
-    texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
-    avant = """    base: consentement
-    duree_accord_heures: 168          # 7 jours : le temps de constituer le dossier
-"""
-    assert avant in texte
-    texte = texte.replace(avant, """    base: base_legale
-    texte: Décret relatif à l'immatriculation (texte inventé pour le test)
-""")
-    with pytest.raises(catalogue.CatalogueInvalide) as refus:
-        catalogue.charger(texte.encode("utf-8"))
-    for registre in ("etat-civil", "casier"):
-        assert (f"démarche « entreprise-individuelle-cefore » : le registre {registre} n'accepte pas la base "
-                f"« base_legale » pour cefore") in str(refus.value)

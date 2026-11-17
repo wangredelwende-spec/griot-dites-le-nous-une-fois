@@ -28,13 +28,13 @@
   {% else %}
   <p class="resultat"><strong>{% if not r.valeur and l.si_non %}{{ l.si_non }}{% else %}{{ l.libelle }} : {{ "oui" if r.valeur else "non" }}{% endif %}</strong></p>
   {% endif %}
-  <p>Signé par le {{ r.registre }}, signature vérifiée, valable jusqu'à {{ r.jusqu_a }}.
-  <span class="aide">Clé du registre : <code>{{ r.cle }}</code>.</span></p>
+  <p>Fourni par le {{ r.registre }} via la passerelle, validé selon le contrat des registres.
+  <span class="aide">Seul ce résultat vous est transmis, jamais la fiche du citoyen.</span></p>
 </div>
 {% elif r.refus %}
 <div class="erreur" role="alert">
   <p><strong>{{ l.libelle }} : refusé par le {{ r.registre }}</strong> : {{ r.refus }}.</p>
-  <p>Réponse signée par le registre, signature vérifiée (clé du registre : <code>{{ r.cle }}</code>).</p>
+  <p>Réponse de la passerelle, validée selon le contrat des registres.</p>
 </div>
 {% elif r.indisponible %}
 <div class="erreur" role="alert">

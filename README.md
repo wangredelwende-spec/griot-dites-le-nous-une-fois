@@ -10,13 +10,28 @@ Passerelle d'interopérabilité libre (AGPL-3.0) : les pièces circulent entre a
 Les trois démarches du catalogue actif (concours direct de la fonction publique, entreprise individuelle au CEFORE,
 certificat de nationalité) sont **choisies en fonction des registres du contrat commun du jury** (état civil,
 nationalité, casier judiciaire). Si le contrat change ce que ces registres savent répondre, on change de démarche
-sans toucher au code :
+sans toucher au code : `consentement-minimisation/catalogue/demarches.yaml` (et `attributs.yaml` si un nouvel
+attribut est nécessaire). Le catalogue est relu à chaud et **validé** : une version invalide est refusée, l'ancienne
+reste en vigueur. Démarches retirées : `demarches-inactives.yaml`. Limites et fonctions désactivées : `LIMITES.md`.
 
-| Pour changer… | On modifie seulement |
-|---|---|
-| une démarche (finalité, demandeur, attributs permis, durée de l'accord) | `consentement-minimisation/catalogue/demarches.yaml` |
-| les noms de champs d'un registre | `consentement-minimisation/catalogue/correspondance.yaml` |
+## Remplacer le contrat (celui du jury, ou celui d'une autre équipe)
 
-Le catalogue est relu à chaud et **validé** : une version invalide est refusée, l'ancienne reste en vigueur.
-Les démarches retirées (passeport, bourse, majorité) sont conservées, inactives, dans `demarches-inactives.yaml`.
-Limites connues et fonctions désactivées : `LIMITES.md`.
+**Contrat actuel : PROVISOIRE** (`registres/contrat/contrat-provisoire.yaml`, citoyens : `registres/donnees/citoyens-provisoires.yaml`).
+Les réponses des registres sont validées contre le contrat : une réponse non conforme est rejetée et écrite au journal.
+Pour brancher le contrat du jury, **deux fichiers** (plus la liste des citoyens) :
+
+1. le **contrat** OpenAPI : le fichier désigné par `GRIOT_CONTRAT` (Docker : `CONTRAT_REGISTRES` dans `.env`) ;
+2. `consentement-minimisation/catalogue/correspondance.yaml` : pour chaque nom logique (`date_naissance`, `nationalite`…),
+   le nom du champ dans le contrat. Une valeur vide = refus (on ne devine pas) ;
+3. la **liste des citoyens** (`GRIOT_CITOYENS`, Docker : `CITOYENS_REGISTRES`), pour les registres simulés et les tests.
+
+Puis, si l'adresse ou la route d'un registre change : `registres:` dans `consentement-minimisation/catalogue/annuaire.yaml`
+(`url`, `chemin`, éventuellement une clé API de registre). Brancher le registre d'une autre équipe = ce seul bloc.
+Enfin : `.venv\Scripts\python -m pytest` (les tests lisent ces fichiers ; un nom de champ oublié dans
+`correspondance.yaml` fait échouer `test_correspondance_du_depot_couvre_le_contrat_et_les_attributs`).
+Avec un contrat ou une liste hors du dépôt : `$env:GRIOT_CONTRAT="…"; $env:GRIOT_CITOYENS="…"; .venv\Scripts\python -m pytest`.
+
+## Voir le portail sans Docker
+
+`.venv\Scripts\python scripts\demo_locale.py` puis http://127.0.0.1:8081/portail (numéro `70000001`, PIN `1234`) et
+http://127.0.0.1:8082/ (simulateur `*226#`). Registres simulés, données fictives.

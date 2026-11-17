@@ -1,20 +1,19 @@
-# CORRESPONDANCE DES CHAMPS : l'UNIQUE endroit où figurent les noms de champs des registres du jury.
+# CORRESPONDANCE DES CHAMPS : l'UNIQUE endroit où figurent les noms de champs des registres du contrat.
 #
-# À remplir à l'arrivée du contrat OpenAPI. À gauche : le nom que la passerelle utilise (ne pas changer) ;
-# à droite : le nom du champ dans la réponse du registre (le contrat). Tant qu'une valeur est vide (null),
-# la minimisation REFUSE (« correspondance non renseignée ») : on ne devine jamais un nom de champ.
-#
-# Rien d'autre à changer pour brancher un registre : le code ne contient aucun nom de champ du contrat.
+# PROVISOIRE : rempli d'après registres/contrat/contrat-provisoire.yaml. À refaire quand le contrat du jury arrive.
+# À gauche : le nom que la passerelle utilise (ne pas changer) ; à droite : le nom du champ dans la réponse du
+# registre (le contrat). Une valeur vide (null) = « correspondance non renseignée » : la minimisation REFUSE,
+# on ne devine jamais un nom de champ.
 registres:
   etat-civil:
-    nom: null
-    prenoms: null
-    date_naissance: null
-    lieu_naissance: null
-    pere: null
-    mere: null
-    date_deces: null
+    nom: nom
+    prenoms: prenoms
+    date_naissance: date_naissance
+    lieu_naissance: lieu_naissance
+    pere: pere
+    mere: mere
+    date_deces: date_deces
   nationalite:
-    nationalite: null
+    nationalite: nationalite
   casier:
-    nombre_condamnations: null
+    nombre_condamnations: nombre_condamnations

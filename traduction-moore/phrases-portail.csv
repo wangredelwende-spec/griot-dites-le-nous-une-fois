@@ -74,3 +74,4 @@ journal_ok;Journal;Journal intègre : {n} lignes, aucune modifiée.;;;
 journal_ko;Journal;ATTENTION : la ligne {n} du journal a été modifiée.;;;
 journal_indispo;Journal;Vérification du journal impossible pour le moment.;;;
 accord_valable;Retrait;accord valable : les prochaines demandes de ce service passeront sans nouvelle confirmation;;;
+nb_consultations;Historique;Vos données ont été consultées ou demandées {n} fois (voir la liste).;;;

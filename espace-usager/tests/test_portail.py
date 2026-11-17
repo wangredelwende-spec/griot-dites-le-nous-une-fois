@@ -48,6 +48,10 @@ def remise_a_zero(monkeypatch):
         return {"etat": "ok", "texte": "Journal intègre : 3 lignes, aucune modifiée."}
     monkeypatch.setattr(portail, "badge_journal", journal_ok)
 
+    async def deux(_s):
+        return 2
+    monkeypatch.setattr(portail, "nombre_de_consultations", deux)
+
 
 class Navigateur:
     def __init__(self):
@@ -210,6 +214,7 @@ def test_consultations_disent_qui_quoi_quand_pourquoi_sans_valeur():
                     "Pour : attribution de la bourse nationale"):
         assert attendu in page
     assert "= oui" not in page and "intègre" in page
+    assert "consultées ou demandées 1 fois" in page                      # compteur
 
 
 @respx.mock

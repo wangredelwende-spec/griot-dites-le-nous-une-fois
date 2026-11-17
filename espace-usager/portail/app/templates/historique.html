@@ -2,6 +2,7 @@
 {% block contenu %}
 <h1>{{ t.historique_titre }}</h1>
 {% include "badge_journal.html" %}
+<p class="compteur">{{ t.nb_consultations.format(n=consultations) }}</p>
 <p class="petit">{{ t.historique_aide }}</p>
 <ul class="liste">
 {% for l in lignes %}

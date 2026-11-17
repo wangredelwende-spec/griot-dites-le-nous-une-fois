@@ -156,6 +156,11 @@ def sante():
     return PlainTextResponse("ok")
 
 
+async def nombre_de_consultations(s: dict) -> int:
+    """Compteur de l'accueil : les mêmes lignes que « Qui a consulté mes données »."""
+    return len(await historique_de(s))
+
+
 async def badge_journal() -> dict:
     """Badge « journal intègre » : la passerelle recalcule toute la chaîne (GET /journal/verification). Si la
     vérification est impossible, on le dit : jamais de faux « intègre »."""
@@ -174,7 +179,9 @@ async def accueil(request: Request):
     if s is None:
         return page(request, "connexion.html", {})
     attente = (await mediateur("GET", f"/usagers/{ref(s)}/en-attente")).json()
-    return page(request, "accueil.html", {"nombre": len(attente), "journal": await badge_journal()})
+    consultations = await nombre_de_consultations(s)
+    return page(request, "accueil.html", {"nombre": len(attente), "consultations": consultations,
+                                          "journal": await badge_journal()})
 
 
 @app.post(f"{RACINE}/connexion")
@@ -256,7 +263,8 @@ async def historique(request: Request, page_n: int = 0):
     page_n = max(0, page_n)
     debut = page_n * PAR_PAGE
     return page(request, "historique.html", {"lignes": lignes[debut:debut + PAR_PAGE], "page_n": page_n,
-                                             "suite": debut + PAR_PAGE < len(lignes), "journal": await badge_journal()})
+                                             "suite": debut + PAR_PAGE < len(lignes), "journal": await badge_journal(),
+                                             "consultations": len(lignes)})
 
 
 @app.get(f"{RACINE}/historique/{{n}}")

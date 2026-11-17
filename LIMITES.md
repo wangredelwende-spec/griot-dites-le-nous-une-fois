@@ -7,6 +7,12 @@
   En production : connexion par l'identifiant unique électronique.
 - **Textes de loi** des démarches : références à faire valider (voir `catalogue/`).
 
+- **Portail web usager** (`/portail`) : même connexion que l'USSD (numéro + PIN de démo). Le compteur de PIN faux
+  est tenu par chaque écran, en mémoire : 3 essais sur l'USSD et 3 sur le portail par période de 5 minutes, remis
+  à zéro si l'écran redémarre. En production : PIN (ou identifiant unique électronique) géré par le fournisseur
+  d'identité, compteur unique. Portail en français seulement : les noms des services et des attributs viennent du
+  catalogue, écrit en français (`traduction-moore/phrases-portail.csv` est prêt, colonne mooré vide).
+
 ## Règles de données à confirmer
 
 - **Personne absente du casier** : le vrai casier ne contient que les condamnations ; une personne jamais condamnée

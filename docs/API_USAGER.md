@@ -1,15 +1,19 @@
 # API usager du médiateur (figée le 16/11/2026, catalogue multi-attributs le 16/11 après-midi)
 
-Utilisée par les écrans usager : **USSD simulé** (`ussd_sim/`, d'abord) puis portail web.
+Utilisée par les écrans usager : **USSD simulé** (`ussd_sim/`) et **portail web** (`portail_usager/`, `/portail`).
 Elle est indépendante de l'écran : le texte d'aperçu est fourni, mais aussi ses morceaux, pour
 composer l'écran dans une autre langue (mooré).
 
 ## Accès
 
 - Adresse : `http://mediateur:8000`, **réseau Docker `interne` seulement** (jamais publiée par Caddy).
-- Chaque appel porte l'en-tête `X-Cle-Canal: <secret>` ; le secret est le fichier `/run/secrets/canal_usager`
-  (variable `CANAL_USAGER_SECRET` du `.env`). Sans lui : `401`.
-- **L'écran authentifie l'usager** (USSD : numéro + PIN ; portail : Keycloak) et ne transmet que SON `sujet_ref`.
+- Chaque appel porte l'en-tête `X-Cle-Canal: <secret>`. **Un secret par écran** : `/run/secrets/canal_usager`
+  (USSD, `CANAL_USAGER_SECRET`) et `/run/secrets/canal_web` (portail, `CANAL_WEB_SECRET`). Sans secret valide : `401`.
+  Un secret vide ferme cet écran.
+- **Canal** : le médiateur déduit du secret présenté d'où vient l'action (`ussd` ou `web`) et l'écrit dans la
+  colonne `canal` du journal pour confirmer, refuser et retirer. L'écran ne le déclare pas : il ne peut pas mentir.
+- **L'écran authentifie l'usager** (USSD et portail : numéro + PIN, même annuaire, blocage 5 min après 3 PIN faux)
+  et ne transmet que SON `sujet_ref`.
 - `sujet_ref` : lettres, chiffres et tirets, 1 à 64 caractères (ex. `BF-0012`).
 
 ## 1. Demandes en attente
@@ -79,7 +83,7 @@ composer l'écran dans une autre langue (mooré).
   "attributs": [{"code": "age_entre", "libelle": "âge de 18 à 37 ans au 31/12/2026"},
                 {"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"},
                 {"code": "casier_judiciaire_vierge", "libelle": "casier judiciaire vierge"}],
-  "evenement": "remise", "resultat": "ok", "motif": "",
+  "evenement": "remise", "resultat": "ok", "motif": "", "canal": "",
   "empreinte": "038672c337eaa71a…"}]
 ```
 
@@ -88,6 +92,9 @@ composer l'écran dans une autre langue (mooré).
 - `attributs` : ce que concerne la ligne (une ligne `reponse-registre` ne concerne qu'un attribut).
 - `evenement` : `demande` | `reponse-registre` | `confirmation` | `refus-usager` | `remise` | `expiration` | `alerte` | `retrait`.
 - `resultat` : `ok` | `refuse` | `indisponible`. `motif` explique un refus.
+- `canal` (ajouté le 17/11) : `ussd` ou `web` pour une action de l'usager (confirmation, refus, retrait) ; vide pour
+  les lignes de l'agent et du médiateur. Lignes écrites avant le 17/11 : vide (colonne NULL, exclue du calcul de
+  l'empreinte, donc les reçus déjà remis restent valables).
 - **Reçu** = 16 premiers caractères de `empreinte` (64 bits), affichés « 9035 47b3 1c2e 9f04 ». Il se vérifie avec
   `docker compose exec mediateur python /journal/verifier.py --recu "9035 47b3 1c2e 9f04"`.
 - Pour un écran court, ne garder que les lignes `remise`, `refus-usager`, `expiration` et `alerte`.

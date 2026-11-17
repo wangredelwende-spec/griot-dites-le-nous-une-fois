@@ -194,6 +194,22 @@ apparaît dans l'historique de l'usager avec le texte cité.
    Attendu : « OK Journal intègre : N lignes » puis « OK Reçu retrouvé : ligne …, confirmation (service-bourses) ».
    Un faux reçu (`--recu "0000 0000 0000 0000"`) → « ERREUR Reçu introuvable ».
 
+## Scène 3 bis (facultative) : le portail web, même journal que le *226#
+
+1. Guichet d'Awa : **Bourse nationale**, usager `BF-0012`, Envoyer → « En attente de l'usager ».
+2. Sur un téléphone ou en fenêtre étroite : https://usager.griot.test/portail → numéro `70000012`, PIN `1234`.
+   Attendu : menu de 3 entrées, « Demandes en attente » avec la pastille « 1 en attente ».
+3. **Demandes en attente** : « Le service des bourses recevra : nationalité burkinabè = oui. Rien d'autre. »,
+   « À confirmer avant HHhMM » → **Confirmer**. Attendu : « Confirmé », **Reçu : xxxx xxxx xxxx xxxx**. Noter le reçu.
+4. Guichet d'Awa → **Actualiser** : « nationalité burkinabè : oui », signature vérifiée.
+5. Onglet téléphone https://usager.griot.test → `70000012` → `*226#` → `1234` → `2` (Qui a consulté mes données).
+   Attendu : « … Bourses nation. accordé » ; taper son numéro : « … accordé **(web)** » et **le même reçu**.
+6. Portail → **Qui a consulté mes données** → la ligne « accordé » : finalité, « Avec votre accord »,
+   « Fait depuis : le portail web », le même reçu. Jamais « oui ».
+7. Le portail s'arrête seul : `docker compose stop portail` → /portail affiche « Portail web arrêté. Rien n'a été
+   transmis. Le service *226# reste disponible » ; le *226# marche toujours. `docker compose start portail` pour revenir.
+8. Blocage : 3 PIN faux sur le portail → « ce numéro est bloqué 5 minutes » (même règle que l'USSD).
+
 ## Scène 4 : ajouter une démarche en direct, sans toucher au code (moins de 2 minutes)
 
 Préparer avant : `catalogue\demarches.yaml` et `docs\demarche_a_coller.yaml` ouverts dans l'éditeur ; guichet

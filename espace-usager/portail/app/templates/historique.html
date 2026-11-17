@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 {% block contenu %}
 <h1>{{ t.historique_titre }}</h1>
+{% include "badge_journal.html" %}
 <p class="petit">{{ t.historique_aide }}</p>
 <ul class="liste">
 {% for l in lignes %}
   <li><a href="{{ racine }}/historique/{{ l.n }}">
     <span class="petit">{{ l.date }}</span><br>
     <strong>{{ l.service }}</strong> · {{ l.attributs | map(attribute="libelle") | join(", ") }}
-    · <span class="etat {{ l.evenement }}">{{ l.etat }}</span>
+    · <span class="etat {{ l.evenement }}">{{ l.etat }}</span><br>
+    <span class="petit">{{ t.pour }} {{ l.finalite }}</span>
   </a></li>
 {% else %}
   <li class="vide">{{ t.historique_vide }}</li>

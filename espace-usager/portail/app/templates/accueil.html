@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block contenu %}
 <p class="legende">{{ t.legende }}</p>
+{% include "badge_journal.html" %}
 <nav class="menu">
   <a href="{{ racine }}/attente">{{ t.menu_attente }}{% if nombre %} <span class="pastille">{{ t.n_attente.format(n=nombre) }}</span>{% endif %}</a>
   <a href="{{ racine }}/historique">{{ t.menu_historique }}</a>

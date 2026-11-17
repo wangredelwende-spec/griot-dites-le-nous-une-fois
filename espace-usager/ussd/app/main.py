@@ -27,6 +27,9 @@ MEDIATEUR = os.environ.get("MEDIATEUR", "http://mediateur:8000")
 FICHIER_ABONNES = Path(os.environ.get("ABONNES", "/app/abonnes.yaml"))   # annuaire USSD : numéro -> identifiant + PIN (fichier choisi dans .env)
 FICHIER_TEXTES = Path(os.environ.get("TEXTES", "/app/phrases-ussd.csv"))
 SECRETS = Path(os.environ.get("GRIOT_SECRETS", "/run/secrets"))
+# Cookie de session réservé à HTTPS (toujours dans Docker). « 0 » SEULEMENT pour la démonstration locale sans HTTPS
+# (scripts/demo_locale.py).
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "1") != "0"
 
 CODE_USSD = "*226#"
 LIMITE = 160            # caractères par écran
@@ -60,7 +63,7 @@ ECHECS_PIN: dict[str, list] = {}     # numéro -> [nombre d'échecs, bloqué jus
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(SessionMiddleware, secret_key=secrets.token_hex(32), session_cookie="ussd_session",
-                   https_only=True, same_site="lax", max_age=3600)
+                   https_only=COOKIE_SECURE, same_site="lax", max_age=3600)
 app.mount("/static", StaticFiles(directory=ICI / "static"), name="static")
 templates = Jinja2Templates(directory=ICI / "templates")
 

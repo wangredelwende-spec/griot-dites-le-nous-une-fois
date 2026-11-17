@@ -29,6 +29,9 @@ MEDIATEUR = os.environ.get("MEDIATEUR", "http://mediateur:8000")
 FICHIER_ABONNES = Path(os.environ.get("ABONNES", "/app/abonnes.yaml"))     # le même annuaire que l'USSD
 FICHIER_TEXTES = Path(os.environ.get("TEXTES", "/app/phrases-portail.csv"))
 SECRETS = Path(os.environ.get("GRIOT_SECRETS", "/run/secrets"))
+# Cookie de session réservé à HTTPS (toujours dans Docker). « 0 » SEULEMENT pour la démonstration locale sans HTTPS
+# (scripts/demo_locale.py).
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "1") != "0"
 
 RACINE = "/portail"      # Caddy envoie ici tout ce qui commence par /portail (le reste va à l'USSD)
 ESSAIS_PIN = 3           # mêmes règles que l'USSD
@@ -62,7 +65,7 @@ ECHECS_PIN: dict[str, list] = {}     # numéro -> [nombre d'échecs, bloqué jus
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(SessionMiddleware, secret_key=secrets.token_hex(32), session_cookie="portail_session",
-                   path=RACINE, https_only=True, same_site="lax", max_age=3600)
+                   path=RACINE, https_only=COOKIE_SECURE, same_site="lax", max_age=3600)
 app.mount(f"{RACINE}/static", StaticFiles(directory=ICI / "static"), name="static")
 templates = Jinja2Templates(directory=ICI / "templates")
 
@@ -153,13 +156,25 @@ def sante():
     return PlainTextResponse("ok")
 
 
+async def badge_journal() -> dict:
+    """Badge « journal intègre » : la passerelle recalcule toute la chaîne (GET /journal/verification). Si la
+    vérification est impossible, on le dit : jamais de faux « intègre »."""
+    try:
+        v = (await mediateur("GET", "/journal/verification")).json()
+    except (MediateurInjoignable, ValueError):
+        return {"etat": "indisponible", "texte": T["journal_indispo"]}
+    if v.get("integre"):
+        return {"etat": "ok", "texte": T["journal_ok"].format(n=v["lignes"])}
+    return {"etat": "ko", "texte": T["journal_ko"].format(n=v.get("premiere_ligne_modifiee"))}
+
+
 @app.get(RACINE)
 async def accueil(request: Request):
     s = session_de(request)
     if s is None:
         return page(request, "connexion.html", {})
     attente = (await mediateur("GET", f"/usagers/{ref(s)}/en-attente")).json()
-    return page(request, "accueil.html", {"nombre": len(attente)})
+    return page(request, "accueil.html", {"nombre": len(attente), "journal": await badge_journal()})
 
 
 @app.post(f"{RACINE}/connexion")
@@ -241,7 +256,7 @@ async def historique(request: Request, page_n: int = 0):
     page_n = max(0, page_n)
     debut = page_n * PAR_PAGE
     return page(request, "historique.html", {"lignes": lignes[debut:debut + PAR_PAGE], "page_n": page_n,
-                                             "suite": debut + PAR_PAGE < len(lignes)})
+                                             "suite": debut + PAR_PAGE < len(lignes), "journal": await badge_journal()})
 
 
 @app.get(f"{RACINE}/historique/{{n}}")

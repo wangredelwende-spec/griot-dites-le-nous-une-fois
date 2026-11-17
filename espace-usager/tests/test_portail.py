@@ -36,10 +36,17 @@ def ligne(n, evenement="confirmation", canal="web"):
             "evenement": evenement, "resultat": "ok", "motif": "", "canal": canal, "empreinte": EMPREINTE}
 
 
+VRAI_BADGE = portail.badge_journal
+
+
 @pytest.fixture(autouse=True)
-def remise_a_zero():
+def remise_a_zero(monkeypatch):
     portail.SESSIONS.clear()
     portail.ECHECS_PIN.clear()
+
+    async def journal_ok():          # les tests des badges rétablissent le vrai (VRAI_BADGE)
+        return {"etat": "ok", "texte": "Journal intègre : 3 lignes, aucune modifiée."}
+    monkeypatch.setattr(portail, "badge_journal", journal_ok)
 
 
 class Navigateur:
@@ -182,3 +189,55 @@ def test_deconnexion():
         nav.connecter()
     nav.client.post("/portail/deconnexion", data={"csrf": nav.csrf})
     assert nav.client.get("/portail/attente", follow_redirects=False).status_code == 303
+
+
+# --- Étape 5 : bandeau, consultations lisibles, accord retirable, badge « journal intègre » ---
+
+def test_bandeau_registres_simules_sur_toutes_les_pages():
+    nav = Navigateur()
+    assert "Registres simulés, données fictives du jury" in nav.client.get("/portail").text      # connexion
+    assert "Registres simulés" in nav.client.post("/portail/connexion", data={"csrf": nav.csrf, "numero": "1"}).text
+
+
+@respx.mock
+def test_consultations_disent_qui_quoi_quand_pourquoi_sans_valeur():
+    respx.get(f"{M}/usagers/BF-0012/historique").mock(return_value=httpx.Response(200, json=[ligne(12, "remise", "")]))
+    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
+    nav = Navigateur()
+    nav.connecter()
+    page = nav.client.get("/portail/historique").text
+    for attendu in ("Registres simulés", "Le service des bourses", "nationalité burkinabè", "17/11/2026 09h15",
+                    "Pour : attribution de la bourse nationale"):
+        assert attendu in page
+    assert "= oui" not in page and "intègre" in page
+
+
+@respx.mock
+def test_retirer_mon_accord_et_accord_valable():
+    accord = {"id_demande": "d-1", "code_service": "cefore", "service": "Le CEFORE", "demarche": "Entreprise",
+              "attributs": [{"code": "identite", "libelle": "identité"}], "transmis": True, "accord_valide": True}
+    respx.get(f"{M}/usagers/BF-0012/accords").mock(return_value=httpx.Response(200, json=[accord]))
+    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
+    nav = Navigateur()
+    nav.connecter()
+    page = nav.client.get("/portail/accords").text
+    assert "Retirer mon accord" in page and "accord valable" in page
+
+
+@respx.mock
+def test_badge_journal_integre_puis_ligne_modifiee_puis_verification_impossible(monkeypatch):
+    monkeypatch.setattr(portail, "badge_journal", VRAI_BADGE)
+    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
+    verification = respx.get(f"{M}/journal/verification")
+    nav = Navigateur()
+    nav.connecter()
+    verification.mock(return_value=httpx.Response(200, json={"statut": "OK", "integre": True, "lignes": 42,
+                                                             "premiere_ligne_modifiee": None, "message": ""}))
+    assert "Journal intègre : 42 lignes" in nav.client.get("/portail").text
+    verification.mock(return_value=httpx.Response(200, json={"statut": "ALTERE", "integre": False, "lignes": 42,
+                                                             "premiere_ligne_modifiee": 7, "message": ""}))
+    page = nav.client.get("/portail").text
+    assert "la ligne 7 du journal a été modifiée" in page and "intègre :" not in page
+    verification.mock(side_effect=httpx.ConnectError("coupé"))
+    page = nav.client.get("/portail").text
+    assert "Vérification du journal impossible" in page and "intègre :" not in page

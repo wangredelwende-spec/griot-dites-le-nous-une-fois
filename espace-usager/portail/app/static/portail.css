@@ -4,6 +4,11 @@
 body { margin: 0; font: 16px/1.45 system-ui, sans-serif; color: var(--texte); background: var(--fond); }
 header { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: var(--accent); }
 header a, header .lien { color: #fff; }
+.bandeau { margin: 0; padding: 6px 12px; background: #fff3cd; color: #5c4400; font-size: .85rem; text-align: center;
+            border-bottom: 1px solid #e0c36a; }
+.badge { padding: 8px 12px; border-radius: 6px; font-size: .9rem; margin: 0 0 12px; }
+.badge.ok { background: #e3f4e6; color: #1d5c2a; }
+.badge.ko { background: #fde8e6; color: var(--alerte); font-weight: 600; }
 .marque { font-weight: 700; text-decoration: none; }
 main { max-width: 34rem; margin: 0 auto; padding: 8px 16px 24px; }
 h1 { font-size: 1.25rem; margin: 16px 0 10px; }

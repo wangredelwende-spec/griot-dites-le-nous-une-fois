@@ -213,6 +213,10 @@ async def mediateur(methode: str, chemin: str, session: dict, **kwargs) -> dict:
         r = await client.request(methode, chemin, headers={"Authorization": f"Bearer {session['acces']}"}, **kwargs)
     if r.status_code == 401:
         raise NonConnecte()
+    # 403 (hors catalogue), 404 (citoyen inconnu), 503 (registre indisponible) : la passerelle renvoie la demande
+    # avec son motif, on l'affiche telle quelle (pas d'écran d'erreur)
+    if r.status_code in (403, 404, 503) and "id_demande" in r.json():
+        return r.json()
     r.raise_for_status()
     return r.json()
 

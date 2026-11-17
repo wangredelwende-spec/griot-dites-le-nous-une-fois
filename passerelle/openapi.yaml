@@ -41,6 +41,13 @@ paths:
           type: string
           default: ''
           title: Authorization
+      - name: x-cle-api
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: X-Cle-Api
       requestBody:
         required: true
         content:
@@ -53,6 +60,12 @@ paths:
           content:
             application/json:
               schema: {}
+        '403':
+          description: 'HORS_CATALOGUE : démarche, attributs ou finalité hors catalogue'
+        '404':
+          description: 'CITOYEN_INCONNU : aucun registre ne connaît cette personne'
+        '503':
+          description: 'REGISTRE_INDISPONIBLE : registre éteint ou trop lent ; démarche « en attente »'
         '422':
           description: Validation Error
           content:
@@ -79,12 +92,25 @@ paths:
           type: string
           default: ''
           title: Authorization
+      - name: x-cle-api
+        in: header
+        required: false
+        schema:
+          type: string
+          default: ''
+          title: X-Cle-Api
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema: {}
+        '403':
+          description: 'HORS_CATALOGUE : démarche, attributs ou finalité hors catalogue'
+        '404':
+          description: 'CITOYEN_INCONNU : aucun registre ne connaît cette personne'
+        '503':
+          description: 'REGISTRE_INDISPONIBLE : registre éteint ou trop lent ; démarche « en attente »'
         '422':
           description: Validation Error
           content:

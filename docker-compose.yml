@@ -159,7 +159,7 @@ services:
     image: griot-mediateur:local
     restart: unless-stopped
     environment:
-      DELAI_REGISTRE: "3"                  # secondes avant de déclarer un registre indisponible
+      DELAI_REGISTRE: "2"                  # secondes par essai (1 réessai) avant de déclarer un registre indisponible
       OUTILS_TEST: ${OUTILS_TEST:-0}       # comptes de test (outil-test-*) refusés sauf si 1
       DUREE_CONSENTEMENT: "600"            # 10 minutes pour confirmer
       LIMITE_PAR_CITOYEN: "0"              # 0 = désactivé (gênerait l'épreuve en direct) ; mettre 5 pour réactiver

@@ -37,6 +37,19 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
 | Signature Ed25519 des réponses des registres + double clé côté registre | **à désactiver à l'adaptation des registres au contrat du jury** (le contrat ne prévoit pas de signature) | — |
 | Double trace des registres (`verifier.py --registres`) | idem, liée à la signature | — |
 
+## Appels aux registres et clés API (17/11)
+
+- Délai de 2 s par essai (`DELAI_REGISTRE`) et **un seul réessai**, seulement si le registre ne répond pas à temps ou est
+  injoignable. Un 404 n'est jamais réessayé.
+- Codes de la passerelle : **503** `REGISTRE_INDISPONIBLE` (démarche « en attente », rien n'est deviné), **404**
+  `CITOYEN_INCONNU`, **403** `HORS_CATALOGUE` (démarche, attributs ou finalité non prévus). Le corps contient toujours la
+  demande et son motif.
+- Une clé API par administration (en-tête `X-Cle-Api`), empreinte SHA-256 dans `annuaire.yaml`. Les clés du dépôt
+  (`cle-demo-…`) sont des **clés de démonstration publiques**. Une demande par clé API n'a **pas de jeton Keycloak** : les
+  registres actuels, qui exigent ce jeton (double clé), la refusent tant qu'ils ne sont pas adaptés au contrat du jury.
+- Clé API d'un registre : `en_tete_cle` + `cle_secret` dans `annuaire.yaml` (nom de l'en-tête, fichier dans `/run/secrets`).
+  Aucun registre n'en déclare pour l'instant : l'en-tête attendu dépend du contrat du jury.
+
 ## Limites de débit (démonstration)
 
 - Quota « 5 demandes par service et par personne en 24 h » (`LIMITE_PAR_CITOYEN`) : **désactivé** (valeur 0),

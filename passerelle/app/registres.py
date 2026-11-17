@@ -27,19 +27,36 @@ class ReponseCorrompue(Exception):
     pass
 
 
-async def appeler(url: str, corps: dict, delai: float, jeton_agent: str = "") -> str:
-    """Renvoie le jeton signé du registre. Le délai est appliqué à chaque étape par httpx ET au total
-    (asyncio.wait_for) : un registre qui répond goutte à goutte ne bloque jamais le guichet."""
-    try:
-        async with httpx.AsyncClient(timeout=delai, verify=CONTEXTE_TLS) as client:
-            # Le jeton de l'agent accompagne la demande : le registre vérifie lui-même qui demande
-            r = await asyncio.wait_for(client.post(f"{url}/attributs", json=corps,
-                                                   headers={"Authorization": f"Bearer {jeton_agent}"}),
-                                       timeout=delai)
-    except (asyncio.TimeoutError, httpx.TimeoutException):
-        raise Indisponible(f"délai dépassé ({delai:g} s)")
-    except httpx.HTTPError:
-        raise Indisponible("registre injoignable")
+class CitoyenInconnu(Exception):
+    """Le registre répond 404 : il ne connaît pas cette personne (ce n'est PAS une panne)."""
+
+
+TENTATIVES = 2     # un appel + 1 réessai, seulement si le registre n'a pas répondu à temps ou est injoignable
+
+
+async def appeler(url: str, corps: dict, delai: float, jeton_agent: str = "", cle_api: tuple | None = None) -> str:
+    """Renvoie le jeton signé du registre. Le délai (2 s par défaut) est appliqué à chaque étape par httpx ET au
+    total (asyncio.wait_for) : un registre qui répond goutte à goutte ne bloque jamais le guichet.
+    Un seul réessai, et seulement si le registre n'a pas répondu à temps ou est injoignable.
+    « cle_api » = (nom de l'en-tête, valeur) si le registre en exige une (déclarée dans annuaire.yaml)."""
+    entetes = {"Authorization": f"Bearer {jeton_agent}"}
+    if cle_api:
+        entetes[cle_api[0]] = cle_api[1]
+    for tentative in range(1, TENTATIVES + 1):
+        try:
+            async with httpx.AsyncClient(timeout=delai, verify=CONTEXTE_TLS) as client:
+                # Le jeton de l'agent accompagne la demande : le registre vérifie lui-même qui demande
+                r = await asyncio.wait_for(client.post(f"{url}/attributs", json=corps, headers=entetes),
+                                           timeout=delai)
+            break
+        except (asyncio.TimeoutError, httpx.TimeoutException):
+            if tentative == TENTATIVES:
+                raise Indisponible(f"délai dépassé ({delai:g} s, {TENTATIVES} essais)")
+        except httpx.HTTPError:
+            if tentative == TENTATIVES:
+                raise Indisponible("registre injoignable")
+    if r.status_code == 404:
+        raise CitoyenInconnu("citoyen inconnu de ce registre")
     if r.status_code != 200:
         raise Indisponible(f"registre en erreur (HTTP {r.status_code})")
     try:

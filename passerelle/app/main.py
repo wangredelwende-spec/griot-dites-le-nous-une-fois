@@ -24,14 +24,14 @@ import time
 
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from consentement import catalogue, usager  # couche consentement-minimisation (même processus)
 from consentement.usager import apercu, finalites_traduites, libelles, rafraichir  # noqa: F401 (apercu : tests)
-from . import registres
+from . import agents as modele_agents, registres
 from .agents import agent_connecte, controleur_connecte
-from .config import (CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FENETRE_LIMITE,
+from .config import (CLES_PUBLIQUES, SECRETS, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FENETRE_LIMITE,
                      JOURNAL_VERIFIER, LIMITE_EXEMPTES, LIMITE_PAR_CITOYEN, LIMITE_SUJETS, OUTILS_TEST,
                      lire_secret)
 from tracabilite.journal import Journal     # couche journal (même processus)
@@ -55,6 +55,7 @@ def essayer_catalogue(brut: bytes) -> tuple[dict | None, str]:
 
 _brut = (catalogue.CATALOGUE / "demarches.yaml").read_bytes()
 CAT, _raison = essayer_catalogue(_brut)
+modele_agents.services_de_l_annuaire = lambda: CAT["services"]    # clés API des administrations
 if CAT is None:
     print(f"CATALOGUE INVALIDE, refusé :\n{_raison}", flush=True)
     REFUS_CATALOGUE = {"empreinte": hashlib.sha256(_brut).hexdigest(), "raison": _raison,
@@ -324,6 +325,17 @@ def remettre(demande: dict) -> dict:
 
 # --- Appel des registres ---
 
+def cle_du_registre(registre: dict) -> tuple[str, str] | None:
+    """Clé API d'un registre, si annuaire.yaml en déclare une : « en_tete_cle » (nom de l'en-tête) et « cle_secret »
+    (nom du fichier dans /run/secrets). Rien d'autre n'est écrit dans le code : on branche un registre par configuration."""
+    if not registre.get("en_tete_cle") or not registre.get("cle_secret"):
+        return None
+    try:
+        return registre["en_tete_cle"], (SECRETS / registre["cle_secret"]).read_text(encoding="utf-8").strip()
+    except OSError:
+        raise registres.Indisponible(f"{registre['nom']} : clé API illisible")
+
+
 async def interroger(demande: dict, code: str, parametres: dict, sujet_ref: str,
                      jeton_agent: str) -> tuple[str, bool | str, str]:
     """Demande UN attribut à son registre et vérifie TOUTE la réponse signée.
@@ -338,7 +350,7 @@ async def interroger(demande: dict, code: str, parametres: dict, sujet_ref: str,
              "texte": CAT["demarches"].get(demande["demarche"], {}).get("texte", "") if demande["base"] == "base_legale"
              else ""}
     try:
-        jeton = await registres.appeler(registre["url"], corps, DELAI_REGISTRE, jeton_agent)
+        jeton = await registres.appeler(registre["url"], corps, DELAI_REGISTRE, jeton_agent, cle_du_registre(registre))
         # La clé publique vient du volume du registre, monté en LECTURE SEULE ici
         cle_publique = (CLES_PUBLIQUES / attribut["registre"] / "cle.pem").read_bytes()
     except registres.Indisponible as e:
@@ -380,9 +392,18 @@ async def traiter_volet(demande: dict, demande_attribut: dict, sujet_ref: str, j
         volet.update(statut="indisponible", motif=motif[0].upper() + motif[1:])
         tracer(demande, "reponse-registre", "indisponible", volet["motif"], attribut=code, registre=registre)
         return volet
+    except registres.CitoyenInconnu:
+        volet["motif"] = MOTIF_INCONNU
+        tracer(demande, "reponse-registre", "refuse", MOTIF_INCONNU, attribut=code, registre=registre)
+        return volet
     except registres.ReponseCorrompue as e:
         volet["motif"] = f"réponse corrompue : {e}"
         tracer(demande, "alerte", "refuse", volet["motif"], attribut=code, registre=registre)
+        return volet
+    except Exception as e:                   # jamais de plantage : une erreur imprévue = « indisponible », au journal
+        volet.update(statut="indisponible", motif="Erreur interne, rien n'a été deviné")
+        tracer(demande, "alerte", "indisponible", f"erreur interne ({type(e).__name__})", attribut=code,
+               registre=registre)
         return volet
 
     if statut == "refus":
@@ -478,8 +499,33 @@ def sante():
     return PlainTextResponse("ok")
 
 
-@app.post("/demandes", tags=[PASSERELLE])
+MOTIF_INCONNU = "citoyen inconnu"
+# Refus « hors catalogue » (service, démarche, attributs ou finalité non prévus) -> HTTP 403
+HORS_CATALOGUE = ("service de l'agent indéterminé", "démarche non autorisée", "attributs non autorisés",
+                  "finalité non autorisée")
+REPONSES_HTTP = {403: {"description": "HORS_CATALOGUE : démarche, attributs ou finalité hors catalogue"},
+                 404: {"description": "CITOYEN_INCONNU : aucun registre ne connaît cette personne"},
+                 503: {"description": "REGISTRE_INDISPONIBLE : registre éteint ou trop lent ; démarche « en attente »"}}
+
+
+def reponse_http(corps: dict):
+    """Code HTTP déduit de l'état de la demande (donc identique quand une demande est rejouée) :
+    503 registre indisponible, 404 citoyen inconnu, 403 hors catalogue, sinon 200. Le corps reste le même."""
+    if corps["statut"] == "indisponible":
+        return JSONResponse(corps | {"code": "REGISTRE_INDISPONIBLE", "etat_demarche": "en_attente"}, status_code=503)
+    if corps["statut"] == "refuse" and corps["motif"] == MOTIF_INCONNU:
+        return JSONResponse(corps | {"code": "CITOYEN_INCONNU"}, status_code=404)
+    if corps["statut"] == "refuse" and corps["motif"].startswith(HORS_CATALOGUE):
+        return JSONResponse(corps | {"code": "HORS_CATALOGUE"}, status_code=403)
+    return corps
+
+
+@app.post("/demandes", tags=[PASSERELLE], responses=REPONSES_HTTP)
 async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
+    return reponse_http(await traiter_demande(d, agent))
+
+
+async def traiter_demande(d: Demande, agent: dict) -> dict:
     controler_identifiant(d.sujet_ref)
     demandeur = service_de(agent) or "inconnu"
     demarche = CAT["demarches"].get(d.demarche)
@@ -532,6 +578,8 @@ async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
     if not any(v["statut"] == "ok" for v in volets):
         tous_en_panne = all(v["statut"] == "indisponible" for v in volets)
         motif = volets[0]["motif"] if len(volets) == 1 else "aucune réponse exploitable, rien n'a été deviné"
+        if all(v["motif"] == MOTIF_INCONNU for v in volets):
+            motif = MOTIF_INCONNU
         changer(demande, statut="indisponible" if tous_en_panne else "refuse", motif=motif)
         return etat(demande)
 
@@ -543,8 +591,12 @@ async def creer_demande(d: Demande, agent: dict = Depends(agent_connecte)):
     return etat(demande)
 
 
-@app.get("/demandes/{id_demande}", tags=[PASSERELLE])
+@app.get("/demandes/{id_demande}", tags=[PASSERELLE], responses=REPONSES_HTTP)
 def suivre_demande(id_demande: str, agent: dict = Depends(agent_connecte)):
+    return reponse_http(etat_de_la_demande(id_demande, agent))
+
+
+def etat_de_la_demande(id_demande: str, agent: dict) -> dict:
     demande = lire(id_demande)
     if demande is None or demande["agent"] != agent["nom"]:
         raise HTTPException(404, "demande introuvable")

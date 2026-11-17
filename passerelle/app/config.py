@@ -16,7 +16,7 @@ ROLE_AGENT = "agent-guichet"
 ROLE_CONTROLEUR = "controleur"         # lecture seule : page Contrôle du guichet
 JOURNAL_VERIFIER = Path(os.environ.get("GRIOT_VERIFIER", "/journal/verifier.py"))   # même code que verifier.py
 
-DELAI_REGISTRE = float(os.environ.get("DELAI_REGISTRE", "3"))           # secondes
+DELAI_REGISTRE = float(os.environ.get("DELAI_REGISTRE", "2"))           # secondes par essai (2 essais)
 DUREE_CONSENTEMENT = int(os.environ.get("DUREE_CONSENTEMENT", "600"))   # 10 minutes
 # Limite par (service, citoyen) : un même service ne peut pas interroger sans fin la même personne
 # (sinon, avec des questions répétées, il pourrait reconstituer des données)

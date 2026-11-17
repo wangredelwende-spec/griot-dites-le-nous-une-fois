@@ -2,8 +2,9 @@
 
 ## Ce qui est simulé
 
-- **Registres** : `registres/`, données fictives (`registres/donnees_fictives/`), en attendant les données du jury.
-- **Connexion des usagers** : USSD simulé, numéro + PIN fictifs (`espace-usager/ussd/abonnes.yaml` ; jour J : `donnees_jury/abonnes.yaml` produit par `scripts/annuaire_ussd.py` pour chaque citoyen), PIN de démo en clair, non hachés.
+- **Registres** : `registres/`, registres simulés selon notre contrat (`registres/contrat/contrat-registres.yaml`),
+  données fictives (`registres/donnees/citoyens-fictifs.yaml`). Pas de contrat commun imposé entre les équipes.
+- **Connexion des usagers** : USSD simulé, numéro + PIN fictifs (`espace-usager/ussd/abonnes.yaml`), PIN de démo en clair, non hachés.
   En production : connexion par l'identifiant unique électronique.
 - **Textes de loi** des démarches : références à faire valider (voir `consentement-minimisation/catalogue/`).
 
@@ -22,7 +23,7 @@
     personne existe (une seule fiche, vivante). Sinon : « identité non confirmée ». État civil en panne : « identité non
     vérifiable, rien n'a été deviné ».
   Limite de `vierge` : on suppose que l'identifiant du casier est le même que celui de l'état civil.
-- **Double nationalité** : la façon dont le registre de la nationalité l'écrit est inconnue (voir `docs/A_TRANCHER_DONNEES_JURY.md`).
+- **Double nationalité** : non représentée (un seul champ `nationalite` dans notre contrat).
 
 ## Fonctions désactivées (conservées dans le code, non supprimées)
 
@@ -38,12 +39,15 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
 | Signature Ed25519 des réponses des registres, jeton Keycloak vérifié par chaque registre, double clé côté registre | **désactivés le 17/11** : les registres suivent le contrat (fiche JSON, 404) ; `registres/app/ancien_main.py`, `adaptateur.py`, `sources.py` et `registres/adaptateurs/*.yaml` sont conservés, plus utilisés par la pile ; `passerelle/app/registres.py` garde `appeler()` / `verifier()` ; le guichet garde `verifier_volet()` | rebrancher `ancien_main` dans le Dockerfile des registres |
 | Double trace des registres (`verifier.py --registres`) | désactivée avec la signature : les registres ne tiennent plus de trace ; le code de comparaison reste testé | idem |
 
-## Registres selon le contrat PROVISOIRE (17/11)
+## Registres selon notre contrat (17/11)
 
-- Le contrat du jury n'étant pas arrivé, `registres/contrat/contrat-provisoire.yaml` (une route par registre, 404 si le
-  citoyen est inconnu) et `registres/donnees/citoyens-provisoires.yaml` (10 citoyens fictifs) sont **provisoires** : leurs
-  noms de champs sont nos hypothèses. `correspondance.yaml` les relie à la passerelle ; tout est à refaire avec le contrat
-  du jury (README.md : deux fichiers + la liste des citoyens).
+- Chaque équipe définit ses registres. Les nôtres : `registres/contrat/contrat-registres.yaml` (une route par registre,
+  404 si le citoyen est inconnu) et `registres/donnees/citoyens-fictifs.yaml` (10 citoyens fictifs).
+  `correspondance.yaml` relie leurs noms de champs à la passerelle.
+- Registre d'une autre équipe : `annuaire.yaml` (adresse, route, son contrat copié dans `catalogue/contrats/`) +
+  `correspondance.yaml`, relus à chaud (`docs/brancher-un-registre.md`). Limites : fiche JSON « à plat », identifiant
+  dans la route, même identifiant de citoyen des deux côtés ; sur Docker, le réseau `registres` n'a pas de sortie
+  (leur conteneur sur ce réseau, ou un relais, à décider dans `docker-compose.yml`).
 - La passerelle appelle chaque registre en GET, valide la réponse contre le contrat (`jsonschema`, MIT), puis calcule
   l'attribut permis (`regles_attributs/minimisation.py`) : la fiche brute ne sort pas de la passerelle. Réponse non
   conforme : rejetée, ligne d'alerte « réponse corrompue : non conforme au contrat ». Citoyen inconnu : 404.
@@ -67,10 +71,9 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
   (ligne `accord-valide` au journal). Retrait, expiration : l'usager est de nouveau consulté.
 - Identité et naissance/filiation sont des **valeurs précises** (pas un oui/non) : le registre simulé les renvoie par la
   règle `champs` (exactement les cases déclarées), l'usager les voit mot pour mot dans l'aperçu avant l'envoi.
-- `catalogue/correspondance.yaml` : seul fichier où les noms de champs du jury seront écrits ; **vide tant que le contrat
-  n'est pas arrivé**. `regles_attributs/minimisation.py` calcule majeur, nationalité, casier, identité, naissance et
-  filiation depuis la fiche brute dans la passerelle, mais **n'est pas encore branché** à l'appel des registres (le flux
-  vivant utilise toujours les réponses signées des registres simulés).
+- `catalogue/correspondance.yaml` : seul fichier où les noms de champs des registres sont écrits.
+  `regles_attributs/minimisation.py` calcule majeur, nationalité, casier, identité, naissance et filiation depuis la
+  fiche brute, dans la passerelle.
 - Keycloak : `realm-griot.json` décrit les nouveaux groupes et comptes (CEFORE, tribunal), mais une pile **déjà
   installée** ne les a pas : à ajouter dans la console Keycloak (ou réimporter le realm) avant de tester le guichet.
 - Textes mooré : `phrases-ussd.csv` a reçu des lignes françaises pour les nouveaux services et attributs ; les colonnes
@@ -87,9 +90,9 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
   demande et son motif.
 - Une clé API par administration (en-tête `X-Cle-Api`), empreinte SHA-256 dans `annuaire.yaml`. Les clés du dépôt
   (`cle-demo-…`) sont des **clés de démonstration publiques**. Une demande par clé API n'a **pas de jeton Keycloak** : les
-  registres actuels, qui exigent ce jeton (double clé), la refusent tant qu'ils ne sont pas adaptés au contrat du jury.
+  registres selon notre contrat ne vérifient pas de jeton (voir « Fonctions désactivées »).
 - Clé API d'un registre : `en_tete_cle` + `cle_secret` dans `annuaire.yaml` (nom de l'en-tête, fichier dans `/run/secrets`).
-  Aucun registre n'en déclare pour l'instant : l'en-tête attendu dépend du contrat du jury.
+  Aucun de nos registres n'en déclare ; à remplir si le registre d'une autre équipe en exige une.
 
 ## Limites de débit (démonstration)
 

@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block contenu %}
+<h1>{{ t.retirer }}</h1>
+<section class="carte">
+  <p>{{ t.retrait_question.format(service=a.service, attributs=a.attributs | map(attribute="libelle") | join(", ")) }}</p>
+  <div class="boutons">
+    <form method="post" action="{{ racine }}/accords/{{ a.id_demande }}/retirer">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="confirme" value="oui">
+      <button>{{ t.oui_retirer }}</button>
+    </form>
+    <a class="bouton second" href="{{ racine }}/accords">{{ t.non }}</a>
+  </div>
+</section>
+{% endblock %}

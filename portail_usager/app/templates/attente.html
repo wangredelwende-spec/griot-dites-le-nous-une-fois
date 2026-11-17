@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block contenu %}
+<h1>{{ t.attente_titre }}</h1>
+{% for d in demandes %}
+<section class="carte">
+  <p class="apercu">{{ d.apercu }}</p>
+  <p class="petit">{{ t.demarche }} : {{ d.demarche }}<br>{{ t.finalite }} : {{ d.finalite }}</p>
+  <p class="petit">{{ t.valable.format(heure=d.jusqu_a) }}</p>
+  <div class="boutons">
+    <form method="post" action="{{ racine }}/attente/{{ d.id_demande }}/confirmer">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button>{{ t.confirmer }}</button>
+    </form>
+    <form method="post" action="{{ racine }}/attente/{{ d.id_demande }}/refuser">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="second">{{ t.refuser }}</button>
+    </form>
+  </div>
+</section>
+{% else %}
+<p>{{ t.aucune_demande }}</p>
+{% endfor %}
+{% endblock %}

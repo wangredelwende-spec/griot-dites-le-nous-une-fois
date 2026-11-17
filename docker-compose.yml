@@ -158,7 +158,8 @@ services:
       LIMITE_SUJETS: "5"                   # citoyens différents par agent et par heure (bas pour la démo)
       FENETRE_LIMITE: "3600"
       LIMITE_EXEMPTES: "agent.banc,agent.banc.bourses"   # exemptés SEULEMENT si OUTILS_TEST=1 (LIMITES.md)
-    secrets: [sujet_hmac, canal_usager]
+    # Un secret par écran usager (USSD, portail web) : le canal écrit au journal vient du secret présenté
+    secrets: [sujet_hmac, canal_usager, canal_web]
     volumes:
       - ./catalogue:/catalogue:ro          # annuaire + catalogue des démarches
       - ./journal:/journal:ro              # verifier.py
@@ -229,6 +230,25 @@ services:
       timeout: 5s
       retries: 10
 
+  # Portail web usager (usager.griot.test/portail) : les 3 écrans de l'USSD dans un navigateur.
+  # Seulement l'API usager du médiateur, avec SON secret (« canal = web » au journal).
+  # Indépendant : « docker compose stop portail » l'arrête sans toucher à l'USSD ni au reste.
+  portail:
+    build: ./portail_usager
+    image: griot-portail:local
+    restart: unless-stopped
+    secrets: [canal_web]
+    volumes:
+      # Le même annuaire que l'USSD (numéro -> identifiant, PIN) : mêmes comptes, mêmes règles
+      - ${ABONNES_USSD:-./ussd_sim/abonnes.yaml}:/app/abonnes.yaml:ro
+      - ./traduction-moore/phrases-portail.csv:/app/phrases-portail.csv:ro
+    networks: [interne]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/sante')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
   # Caddy : seul service joignable depuis l'ordinateur, en HTTPS (CA interne)
   caddy:
     image: caddy:2.11.7-alpine
@@ -280,6 +300,8 @@ secrets:
     environment: MEDIATEUR_HMAC_SECRET
   canal_usager:
     environment: CANAL_USAGER_SECRET
+  canal_web:
+    environment: CANAL_WEB_SECRET
 
 volumes:
   postgres_donnees:

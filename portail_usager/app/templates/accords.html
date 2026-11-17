@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block contenu %}
+<h1>{{ t.accords_titre }}</h1>
+{% for a in accords %}
+<section class="carte">
+  <p><strong>{{ a.service }}</strong> · {{ a.demarche }}<br>
+  {{ a.attributs | map(attribute="libelle") | join(", ") }}<br>
+  <span class="petit">{{ t.accord_transmis if a.transmis else t.accord_en_cours }}</span></p>
+  <form method="post" action="{{ racine }}/accords/{{ a.id_demande }}/retirer">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="second">{{ t.retirer }}</button>
+  </form>
+</section>
+{% else %}
+<p>{{ t.aucun_accord }}</p>
+{% endfor %}
+{% endblock %}

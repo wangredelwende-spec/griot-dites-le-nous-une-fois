@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block contenu %}
+<h1>{{ t.detail_titre }}</h1>
+<dl class="carte">
+  <dt>{{ t.date }}</dt><dd>{{ l.date }}</dd>
+  <dt>{{ t.service }}</dt><dd>{{ l.service }}</dd>
+  <dt>{{ t.demarche }}</dt><dd>{{ l.demarche }}</dd>
+  <dt>{{ t.informations }}</dt><dd>{{ l.attributs | map(attribute="libelle") | join(", ") }}</dd>
+  <dt>{{ t.resultat }}</dt><dd><span class="etat {{ l.evenement }}">{{ l.etat }}</span></dd>
+  {% if l.motif %}<dt>{{ t.motif }}</dt><dd>{{ l.motif }}</dd>{% endif %}
+  <dt>{{ t.finalite }}</dt><dd>{{ l.finalite }}</dd>
+  <dt>{{ t.base }}</dt><dd>{% if l.base == "base_legale" %}{{ t.base_legale }}{% if l.texte_base %} : {{ l.texte_base }}{% endif %}{% else %}{{ t.base_consentement }}{% endif %}</dd>
+  {% if l.canal in ("web", "ussd") %}<dt>{{ t.canal }}</dt><dd>{{ t["canal_" + l.canal] }}</dd>{% endif %}
+  <dt>{{ t.recu }}</dt><dd><code class="recu">{{ recu }}</code></dd>
+</dl>
+<p class="petit">{{ t.recu_aide }}</p>
+<p><a href="{{ racine }}/historique">← {{ t.historique_titre }}</a></p>
+{% endblock %}

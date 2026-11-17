@@ -134,7 +134,7 @@ def main():
         "page du guichet (ce que voit l'agent)": texte(page).encode("utf-8"),
         "réponses signées reçues par le guichet": json.dumps(signees, ensure_ascii=False).encode("utf-8"),
     }
-    for service in ("mediateur", "guichet", "ussd_sim", "caddy"):
+    for service in ("mediateur", "guichet", "ussd_sim", "portail", "caddy"):
         endroits[f"logs du conteneur {service}"] = compose("logs", "--no-color", service).stdout.encode("utf-8")
     fuites = 0
     for endroit, contenu in endroits.items():

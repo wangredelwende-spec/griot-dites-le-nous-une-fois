@@ -50,9 +50,24 @@ guichet.griot.test {
 	reverse_proxy guichet:8000
 }
 
-# Écran de l'usager : d'abord l'USSD simulé (*226#) ; le portail web viendra ensuite
+# Écrans de l'usager : l'USSD simulé (*226#) à la racine, le portail web sous /portail (conteneur séparé)
 usager.griot.test {
 	import securite
 	import sans_script
-	reverse_proxy ussd_sim:8000
+	handle /portail* {
+		reverse_proxy portail:8000
+	}
+	handle {
+		reverse_proxy ussd_sim:8000
+	}
+	# Portail arrêté (docker compose stop portail) : message clair, l'USSD continue
+	handle_errors 502 503 504 {
+		header Content-Type "text/plain; charset=utf-8"
+		handle /portail* {
+			respond "Portail web arrêté. Rien n'a été transmis. Le service *226# reste disponible : https://usager.griot.test/" 503
+		}
+		handle {
+			respond "Service momentanément indisponible. Rien n'a été transmis." 503
+		}
+	}
 }

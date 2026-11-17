@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block contenu %}
+<h1>{{ titre }}</h1>
+<p>{{ texte }}</p>
+{% if recu %}<p>{{ t.recu }} : <code class="recu">{{ recu }}</code></p><p class="petit">{{ t.recu_aide }}</p>{% endif %}
+{% endblock %}

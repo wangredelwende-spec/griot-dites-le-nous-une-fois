@@ -34,6 +34,7 @@ etat_refuse;Historique;refusé;;;
 etat_expiration;Historique;expiré;;;
 etat_alerte;Historique;ALERTE;;;
 etat_retrait;Historique;retiré;;;
+par_web;Historique;(web);;;
 accords_titre;Retrait;Vos accords :;;;
 aucun_accord;Retrait;Aucun accord à retirer.;;;
 accord_en_cours;Retrait;en cours;;;

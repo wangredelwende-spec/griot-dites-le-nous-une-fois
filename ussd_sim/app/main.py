@@ -186,6 +186,8 @@ def ecran_detail(s: dict, l: dict) -> str:
     else:
         attribut = ", ".join(nom_attribut(s, a, court=True) for a in l["attributs"])
     etat = t(s, EVENEMENTS.get(l["evenement"], "etat_refuse"))
+    if l.get("canal") == "web":         # action faite sur le portail web : même journal, visible ici aussi
+        etat += " " + t(s, "par_web")
     base = t(s, "base_legale" if l["base"] == "base_legale" else "base_consentement")
     # Une alerte dit POURQUOI (ex. « bloqué : … ») ; les autres lignes disent pour quelle finalité
     # Finalité traduite par le catalogue (finalite_mos…) si elle existe, sinon celle du journal (français)

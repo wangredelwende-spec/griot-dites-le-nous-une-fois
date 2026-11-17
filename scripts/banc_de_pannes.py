@@ -290,6 +290,38 @@ resultat["expiration"] = [r["corps"]["statut"], suivre('outil-test-bourses', d['
               f"« {apres.get('motif')} », rien n'est remis au guichet", json.dumps(x[cas]))
 
 
+def portail_web():
+    """Portail web : une confirmation faite avec le secret du canal web est écrite « canal = web » et visible dans
+    l'historique servi à l'USSD (même journal). Puis le portail arrêté seul : message clair, l'USSD continue."""
+    x = dans_le_mediateur(f"""
+F = {FINALITES['bourse-nationale']!r}
+WEB = open("/run/secrets/canal_web").read().strip()
+d, r = demander('outil-test-bourses', 'bourse-nationale', 'BF-0017', F)
+c = httpx.post(f"http://127.0.0.1:8000/demandes/{{d['id_demande']}}/confirmer", json={{"sujet_ref": "BF-0017"}},
+               headers={{"X-Cle-Canal": WEB}}, timeout=10).json()
+base = sqlite3.connect("file:/donnees/mediateur.sqlite3?mode=ro", uri=True)
+resultat["canal"] = (base.execute("SELECT canal FROM journal WHERE hash = ?", (c.get("empreinte", ""),)).fetchone() or [""])[0]
+resultat["vu_par_ussd"] = [l["canal"] for l in usager("GET", "/usagers/BF-0017/historique")
+                           if l["empreinte"] == c.get("empreinte")]
+resultat["remise"] = suivre('outil-test-bourses', d['id_demande']).get("statut")
+""")
+    noter("11. Portail web : confirmation", x["canal"] == "web" and x["vu_par_ussd"] == ["web"] and x["remise"] == "remise",
+          "écrite au journal avec canal = web, visible dans l'historique USSD, remise au guichet", json.dumps(x))
+    with httpx.Client(verify=autorite_caddy(), timeout=10) as client:
+        subprocess.run(["docker", "compose", "stop", "portail"], cwd=RACINE, capture_output=True, check=True)
+        try:
+            arrete = client.get("https://usager.griot.test/portail")
+            ussd = client.get("https://usager.griot.test/")
+        finally:
+            subprocess.run(["docker", "compose", "up", "-d", "--wait", "--no-deps", "portail"], cwd=RACINE,
+                           capture_output=True, check=True)
+        relance = client.get("https://usager.griot.test/portail")
+    noter("11 bis. Portail web arrêté seul", arrete.status_code == 503 and "Portail web arrêté" in arrete.text
+          and ussd.status_code == 200 and relance.status_code == 200,
+          "« Portail web arrêté. Rien n'a été transmis » ; le *226# répond toujours ; relancé d'une commande",
+          f"{arrete.status_code} {arrete.text[:80]} | USSD {ussd.status_code} | relance {relance.status_code}")
+
+
 def journal_modifie():
     sortie = subprocess.run([sys.executable, str(RACINE / "scripts/falsifier_journal.py"), "5"], cwd=RACINE,
                             capture_output=True, text=True, encoding="utf-8").stdout
@@ -339,7 +371,7 @@ def main():
     print("Banc de pannes Griot : scénarios du jury contre la pile qui tourne\n", flush=True)
     for scenario in (registre_coupe, registre_lent, reponse_corrompue, passeport_casier_en_panne,
                      demande_rejouee, mauvaise_finalite,
-                     renforcements_registre, agent_curieux, consentement, journal_modifie, reseau_coupe, double_trace):
+                     renforcements_registre, agent_curieux, consentement, portail_web, journal_modifie, reseau_coupe, double_trace):
         try:
             scenario()
         except Exception as e:      # un scénario qui plante est un échec, pas un arrêt du banc

@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block contenu %}
+<p class="legende">{{ t.legende }}</p>
+<h1>{{ t.connexion_titre }}</h1>
+{% if erreur %}<p class="erreur" role="alert">{{ erreur }}</p>{% endif %}
+<form method="post" action="{{ racine }}/connexion" class="carte">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label for="numero">{{ t.numero }}</label>
+  <input id="numero" name="numero" inputmode="numeric" autocomplete="tel" maxlength="12" required placeholder="70000012">
+  <label for="pin">{{ t.pin }}</label>
+  <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" maxlength="8" required>
+  <button>{{ t.se_connecter }}</button>
+  <p class="aide">{{ t.connexion_aide }}</p>
+</form>
+{% endblock %}

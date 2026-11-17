@@ -111,6 +111,19 @@ def test_detail_avec_finalite_base_et_recu_de_16_caracteres():
 
 
 @respx.mock
+def test_confirmation_faite_sur_le_web_visible_a_l_ussd():
+    """Même journal pour les deux écrans : une confirmation faite sur le portail web apparaît ici, marquée (web)."""
+    web = ligne(8, "confirmation", "service-bourses") | {"canal": "web", "base": "consentement",
+                                                       "finalite": "vérification de l'âge minimal pour concourir " * 4}
+    respx.get(f"{M}/usagers/BF-0012/historique").mock(return_value=httpx.Response(200, json=[web]))
+    tel = Telephone()
+    tel.connecter()
+    tel.taper("2")
+    detail = tel.taper("1")
+    assert "accordé (web)" in detail.splitlines()[0] and "Reçu : 0000 0008 aaaa aaaa" in detail
+
+
+@respx.mock
 def test_pires_ecrans_tiennent_en_160_sans_couper_le_recu():
     longue = {"finalite": "vérification de l'âge minimal pour concourir " * 5, "base": "consentement"}
     lignes = [ligne(n, "refus-usager", "direction-concours") | longue for n in range(10)]

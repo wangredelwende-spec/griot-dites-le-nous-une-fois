@@ -10,8 +10,8 @@ services:
     image: postgres:17.11-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}   # lu par init-bases.sh
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demo-postgres-a-changer}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-demo-keycloak-db-a-changer}   # lu par init-bases.sh
     volumes:
       - postgres_donnees:/var/lib/postgresql/data
       - ./socle/postgres/init-bases.sh:/docker-entrypoint-initdb.d/init-bases.sh:ro
@@ -35,7 +35,7 @@ services:
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-demo-keycloak-db-a-changer}
       # Adresse publique (vue par le navigateur) : c'est aussi l'émetteur (« iss ») des jetons
       KC_HOSTNAME: https://auth.griot.test
       # Les appels des services arrivent par http://keycloak:8080 (réseau interne)
@@ -44,13 +44,13 @@ services:
       KC_PROXY_HEADERS: xforwarded      # faire confiance aux en-têtes X-Forwarded-* de Caddy
       KC_HEALTH_ENABLED: "true"
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-demo-admin-keycloak-a-changer}
       # La page de configuration du TOTP ne suggère que des applications open source
       # (FreeOTP, Aegis) : on retire Google Authenticator et Microsoft Authenticator.
       KC_SPI_OTP_APPLICATION__GOOGLE__ENABLED: "false"
       KC_SPI_OTP_APPLICATION__MICROSOFT_AUTHENTICATOR__ENABLED: "false"
       # Valeur injectée dans le fichier du realm (${...})
-      GUICHET_OIDC_SECRET: ${GUICHET_OIDC_SECRET}
+      GUICHET_OIDC_SECRET: ${GUICHET_OIDC_SECRET:-demo-secret-oidc-guichet-a-changer}
     volumes:
       - ./socle/keycloak/realm-griot.json:/opt/keycloak/data/import/realm-griot.json:ro
       - ./socle/keycloak/themes/griot:/opt/keycloak/themes/griot:ro
@@ -243,8 +243,8 @@ services:
     image: caddy:2.11.7-alpine
     restart: unless-stopped
     ports:
-      - "127.0.0.1:80:80"
-      - "127.0.0.1:443:443"
+      - "127.0.0.1:${PORT_HTTP:-80}:80"
+      - "127.0.0.1:${PORT_HTTPS:-443}:443"
     volumes:
       - ./socle/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_donnees:/data              # contient la CA interne : à conserver
@@ -282,15 +282,15 @@ services:
 
 secrets:
   api_jury:
-    environment: API_JURY_SECRET       # vide tant que le jury ne fournit pas d'API
+    file: ${GRIOT_SECRETS_DIR:-./socle/secrets-demo}/api_jury   # sans .env : valeurs de DÉMONSTRATION
   guichet_oidc:
-    environment: GUICHET_OIDC_SECRET
+    file: ${GRIOT_SECRETS_DIR:-./socle/secrets-demo}/guichet_oidc   # sans .env : valeurs de DÉMONSTRATION
   sujet_hmac:
-    environment: MEDIATEUR_HMAC_SECRET
+    file: ${GRIOT_SECRETS_DIR:-./socle/secrets-demo}/sujet_hmac   # sans .env : valeurs de DÉMONSTRATION
   canal_usager:
-    environment: CANAL_USAGER_SECRET
+    file: ${GRIOT_SECRETS_DIR:-./socle/secrets-demo}/canal_usager   # sans .env : valeurs de DÉMONSTRATION
   canal_web:
-    environment: CANAL_WEB_SECRET
+    file: ${GRIOT_SECRETS_DIR:-./socle/secrets-demo}/canal_web   # sans .env : valeurs de DÉMONSTRATION
 
 volumes:
   postgres_donnees:

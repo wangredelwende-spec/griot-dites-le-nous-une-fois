@@ -44,3 +44,4 @@ registres/tests/donnees_formats/etat_civil_scanne.csv
 
 # Copies du catalogue gardées par remise_a_zero.py avant restauration
 consentement-minimisation/catalogue/*.bak
+secrets_locaux/

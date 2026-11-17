@@ -42,7 +42,8 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
 - Quota « 5 demandes par service et par personne en 24 h » (`LIMITE_PAR_CITOYEN`) : **désactivé** (valeur 0),
   il bloquerait l'épreuve en direct. Le code est conservé : mettre `LIMITE_PAR_CITOYEN: "5"` dans `docker-compose.yml`
   pour le réactiver (refus + alerte dans l'historique du citoyen).
-- Limite « trop de citoyens différents par agent et par heure » (`LIMITE_SUJETS`) : toujours active.
+- Limite « trop de citoyens différents par agent et par heure » (`LIMITE_SUJETS`) : **désactivée** (0). Le banc de pannes
+  l'active (5) seulement pour le scénario « agent curieux », en écrivant `/donnees/limite_sujets`, puis la retire.
 - Les comptes des tests de bout en bout (`agent.banc`, `agent.banc.bourses`) en sont exemptés (`LIMITE_EXEMPTES` dans
   `docker-compose.yml`) **seulement si `OUTILS_TEST=1`** (mode test) : ils interrogent des dizaines de fois les mêmes
   citoyens fictifs. Avec `OUTILS_TEST=0` (démonstration), ils suivent les limites comme tout le monde.

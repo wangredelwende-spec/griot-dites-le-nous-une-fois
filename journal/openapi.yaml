@@ -40,6 +40,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /journal/verification:
+    get:
+      tags:
+      - journal de traçabilité
+      summary: Verification Du Journal
+      description: 'Le journal est-il intact ? Réponse publique (réseau interne) : ni identifiant ni valeur, seulement
+
+        « OK » ou le numéro de la première ligne modifiée ou supprimée. Sert au badge « journal intègre » de l''usager.'
+      operationId: verification_du_journal_journal_verification_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
   /controle/verification:
     get:
       tags:

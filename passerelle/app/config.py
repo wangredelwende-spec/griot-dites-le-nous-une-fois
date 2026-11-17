@@ -23,7 +23,9 @@ DUREE_CONSENTEMENT = int(os.environ.get("DUREE_CONSENTEMENT", "600"))   # 10 min
 # DÉSACTIVÉE par défaut (0) : elle bloquerait l'épreuve en direct. Pour la réactiver : LIMITE_PAR_CITOYEN=5
 LIMITE_PAR_CITOYEN = int(os.environ.get("LIMITE_PAR_CITOYEN", "0"))     # demandes par 24 heures (0 = pas de limite)
 # Limite de débit : nombre de citoyens DIFFÉRENTS qu'un agent peut consulter dans la fenêtre (bas pour la démo)
-LIMITE_SUJETS = int(os.environ.get("LIMITE_SUJETS", "5"))
+# 0 = désactivée par défaut (gênerait l'épreuve en direct). Le banc de pannes l'active le temps d'un scénario en
+# écrivant un nombre dans /donnees/limite_sujets (voir main.limite_sujets) ; supprimé ensuite.
+LIMITE_SUJETS = int(os.environ.get("LIMITE_SUJETS", "0"))
 FENETRE_LIMITE = int(os.environ.get("FENETRE_LIMITE", "3600"))          # 1 heure
 # Comptes de TEST (clients Keycloak « outil-test-* ») : refusés sauf si OUTILS_TEST=1 (désactivés pendant la démo)
 OUTILS_TEST = os.environ.get("OUTILS_TEST", "0") == "1"

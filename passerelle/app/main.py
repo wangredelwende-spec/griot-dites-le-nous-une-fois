@@ -243,6 +243,15 @@ def tracer(demande: dict, evenement: str, resultat: str, motif: str = "", **prec
               "demarche": demande["demarche"],
               "finalite": demande["finalite"], "base": demande["base"], "attribut": demande["attributs"],
               "registre": demande["registres"], "sujet": demande["sujet"]}
+    # Noms d'attributs seulement (jamais de valeurs) : demandés = ce que la démarche réclame ; refusés = volets
+    # non « ok » (refusé ou registre indisponible) ; transmis = ce qui a réellement été remis (ligne « remise »).
+    volets = demande.get("volets", [])
+    champs |= {"attributs_demandes": demande["attributs"],
+               "attributs_refuses": "+".join(v["attribut"] for v in volets if v["statut"] != "ok"),
+               "attributs_transmis": ("+".join(v["attribut"] for v in volets if v["statut"] == "ok")
+                                      if evenement == "remise" else "")}
+    if (evenement in ("demande", "reponse-registre", "alerte") and resultat != "ok" and precisions.get("attribut")):
+        champs["attributs_refuses"] = precisions["attribut"]       # ligne d'un volet refusé ou indisponible
     return journal.ecrire(**champs | precisions, evenement=evenement, resultat=resultat, motif=motif)
 
 
@@ -414,11 +423,21 @@ def trop_de_demandes_sur_ce_citoyen(demande: dict) -> bool:
 
 # --- Limite de débit : un agent qui consulte trop de citoyens DIFFÉRENTS est bloqué ---
 
+def limite_sujets() -> int:
+    """Limite en vigueur : le fichier /donnees/limite_sujets (écrit par le banc de pannes pour son scénario
+    « agent curieux ») l'emporte sur la configuration ; 0 = pas de limite."""
+    try:
+        return int((DONNEES / "limite_sujets").read_text().strip())
+    except (OSError, ValueError):
+        return LIMITE_SUJETS
+
+
 def trop_de_citoyens(demande: dict) -> bool:
     """Au-delà de LIMITE_SUJETS citoyens distincts en FENETRE_LIMITE secondes, la demande est bloquée
     (registres jamais appelés) et une ALERTE entre dans l'historique de chaque citoyen concerné.
     Reconsulter un citoyen déjà consulté reste possible (ex. actualiser une demande)."""
-    if exempte(demande["agent"]):
+    limite = limite_sujets()
+    if limite <= 0 or exempte(demande["agent"]):
         return False
     depuis = time.time() - FENETRE_LIMITE
     with VERROU:
@@ -427,9 +446,9 @@ def trop_de_citoyens(demande: dict) -> bool:
             "AND id_demande != ?", (demande["agent"], depuis, demande["id_demande"]))}
         bloque_avant = base.execute("SELECT 1 FROM demandes WHERE agent = ? AND cree_le > ? AND statut = 'bloquee' "
                                     "AND id_demande != ?", (demande["agent"], depuis, demande["id_demande"])).fetchone()
-    if demande["sujet"] in deja or len(deja) < LIMITE_SUJETS:
+    if demande["sujet"] in deja or len(deja) < limite:
         return False
-    motif = (f"agent bloqué : plus de {LIMITE_SUJETS} citoyens différents consultés en "
+    motif = (f"agent bloqué : plus de {limite} citoyens différents consultés en "
              f"{FENETRE_LIMITE // 60} minutes, consultation à contrôler")
     # Au premier blocage, tous les citoyens déjà consultés par cet agent sont prévenus
     for sujet in ([] if bloque_avant else sorted(deja)):
@@ -648,17 +667,33 @@ def catalogue_en_vigueur() -> dict:
 async def controle(_controleur: str = Depends(controleur_connecte)):
     etats = await asyncio.gather(*(etat_registre(code, r) for code, r in CAT["registres"].items()))
     return {"comptes_de_test_actifs": OUTILS_TEST,
-            "limites": {"citoyens_par_agent": LIMITE_SUJETS, "fenetre_minutes": FENETRE_LIMITE // 60,
+            "limites": {"citoyens_par_agent": limite_sujets(), "fenetre_minutes": FENETRE_LIMITE // 60,
                         "demandes_par_service_et_citoyen_24h": LIMITE_PAR_CITOYEN},
             "registres": etats, "alertes": alertes(), "catalogue": catalogue_en_vigueur()}
+
+
+def charger_verifier():
+    """Charge journal/verifier.py : c'est le MÊME code que la commande, rien n'est réécrit."""
+    spec = importlib.util.spec_from_file_location("verifier", JOURNAL_VERIFIER)
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+    return verifier
+
+
+@app.get("/journal/verification", tags=[JOURNAL])
+def verification_du_journal():
+    """Le journal est-il intact ? Réponse publique (réseau interne) : ni identifiant ni valeur, seulement
+    « OK » ou le numéro de la première ligne modifiée ou supprimée. Sert au badge « journal intègre » de l'usager."""
+    integre, message, lignes = charger_verifier().verifier(str(DONNEES / "mediateur.sqlite3"))
+    ligne = None if integre else int(re.search(r"Ligne (\d+)", message).group(1))
+    return {"statut": "OK" if integre else "ALTERE", "integre": integre, "lignes": len(lignes),
+            "premiere_ligne_modifiee": ligne, "message": message}
 
 
 @app.get("/controle/verification", tags=[JOURNAL])
 def verification(_controleur: str = Depends(controleur_connecte)):
     """MÊME vérification que journal/verifier.py --registres (le même fichier est chargé, rien n'est réécrit)."""
-    spec = importlib.util.spec_from_file_location("verifier", JOURNAL_VERIFIER)
-    verifier = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(verifier)
+    verifier = charger_verifier()
     chemin = str(DONNEES / "mediateur.sqlite3")
     integre, message, lignes = verifier.verifier(chemin)
     traces = verifier.traces_des_registres(chemin)

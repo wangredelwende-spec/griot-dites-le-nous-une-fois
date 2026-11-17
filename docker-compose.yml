@@ -163,7 +163,7 @@ services:
       OUTILS_TEST: ${OUTILS_TEST:-0}       # comptes de test (outil-test-*) refusés sauf si 1
       DUREE_CONSENTEMENT: "600"            # 10 minutes pour confirmer
       LIMITE_PAR_CITOYEN: "0"              # 0 = désactivé (gênerait l'épreuve en direct) ; mettre 5 pour réactiver
-      LIMITE_SUJETS: "5"                   # citoyens différents par agent et par heure (bas pour la démo)
+      LIMITE_SUJETS: "0"                   # 0 = désactivé ; citoyens différents par agent et par heure (le banc l'active seul)
       FENETRE_LIMITE: "3600"
       LIMITE_EXEMPTES: "agent.banc,agent.banc.bourses"   # exemptés SEULEMENT si OUTILS_TEST=1 (LIMITES.md)
     # Un secret par écran usager (USSD, portail web) : le canal écrit au journal vient du secret présenté

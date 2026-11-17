@@ -223,11 +223,18 @@ resultat["usurpation"] = registre_direct("casier", corps, {"Authorization": "Bea
 
 
 def agent_curieux():
+    # La limite est désactivée par défaut : on l'active (5) le temps du scénario, puis on la retire
     x = dans_le_mediateur(f"""
+from pathlib import Path
+fichier = Path("/donnees/limite_sujets")
+fichier.write_text("5")
 statuts = []
-for i in range(1, 7):
-    d, r = demander('outil-test-curieux', 'verifier-majorite', f'BANC-CUR-{{i}}', {FINALITES['verifier-majorite']!r})
-    statuts.append(r["corps"].get("statut"))
+try:
+    for i in range(1, 7):
+        d, r = demander('outil-test-curieux', 'verifier-majorite', f'BANC-CUR-{{i}}', {FINALITES['verifier-majorite']!r})
+        statuts.append(r["corps"].get("statut"))
+finally:
+    fichier.unlink(missing_ok=True)
 resultat.update(statuts=statuts, motif=r["corps"].get("motif"),
                 historique=[l for l in usager("GET", "/usagers/BANC-CUR-1/historique") if l["evenement"] == "alerte"][:1])
 """)

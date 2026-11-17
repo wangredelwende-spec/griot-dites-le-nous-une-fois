@@ -8,6 +8,9 @@ majeur », jamais « majeur = oui ». Le citoyen y est pseudonymisé (HMAC de so
 « canal » dit d'où vient une action de l'usager (ussd | web ; vide pour une action d'agent). Colonne ajoutée
 le 17/11 : les lignes écrites avant n'ont pas de canal (NULL), et une valeur NULL est exclue du calcul de
 l'empreinte, donc leur empreinte (et les reçus déjà remis) ne change pas.
+Même principe pour les trois colonnes du 17/11 (attributs_demandes, attributs_transmis, attributs_refuses) :
+des NOMS d'attributs séparés par « + », jamais leurs valeurs. « id_demande » est l'identifiant de corrélation :
+il relie toutes les lignes d'une même démarche (demande, réponses des registres, confirmation, remise).
 """
 import hashlib
 import json
@@ -18,7 +21,7 @@ from datetime import datetime, timezone
 ZEROS = "0" * 64
 # « id_demande » relie la ligne à la trace du registre (double trace, verifier.py --registres)
 CHAMPS = ("id_demande", "agent", "demandeur", "demarche", "finalite", "base", "attribut", "registre", "sujet",
-          "evenement", "resultat", "motif", "canal")
+          "evenement", "resultat", "motif", "canal", "attributs_demandes", "attributs_transmis", "attributs_refuses")
 
 
 def empreinte(ligne: dict) -> str:
@@ -42,10 +45,12 @@ class Journal:
                 CREATE TRIGGER IF NOT EXISTS journal_sans_suppression BEFORE DELETE ON journal
                     BEGIN SELECT RAISE(ABORT, 'journal en ajout seul'); END;
             """)
-            # Journal créé avant l'ajout du canal : on ajoute la colonne (ALTER n'est ni UPDATE ni DELETE ;
+            # Journal créé avant l'ajout d'une colonne : on l'ajoute (ALTER n'est ni UPDATE ni DELETE ;
             # les anciennes lignes gardent NULL, donc la même empreinte)
-            if "canal" not in [c[1] for c in base.execute("PRAGMA table_info(journal)")]:
-                base.execute("ALTER TABLE journal ADD COLUMN canal TEXT")
+            existantes = [c[1] for c in base.execute("PRAGMA table_info(journal)")]
+            for colonne in CHAMPS:
+                if colonne not in existantes:
+                    base.execute(f"ALTER TABLE journal ADD COLUMN {colonne} TEXT")
 
     def ecrire(self, **champs) -> dict:
         inconnus = set(champs) - set(CHAMPS)

@@ -7,18 +7,13 @@ le montre et propose de le restaurer (git checkout du fichier, copie de la versi
     --restaurer-catalogue   restaurer sans poser la question
     --garder-catalogue      garder le catalogue modifié sans poser la question
 
-N'EFFACE RIEN : le journal et la double trace sont ARCHIVÉS (renommés avec la date), puis le médiateur et les
-registres repartent sur un journal neuf et des traces vides. L'historique d'Aïssata ne montre donc plus les
+N'EFFACE RIEN : le journal est ARCHIVÉ (renommé avec la date), puis le médiateur repart sur un journal neuf. L'historique d'Aïssata ne montre donc plus les
 lignes des tests automatiques, et les limites de débit repartent de zéro.
 
 Ce qui est archivé (date = heure UTC de la remise à zéro, ex. 20261116T170000Z) :
 - volume du médiateur : mediateur.sqlite3 → mediateur-archive-<date>.sqlite3 (journal chaîné + demandes) ;
-- volume de chaque registre : trace.sqlite3 → trace-archive-<date>.sqlite3 ;
-- export SIGNÉ de chaque trace, pris juste avant l'arrêt, rangé à côté de l'archive du journal :
-  trace-<registre>-archive-<date>.jwt (signé par le registre : le médiateur ne peut pas le modifier).
-
-Vérifier une archive plus tard (chaîne + double trace) :
-    docker compose exec mediateur python /journal/verifier.py /donnees/mediateur-archive-<date>.sqlite3 --registres
+Vérifier une archive plus tard (chaîne) :
+    docker compose exec mediateur python /journal/verifier.py /donnees/mediateur-archive-<date>.sqlite3
 
 Garde : les clés des registres (mêmes empreintes), Keycloak (comptes, TOTP déjà enrôlés), le catalogue,
 les adaptateurs. Sans « --oui », le script ne fait rien.
@@ -30,7 +25,7 @@ from pathlib import Path
 
 RACINE = Path(__file__).resolve().parents[1]
 REGISTRES = ["etat-civil", "nationalite", "casier"]
-ECRANS = ["guichet", "ussd_sim"]          # gardent des demandes en mémoire : redémarrés à la fin
+ECRANS = ["guichet", "ussd_sim", "portail"]          # gardent des demandes en mémoire : redémarrés à la fin
 
 
 def executer(*commande: str, entree: str | None = None) -> str:
@@ -93,42 +88,22 @@ def main():
     print("Arrêt des écrans et du médiateur…", flush=True)
     executer("docker", "compose", "stop", *ECRANS, "mediateur")
 
-    # 2. Export signé de chaque trace, pendant que les registres tournent encore (plus rien ne peut s'y ajouter)
-    exports = {}
-    for registre in REGISTRES:
-        exports[registre] = executer(
-            "docker", "compose", "exec", "-T", f"registre-{registre}", "python", "-c",
-            "import json, urllib.request; "
-            "print(json.load(urllib.request.urlopen('http://127.0.0.1:8000/trace', timeout=5))['jeton'])").strip()
-        print(f"  trace signée exportée : {registre}", flush=True)
-
-    # 3. Arrêt des registres, puis renommage des fichiers dans leurs volumes (rien n'est supprimé)
-    executer("docker", "compose", "stop", *[f"registre-{r}" for r in REGISTRES])
-    for registre in REGISTRES:
-        dans_le_volume(f"registre-{registre}", f"mv /trace/trace.sqlite3 /trace/trace-archive-{date}.sqlite3")
-        print(f"  archivé : volume du registre {registre} → trace-archive-{date}.sqlite3", flush=True)
+    # 2. Archivage du journal du médiateur : renommé avec la date, rien n'est supprimé. (Depuis le 17/11 les registres
+    #    ne tiennent plus de « double trace » : LIMITES.md. Seul le journal du médiateur est archivé.)
     dans_le_volume("mediateur", f"mv /donnees/mediateur.sqlite3 /donnees/mediateur-archive-{date}.sqlite3")
     print(f"  archivé : volume du médiateur → mediateur-archive-{date}.sqlite3", flush=True)
-    for registre, jeton in exports.items():
-        dans_le_volume("mediateur", f"cat > /donnees/trace-{registre}-archive-{date}.jwt", entree=jeton + "\n")
-    print(f"  archivés : trace-<registre>-archive-{date}.jwt (exports signés, à côté du journal)", flush=True)
 
-    # 4. Redémarrage : journal neuf (sa 1re ligne = chargement du catalogue), traces vides
+    # 3. Redémarrage : journal neuf (sa 1re ligne = chargement du catalogue). Les registres n'ont rien à remettre à zéro.
     print("Redémarrage…", flush=True)
-    executer("docker", "compose", "up", "-d", "--wait", "--no-deps", "mediateur", *[f"registre-{r}" for r in REGISTRES], *ECRANS)
+    executer("docker", "compose", "up", "-d", "--wait", "--no-deps", "mediateur", *ECRANS)
 
-    # 5. Contrôle : l'archive reste vérifiable (chaîne + double trace), le nouveau journal est intègre
-    print("\nVérification de l'archive (chaîne + double trace) :", flush=True)
-    archive = executer_verifier(f"/donnees/mediateur-archive-{date}.sqlite3", "--registres")
+    # 4. Contrôle : l'archive reste vérifiable (chaîne), le nouveau journal est intègre
+    print("\nVérification de l'archive (chaîne) :", flush=True)
+    archive = executer_verifier(f"/donnees/mediateur-archive-{date}.sqlite3")
     print("Vérification du nouveau journal :", flush=True)
     neuf = executer_verifier()
     if not archive.startswith("OK  Journal intègre") or not neuf.startswith("OK  Journal intègre"):
         raise SystemExit("ATTENTION : chaîne rompue (voir ci-dessus).")
-    if "ABSENTE du journal" in archive:
-        # Le banc de pannes (scénario A) appelle exprès les registres SANS passer par le médiateur, comme le ferait
-        # un médiateur compromis : la double trace doit les voir. Ce sont des faits, on les garde dans l'archive.
-        print("NOTE : les écarts « ABSENTE du journal » ci-dessus sont les appels directs du banc de pannes "
-              "(scénario A, médiateur compromis) : la double trace les a bien détectés.")
     print(f"\nDonnées de démonstration remises à zéro. Archive {date} conservée et vérifiable.")
     env = [l.strip() for l in (RACINE / ".env").read_text(encoding="utf-8").splitlines()]
     if "OUTILS_TEST=1" in env:

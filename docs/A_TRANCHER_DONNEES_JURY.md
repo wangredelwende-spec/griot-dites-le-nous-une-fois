@@ -5,7 +5,7 @@
 | Point | Question | Réglage |
 |---|---|---|
 | Identifiant commun | Les 3 registres partagent-ils un identifiant ? Sinon, comment rapprocher les fiches ? | `identite:` de chaque adaptateur |
-| Absence du casier | Le casier fourni liste-t-il tout le monde, ou seulement les condamnés ? | `absence: refus` ou `absence: vierge` (`adaptateurs/casier.yaml`) |
+| Absence du casier | Le casier fourni liste-t-il tout le monde, ou seulement les condamnés ? | `absence: refus` ou `absence: vierge` (`adaptateurs/casier.yaml`) . Attention, avec `absence: vierge`, une personne absente du casier n'est « vierge » qu'après confirmation de son identité par l'état civil (`personne_connue`), qui n'est autorisée qu'au concours : pour le **passeport**, elle reçoit donc toujours un **refus** « identité non confirmée » (testé : `tests/test_passeport_absent_du_casier.py`). Pour l'accepter, l'état civil devrait déclarer `service-passeport` sur `personne_connue` (l'ONI apprendrait seulement « existe »). |
 | Double nationalité | Comment est-elle écrite ? (« burkinabe;ivoirienne », liste JSON, deux lignes, une colonne par nationalité…) | « a ; b » et listes JSON : oui si l'une convient. Deux LIGNES pour une personne : aujourd'hui refus « identité ambiguë » (à décider) |
 | Dates incomplètes | Quels formats ? (« vers 1990 », « 1990 », « 00/00/1990 »…) | `format_date` + `bornes_de_naissance` : « aaaa », « aaaa-mm » acceptés si concluants ; « 00/00/1990 » et « vers » : refus |
 | Décès | Où est noté le décès ? | `champs.date_deces` + `refuser_si_decede` |

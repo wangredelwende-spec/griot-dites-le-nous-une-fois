@@ -3,9 +3,9 @@
     .venv\\Scripts\\python scripts\\tester_adaptateur.py etat-civil BF-0001
     .venv\\Scripts\\python scripts\\tester_adaptateur.py etat-civil BF-0001 --yaml donnees_jury\\brouillons\\etat-civil-etat_civil-xlsx.yaml
 
-Charge l'adaptateur avec le MÊME code que le registre (registres_sim/app/adaptateur.py). Les chemins
+Charge l'adaptateur avec le MÊME code que le registre (registres/app/adaptateur.py). Les chemins
 « /donnees/… » du YAML sont lus dans le dossier des données : DONNEES_REGISTRES du .env (par défaut
-registres_sim/donnees_fictives), ou --donnees. Pour chaque attribut (et chaque jeu de paramètres déclaré) :
+registres/donnees_fictives), ou --donnees. Pour chaque attribut (et chaque jeu de paramètres déclaré) :
 la réponse minimale, ou le motif PRÉCIS du refus (qui, lui, ne sort jamais du registre en vrai).
 Aucune clé, aucun jeton, aucun journal : rien n'est écrit.
 """
@@ -22,9 +22,9 @@ RACINE = Path(__file__).resolve().parents[1]
 
 
 def charger_paquet_registre():
-    """registres_sim/app chargé sous le nom « registre_app » (comme dans les tests)."""
-    spec = importlib.util.spec_from_file_location("registre_app", RACINE / "registres_sim/app/__init__.py",
-                                                  submodule_search_locations=[str(RACINE / "registres_sim/app")])
+    """registres/app chargé sous le nom « registre_app » (comme dans les tests)."""
+    spec = importlib.util.spec_from_file_location("registre_app", RACINE / "registres/app/__init__.py",
+                                                  submodule_search_locations=[str(RACINE / "registres/app")])
     sys.modules["registre_app"] = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(sys.modules["registre_app"])
     return importlib.import_module("registre_app.adaptateur")
@@ -43,14 +43,14 @@ def main():
     parser = argparse.ArgumentParser(description="Réponse qu'un registre donnerait, sans signer ni journaliser.")
     parser.add_argument("registre", help="etat-civil, nationalite, casier…")
     parser.add_argument("identifiant", help="identifiant de la personne (sujet_ref)")
-    parser.add_argument("--yaml", help="adaptateur à essayer (par défaut adaptateurs/<registre>.yaml)")
+    parser.add_argument("--yaml", help="adaptateur à essayer (par défaut registres/adaptateurs/<registre>.yaml)")
     parser.add_argument("--donnees", help="dossier des fichiers (par défaut DONNEES_REGISTRES du .env)")
     args = parser.parse_args()
 
     env = lire_env()
-    donnees = Path(args.donnees or env.get("DONNEES_REGISTRES", "").strip() or "registres_sim/donnees_fictives")
+    donnees = Path(args.donnees or env.get("DONNEES_REGISTRES", "").strip() or "registres/donnees_fictives")
     donnees = donnees if donnees.is_absolute() else RACINE / donnees
-    yaml_source = Path(args.yaml) if args.yaml else RACINE / f"adaptateurs/{args.registre}.yaml"
+    yaml_source = Path(args.yaml) if args.yaml else RACINE / f"registres/adaptateurs/{args.registre}.yaml"
     temporaire = Path(tempfile.mkdtemp(prefix="tester-adaptateur-"))
     # Secret de l'API du jury (.env -> fichier temporaire, comme /run/secrets dans le conteneur), effacé à la fin
     (temporaire / "api_jury").write_text(env.get("API_JURY_SECRET", "").strip())

@@ -50,7 +50,7 @@ def connecter(client: httpx.Client) -> str:
 def main():
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description="Demande au guichet, par un vrai agent (mot de passe + TOTP).")
-    parser.add_argument("--demarche", required=True, help="code de la démarche (catalogue/demarches.yaml)")
+    parser.add_argument("--demarche", required=True, help="code de la démarche (consentement-minimisation/catalogue/demarches.yaml)")
     parser.add_argument("--usager", required=True, help="identifiant de l'usager, ex. BF-0001")
     args = parser.parse_args()
 

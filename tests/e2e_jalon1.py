@@ -23,7 +23,7 @@ def demander(client: httpx.Client, csrf: str, sujet: str, demarche: str = "verif
 
 
 REFUS = "refusé par le registre d'état civil : réponse impossible, s'adresser à l'état civil. Réponse signée par le registre, signature vérifiée"
-# (démarche, usager, textes attendus) ; démarches du catalogue (catalogue/demarches.yaml)
+# (démarche, usager, textes attendus) ; démarches du catalogue (consentement-minimisation/catalogue/demarches.yaml)
 CAS = [
     ("verifier-majorite", "BF-0001", ["majeur (18 ans accomplis) : oui Signé par le registre d'état civil, signature vérifiée"]),
     ("verifier-majorite", "BF-0003", ["majeur (18 ans accomplis) : non"]),

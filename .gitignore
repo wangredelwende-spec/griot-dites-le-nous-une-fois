@@ -31,7 +31,7 @@ donnees_jury/
 # Secrets locaux des tests de bout en bout (TOTP du compte de test, CA de Caddy)
 tests/.secrets/
 
-# Sauvegarde hors ligne des images Docker (scripts/sauvegarder_hors_ligne.py) : plusieurs centaines de Mo
+# Sauvegarde hors ligne des images Docker (resilience/sauvegarder_hors_ligne.py) : plusieurs centaines de Mo
 hors_ligne/
 
 # Sorties de l'OCR (scripts de conversion PDF -> CSV) : le CSV et sa provenance s'écrivent
@@ -43,4 +43,4 @@ tests/donnees_formats/etat_civil_scanne.csv
 *.tar
 
 # Copies du catalogue gardées par remise_a_zero.py avant restauration
-catalogue/*.bak
+consentement-minimisation/catalogue/*.bak

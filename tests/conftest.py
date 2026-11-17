@@ -24,8 +24,8 @@ for dossier in ("secrets", "donnees", "publiques"):
 (TMP / "secrets/canal_usager").write_text("secret-de-test-canal")
 (TMP / "secrets/canal_web").write_text("secret-de-test-canal-web")
 os.environ.update(GRIOT_SECRETS=str(TMP / "secrets"), GRIOT_DONNEES=str(TMP / "donnees"),
-                  GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_CATALOGUE=str(RACINE / "catalogue"),
-                  GRIOT_ADAPTATEURS=str(RACINE / "adaptateurs"),
+                  GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_CATALOGUE=str(RACINE / "consentement-minimisation/catalogue"),
+                  GRIOT_ADAPTATEURS=str(RACINE / "registres/adaptateurs"),
                   LIMITE_PAR_CITOYEN="1000", LIMITE_SUJETS="1000",   # des tests dédiés baissent les limites
                   DELAI_REGISTRE="0.5", GRIOT_VERIFIER=str(RACINE / "journal/verifier.py"))
 
@@ -43,12 +43,14 @@ CHEMIN_JOURNAL = TMP / "donnees/mediateur.sqlite3"
 
 # Le registre est enregistré sous le nom de paquet « registre_app » (le médiateur occupe déjà le nom « app »)
 import importlib.util  # noqa: E402
-_spec = importlib.util.spec_from_file_location("registre_app", RACINE / "registres_sim/app/__init__.py",
-                                               submodule_search_locations=[str(RACINE / "registres_sim/app")])
+_spec = importlib.util.spec_from_file_location("registre_app", RACINE / "registres/app/__init__.py",
+                                               submodule_search_locations=[str(RACINE / "registres/app")])
 sys.modules["registre_app"] = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(sys.modules["registre_app"])
 
-sys.path.insert(0, str(RACINE / "mediateur"))
+# Même processus que dans le conteneur : passerelle (paquet app) + couches consentement et journal
+for _couche in ("passerelle", "consentement-minimisation", "journal"):
+    sys.path.insert(0, str((RACINE / _couche).resolve()))
 from app import main as mediateur  # noqa: E402
 from app.agents import agent_connecte  # noqa: E402
 
@@ -90,8 +92,8 @@ def refus_registre(corps: dict, cle=CLE_REGISTRE, **modifs) -> str:
 
 # Adaptateur de l'état civil lisant le CSV du dépôt (au lieu de /donnees dans Docker)
 ADAPTATEUR_TEST = TMP / "etat-civil.yaml"
-ADAPTATEUR_TEST.write_text((RACINE / "adaptateurs/etat-civil.yaml").read_text(encoding="utf-8").replace(
-    "/donnees/etat_civil.csv", (RACINE / "registres_sim/donnees_fictives/etat_civil.csv").as_posix()),
+ADAPTATEUR_TEST.write_text((RACINE / "registres/adaptateurs/etat-civil.yaml").read_text(encoding="utf-8").replace(
+    "/donnees/etat_civil.csv", (RACINE / "registres/donnees_fictives/etat_civil.csv").as_posix()),
     encoding="utf-8")
 
 
@@ -117,7 +119,7 @@ def client():
 
 
 FINALITES = {code: d["finalite"] for code, d in
-             yaml.safe_load((RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8"))["demarches"].items()}
+             yaml.safe_load((RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8"))["demarches"].items()}
 
 
 def demande(demarche="verifier-majorite", sujet="BF-0001", **modifs) -> dict:

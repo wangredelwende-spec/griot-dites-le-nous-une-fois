@@ -3,7 +3,7 @@ seulement les fichiers YAML de tests/adaptateurs_formats/).
 
     .venv\\Scripts\\python tests\\donnees_formats\\fabriquer.py
 
-Mêmes personnes que registres_sim/donnees_fictives, écrites autrement :
+Mêmes personnes que registres/donnees_fictives, écrites autrement :
 - etat_civil.xlsx      : Excel, en-têtes en français, dates jj/mm/aaaa (texte) et une vraie date Excel ;
 - nationalite.json     : JSON imbriqué (registre.personnes[].identite.nip…), valeurs écrites de plusieurs façons ;
 - casier.csv           : CSV Windows-1252, séparateur « ; », accents ;

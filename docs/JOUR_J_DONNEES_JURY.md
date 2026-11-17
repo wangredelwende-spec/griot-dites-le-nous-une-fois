@@ -3,7 +3,7 @@
 Toutes les commandes : PowerShell, dans le dossier du dépôt. Les données du jury restent dans `donnees_jury/`
 (ignoré par git : **jamais commitées**).
 
-## Formats acceptés (réglés dans `adaptateurs/<registre>.yaml`)
+## Formats acceptés (réglés dans `registres/adaptateurs/<registre>.yaml`)
 
 | Format | `source:` | Réglages |
 |---|---|---|

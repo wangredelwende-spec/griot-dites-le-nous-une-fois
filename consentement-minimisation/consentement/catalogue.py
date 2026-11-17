@@ -2,9 +2,9 @@
 Aucune démarche n'est écrite dans le code.
 
 Trois sources, toutes en lecture seule :
-- catalogue/annuaire.yaml  : les services demandeurs et les registres ;
-- adaptateurs/<registre>.yaml : les attributs que chaque registre DÉCLARE savoir calculer ;
-- catalogue/demarches.yaml : les démarches (service, finalité, base, attributs et leurs paramètres).
+- consentement-minimisation/catalogue/annuaire.yaml  : les services demandeurs et les registres ;
+- registres/adaptateurs/<registre>.yaml : les attributs que chaque registre DÉCLARE savoir calculer ;
+- consentement-minimisation/catalogue/demarches.yaml : les démarches (service, finalité, base, attributs et leurs paramètres).
 Un catalogue invalide est REFUSÉ avec toutes ses raisons : on ne devine pas une règle manquante. Le médiateur
 garde alors le dernier catalogue valide et continue de tourner (main.surveiller_catalogue).
 """
@@ -14,7 +14,7 @@ from datetime import date, datetime, timezone
 
 import yaml
 
-from .config import ADAPTATEURS, CATALOGUE
+from app.config import ADAPTATEURS, CATALOGUE      # chemins de la passerelle (même processus)
 
 BASES = ("consentement", "base_legale")
 AUJOURDHUI = "aujourd'hui"

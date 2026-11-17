@@ -26,12 +26,13 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict, Field
 
-from . import catalogue, registres
+from consentement import catalogue          # couche consentement-minimisation (même processus)
+from . import registres
 from .agents import agent_connecte, controleur_connecte
 from .config import (CLES_PUBLIQUES, DELAI_REGISTRE, DONNEES, DUREE_CONSENTEMENT, FENETRE_LIMITE,
                      JOURNAL_VERIFIER, LIMITE_EXEMPTES, LIMITE_PAR_CITOYEN, LIMITE_SUJETS, OUTILS_TEST,
                      lire_secret)
-from .journal import Journal
+from tracabilite.journal import Journal     # couche journal (même processus)
 
 # Catalogue validé au démarrage. Copie du dernier catalogue VALIDE gardée dans le volume du médiateur :
 # si le fichier est invalide au démarrage, on repart de cette copie au lieu de s'arrêter devant le jury.

@@ -13,7 +13,7 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
    `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt caddy-racine.crt`, double-cliquer sur
    `caddy-racine.crt` → Installer le certificat → Utilisateur actuel → « Autorités de certification racines de
    confiance ». Redémarrer le navigateur. (`caddy-racine.crt` n'est jamais commité.)
-4. Registres en état normal : `python scripts/panne.py` doit afficher `normal` trois fois.
+4. Registres en état normal : `python resilience/panne.py` doit afficher `normal` trois fois.
 5. Sur le téléphone de démo, installer **FreeOTP** ou **Aegis** (applications libres) pour le code TOTP.
 6. Ouvrir trois onglets : https://guichet.griot.test (agent), une fenêtre privée sur https://guichet.griot.test
    (second agent), https://usager.griot.test (téléphone de l'usager).
@@ -21,8 +21,8 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
    `issa.sawadogo`, `awa.ouedraogo`, `agent.curieux`, `controle.cil`.
 
 8. Sauvegarde hors ligne des images (après chaque reconstruction, tant qu'on a le réseau) :
-   `python scripts\sauvegarder_hors_ligne.py` → `hors_ligne\griot-images-<date>.tar` (environ 560 Mo, 8 images
-   dont l'OCR). Sans réseau, ou sur une autre machine : `python scripts\charger_hors_ligne.py hors_ligne\griot-images-<date>.tar`
+   `python resilience\sauvegarder_hors_ligne.py` → `hors_ligne\griot-images-<date>.tar` (environ 560 Mo, 8 images
+   dont l'OCR). Sans réseau, ou sur une autre machine : `python resilience\charger_hors_ligne.py hors_ligne\griot-images-<date>.tar`
    (vérifie l'empreinte SHA-256, `docker load`, puis démarre sans rien construire ni télécharger, environ 2 minutes).
 
 ## 0 bis. Juste avant CHAQUE répétition et avant la démo
@@ -41,7 +41,7 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
    python scripts\remise_a_zero.py --oui
    ```
    Attendu à la fin : « Journal intègre : 1 lignes » puis « Archive … conservée et vérifiable ».
-3. `python scripts\panne.py` → `normal` trois fois. Page Contrôle (`controle.cil`) : « comptes de test actifs : non ».
+3. `python resilience\panne.py` → `normal` trois fois. Page Contrôle (`controle.cil`) : « comptes de test actifs : non ».
 
 ## Comptes de démonstration
 
@@ -68,7 +68,7 @@ réservés aux tests automatiques : ne pas les utiliser en démo.)
 
 Citoyens utiles au guichet : `BF-0001` (tout est « oui »), `BF-0003` (mineure, absente du casier), `BF-0004`
 (né « vers 1990 »), `BF-0007` (décédée), `BF-0008` (casier non vierge), `BF-0018` (nationalité ivoirienne),
-`BF-0019` (doublon), `BF-0099` (inconnu). Détail : `registres_sim/donnees_fictives/LISEZMOI.md`.
+`BF-0019` (doublon), `BF-0099` (inconnu). Détail : `registres/donnees_fictives/LISEZMOI.md`.
 
 ## Scène 1 (principale) : le passeport, « vous voyez avant »
 
@@ -174,8 +174,8 @@ apparaît dans l'historique de l'usager avec le texte cité.
    pendant la démo).
 3. **Alertes** : « agent.curieux … Alerte : agent bloqué … (6 citoyens concernés) ». On voit l'agent et le
    service, jamais les citoyens (ni identifiant, ni pseudonyme, ni réponse).
-4. **État des registres** : couper un registre (`python scripts/panne.py casier coupe`), actualiser : « en panne ».
-   Remettre : `python scripts/panne.py casier normal`.
+4. **État des registres** : couper un registre (`python resilience/panne.py casier coupe`), actualiser : « en panne ».
+   Remettre : `python resilience/panne.py casier normal`.
 5. **Vérifier le journal** : même vérification que `verifier.py --registres` (chaîne + double trace).
 6. **Catalogue en vigueur** : démarches, qui peut demander quoi, et ce que chaque registre accepte (double clé),
    avec l'empreinte SHA-256 écrite au journal.
@@ -251,7 +251,7 @@ déjà au service des bourses (double clé, `adaptateurs\*.yaml`). Testé : `tes
 3. Le vrai motif reste dans le registre : `docker compose logs registre-etat-civil --tail 5`
    (« refus (personne décédée) », lié à un numéro de demande, jamais au nom du citoyen).
 4. Concours direct, `BF-0003` : le casier répond « réponse impossible, s'adresser au greffe » (absente du casier :
-   absent ≠ vierge ; réglable par `absence:` dans `adaptateurs/casier.yaml`, voir `LIMITES.md`).
+   absent ≠ vierge ; réglable par `absence:` dans `registres/adaptateurs/casier.yaml`, voir `LIMITES.md`).
 
 ## Scène 6 : un registre tombe en panne
 
@@ -259,14 +259,14 @@ Faire une demande **Concours direct** au guichet (`issa.sawadogo`, `BF-0001`) ap
 
 | Commande | Attendu au guichet, ligne « âge » |
 |---|---|
-| `python scripts/panne.py etat-civil lent` | après 3 s : « indisponible. Registre d'état civil indisponible (délai dépassé (3 s)), rien n'a été deviné » |
-| `python scripts/panne.py etat-civil corrompu` | « refusé. réponse corrompue : signature invalide » (ligne d'alerte au journal) |
-| `python scripts/panne.py etat-civil coupe` | « indisponible. Registre d'état civil indisponible (registre injoignable), rien n'a été deviné » |
-| `python scripts/panne.py etat-civil normal` | « oui », même empreinte de clé qu'avant |
+| `python resilience/panne.py etat-civil lent` | après 3 s : « indisponible. Registre d'état civil indisponible (délai dépassé (3 s)), rien n'a été deviné » |
+| `python resilience/panne.py etat-civil corrompu` | « refusé. réponse corrompue : signature invalide » (ligne d'alerte au journal) |
+| `python resilience/panne.py etat-civil coupe` | « indisponible. Registre d'état civil indisponible (registre injoignable), rien n'a été deviné » |
+| `python resilience/panne.py etat-civil normal` | « oui », même empreinte de clé qu'avant |
 
 Pendant la panne, **la nationalité et le casier s'affichent quand même** (signés, vérifiés), et la conclusion dit
 « **résultat incomplet, aucune conclusion** » : jamais de « oui » global sur un résultat partiel.
-`python scripts/panne.py` affiche l'état des trois registres. **Toujours finir par `normal`.**
+`python resilience/panne.py` affiche l'état des trois registres. **Toujours finir par `normal`.**
 
 ## Scène 7 : demander plus que prévu
 
@@ -285,14 +285,14 @@ et « ALERTE » dans l'historique USSD du citoyen (motif affiché dans le détai
 
 ## Scène 8 : quelqu'un modifie le journal
 
-`python scripts/falsifier_journal.py 5`
+`python resilience/falsifier_journal.py 5`
 
 Attendu : « Ligne 5 modifiée dans la copie … », puis le vrai journal « OK Journal intègre », puis la copie
 « **ERREUR Ligne 5 modifiée** ». (On modifie une copie pour pouvoir rejouer la démo ; la manipulation est celle
 d'un administrateur : supprimer le déclencheur SQLite qui interdit les modifications, puis changer la ligne.)
 
 **Plus fort : l'administrateur habile** qui supprime une consultation ET recalcule toute la chaîne :
-`python scripts/falsifier_journal.py --cacher`
+`python resilience/falsifier_journal.py --cacher`
 
 Attendu : la copie falsifiée « OK Journal intègre : N lignes » (la chaîne seule ne voit rien !), puis, avec la
 **double trace** : « ERREUR etat-civil : réponse à la demande … ABSENTE du journal du médiateur » (idem nationalité
@@ -326,7 +326,7 @@ Plusieurs bancs le même jour sans remise à zéro finissent par « bloqué » (
 
 1. `OUTILS_TEST=1` dans `.env`, puis `python scripts/outils_test.py` (crée 4 comptes de service de TEST,
    `outil-test-concours`, `outil-test-bourses`, `outil-test-curieux`, `outil-test-passeport` : mêmes règles que les agents, aucune exemption).
-2. `python scripts/banc_de_pannes.py` → une ligne ✅ / ❌ par vérification (registre coupé, lent, corrompu, rejeu,
+2. `python resilience/banc_de_pannes.py` → une ligne ✅ / ❌ par vérification (registre coupé, lent, corrompu, rejeu,
    mauvaise finalité, attribut en plus, appels directs au registre, seuil non déclaré, agent curieux, consentement
    refusé / retiré / expiré, journal modifié, consultation cachée, réseau, double trace), en 45 s environ.
 3. **Remettre `OUTILS_TEST=0`** puis `python scripts/outils_test.py` : les comptes de test sont supprimés.
@@ -338,4 +338,4 @@ Plusieurs bancs le même jour sans remise à zéro finissent par « bloqué » (
 
 ## Après la démo
 
-`python scripts/panne.py` (tout `normal`). Pour tout arrêter sans rien perdre : `docker compose stop`.
+`python resilience/panne.py` (tout `normal`). Pour tout arrêter sans rien perdre : `docker compose stop`.

@@ -1,6 +1,6 @@
 """API du jury EN DIRECT à travers le relais (profil « api-jury »), et export unique (option par défaut).
 
-Ici sans Docker : une fausse API locale, le relais (relais_api_jury/relais.py) dans un fil, et un registre dont
+Ici sans Docker : une fausse API locale, le relais (passerelle/sortie/relais.py) dans un fil, et un registre dont
 l'adaptateur vise le relais. Le registre ne connaît ni l'adresse de l'API ni son jeton.
 """
 import hashlib
@@ -18,7 +18,7 @@ import pytest
 from conftest import RACINE, TMP
 from test_formats import MAJEUR, FausseApi, adaptateur, charger, majeur
 
-spec = importlib.util.spec_from_file_location("relais", RACINE / "relais_api_jury/relais.py")
+spec = importlib.util.spec_from_file_location("relais", RACINE / "passerelle/sortie/relais.py")
 relais = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(relais)
 

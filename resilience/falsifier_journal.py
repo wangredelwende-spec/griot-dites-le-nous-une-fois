@@ -4,9 +4,9 @@ Le script travaille sur une COPIE du journal (dans le conteneur du médiateur), 
 puisse être rejouée sans abîmer le vrai journal.
 
 Utilisation :
-    python scripts/falsifier_journal.py            # modifie la ligne 5 de la copie
-    python scripts/falsifier_journal.py 12         # modifie la ligne 12
-    python scripts/falsifier_journal.py --cacher   # CACHE la dernière consultation et recalcule toute la chaîne
+    python resilience/falsifier_journal.py            # modifie la ligne 5 de la copie
+    python resilience/falsifier_journal.py 12         # modifie la ligne 12
+    python resilience/falsifier_journal.py --cacher   # CACHE la dernière consultation et recalcule toute la chaîne
 
 1. Modifier une ligne : il supprime le déclencheur qui interdit les modifications, puis change une valeur.
    verifier.py indique la ligne exacte.
@@ -36,7 +36,7 @@ print(f"Ligne {n} modifiée dans la copie : demandeur {avant[0]!r} -> 'mairie', 
 CACHER = """
 import shutil, sqlite3, sys
 sys.path.insert(0, "/app")
-from app.journal import ZEROS, empreinte
+from tracabilite.journal import ZEROS, empreinte
 shutil.copy("/donnees/mediateur.sqlite3", "/tmp/journal-falsifie.sqlite3")
 base = sqlite3.connect("/tmp/journal-falsifie.sqlite3", isolation_level=None)
 base.row_factory = sqlite3.Row

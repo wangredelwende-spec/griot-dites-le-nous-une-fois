@@ -6,7 +6,7 @@
 
 Le jury peut désigner n'importe quel citoyen : il doit pouvoir « prendre son téléphone » (*226#).
 Les citoyens sont lus dans le registre d'ÉTAT CIVIL, avec le MÊME code et le MÊME adaptateur que le registre
-(adaptateurs/etat-civil.yaml, données de DONNEES_REGISTRES dans .env). L'identifiant imprimé est EXACTEMENT celui à
+(registres/adaptateurs/etat-civil.yaml, données de DONNEES_REGISTRES dans .env). L'identifiant imprimé est EXACTEMENT celui à
 taper au guichet : le médiateur retrouve les demandes de l'usager par cet identifiant (pseudonymisé), une autre
 écriture (accents, date en jj/mm/aaaa) ne retrouverait pas ses demandes sur le téléphone.
 
@@ -14,7 +14,7 @@ Sorties (dans donnees_jury/, ignoré par git) :
 - abonnes.yaml       : numéro -> {sujet_ref, pin}, lu par le simulateur USSD (ABONNES_USSD dans .env) ;
 - annuaire_ussd.csv  : le tableau (identifiant ; nom ; numéro ; PIN ; remarque), à imprimer pour le jury.
 Numéros : 71 000 001, 71 000 002… dans l'ordre du fichier (fictifs ; en production le numéro vient de l'opérateur).
-PIN : le même PIN de DÉMO pour tous, en clair dans abonnes.yaml (comme ussd_sim/abonnes.yaml) : voir LIMITES.md.
+PIN : le même PIN de DÉMO pour tous, en clair dans abonnes.yaml (comme espace-usager/ussd/abonnes.yaml) : voir LIMITES.md.
 """
 import argparse
 import csv
@@ -68,7 +68,7 @@ def main():
     parser = argparse.ArgumentParser(description="Numéro fictif + PIN de démo pour chaque citoyen importé.")
     parser.add_argument("--pin", default="1234", help="PIN de démo, le même pour tous (4 chiffres)")
     parser.add_argument("--donnees", help="dossier des données (par défaut DONNEES_REGISTRES du .env)")
-    parser.add_argument("--yaml", help="adaptateur d'état civil (par défaut adaptateurs/etat-civil.yaml)")
+    parser.add_argument("--yaml", help="adaptateur d'état civil (par défaut registres/adaptateurs/etat-civil.yaml)")
     parser.add_argument("--sortie", default=str(RACINE / "donnees_jury"), help="dossier de sortie")
     parser.add_argument("--essai", action="store_true", help="imprimer seulement, sans rien écrire")
     args = parser.parse_args()
@@ -76,9 +76,9 @@ def main():
         raise SystemExit("Le PIN de démo doit faire 4 chiffres.")
 
     env = lire_env()
-    donnees = Path(args.donnees or env.get("DONNEES_REGISTRES", "").strip() or "registres_sim/donnees_fictives")
+    donnees = Path(args.donnees or env.get("DONNEES_REGISTRES", "").strip() or "registres/donnees_fictives")
     donnees = donnees if donnees.is_absolute() else RACINE / donnees
-    source = Path(args.yaml) if args.yaml else RACINE / "adaptateurs/etat-civil.yaml"
+    source = Path(args.yaml) if args.yaml else RACINE / "registres/adaptateurs/etat-civil.yaml"
     temporaire = Path(tempfile.mkdtemp(prefix="annuaire-ussd-"))
     (temporaire / "api_jury").write_text("")
     os.environ["GRIOT_SECRETS"] = str(temporaire)

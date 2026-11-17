@@ -3,7 +3,7 @@ sortie ») sans confirmation d'identité. Elle reçoit un refus.
 
 Quatre combinaisons, toutes couvertes :
 - réglage du catalogue : interdiction de sortie du territoire (normal) | casier judiciaire vierge (repli jour J) ;
-- réglage du casier (adaptateurs/casier.yaml) : absence: refus (dépôt) | absence: vierge (à trancher jour J).
+- réglage du casier (registres/adaptateurs/casier.yaml) : absence: refus (dépôt) | absence: vierge (à trancher jour J).
 Avec « absence: refus », c'est le REGISTRE du casier qui refuse (introuvable). Avec « absence: vierge », le médiateur
 demande d'abord « personne_connue » à l'état civil, qui REFUSE ce service au passeport (double clé) : refus.
 BF-0003 n'a aucune ligne dans le casier fictif. Un identifiant inventé (BF-0099) est traité pareil.
@@ -26,10 +26,10 @@ ABSENTS = ("BF-0003", "BF-0099")
 
 
 def casier(absence: str, tmp_path):
-    texte = (RACINE / "adaptateurs/casier.yaml").read_text(encoding="utf-8")
+    texte = (RACINE / "registres/adaptateurs/casier.yaml").read_text(encoding="utf-8")
     chemin = tmp_path / "casier.yaml"
     chemin.write_text(texte.replace("absence: refus", f"absence: {absence}").replace(
-        "/donnees/casier.csv", (RACINE / "registres_sim/donnees_fictives/casier.csv").as_posix()), encoding="utf-8")
+        "/donnees/casier.csv", (RACINE / "registres/donnees_fictives/casier.csv").as_posix()), encoding="utf-8")
     return adaptateur.Adaptateur(chemin)
 
 

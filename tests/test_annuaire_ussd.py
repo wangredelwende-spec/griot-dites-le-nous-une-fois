@@ -10,7 +10,7 @@ import sys
 import yaml
 from conftest import RACINE
 
-DONNEES = RACINE / "registres_sim/donnees_fictives"
+DONNEES = RACINE / "registres/donnees_fictives"
 
 
 def lancer(tmp_path, adaptateur=None):
@@ -38,7 +38,7 @@ def test_chaque_citoyen_a_un_numero(tmp_path):
 
 def test_cle_composee(tmp_path):
     adaptateur = tmp_path / "etat-civil.yaml"
-    adaptateur.write_text((RACINE / "adaptateurs/etat-civil.yaml").read_text(encoding="utf-8").replace(
+    adaptateur.write_text((RACINE / "registres/adaptateurs/etat-civil.yaml").read_text(encoding="utf-8").replace(
         "identite: nip", 'identite: {colonnes: [nom, prenoms, date_naissance], separateur: "|"}'), encoding="utf-8")
     abonnes, tableau = lancer(tmp_path, adaptateur)
     sujets = {a["sujet_ref"] for a in abonnes.values()}

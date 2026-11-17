@@ -44,7 +44,7 @@ def kcadm(*arguments: str, entree: str | None = None) -> str:
 
 def client_guichet() -> dict:
     """Les mêmes « mappers » que le guichet : rôles, groupes (= service) et audience « mediateur »."""
-    realm = json.loads((RACINE / "keycloak/realm-griot.json").read_text(encoding="utf-8"))
+    realm = json.loads((RACINE / "socle/keycloak/realm-griot.json").read_text(encoding="utf-8"))
     return next(c for c in realm["clients"] if c["clientId"] == "guichet")
 
 

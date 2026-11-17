@@ -13,8 +13,8 @@ _spec.loader.exec_module(remise)
 @pytest.fixture
 def depot(tmp_path, monkeypatch):
     """Petit dépôt git jetable avec un catalogue committé."""
-    (tmp_path / "catalogue").mkdir()
-    fichier = tmp_path / "catalogue/demarches.yaml"
+    (tmp_path / "consentement-minimisation/catalogue").mkdir(parents=True)
+    fichier = tmp_path / "consentement-minimisation/catalogue/demarches.yaml"
     fichier.write_text("demarches:\n  a: {}\n", encoding="utf-8")
     for commande in (["git", "init", "-q"], ["git", "add", "."],
                      ["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "x"]):

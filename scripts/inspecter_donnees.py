@@ -9,9 +9,9 @@ distinctes (quand il y en a peu), identifiant probable, doublons, homonymes, CL�
 commune, sinon clé composée nom + prénoms + date de naissance [+ lieu], avec le nombre d'homonymes exacts qui
 seraient refusés). Avec plusieurs fichiers : colonnes qui partagent les mêmes valeurs (identifiant commun).
 Avec --proposer-yaml, dans donnees_jury/brouillons/ (À RELIRE : « À VÉRIFIER » = suppositions) : un brouillon
-d'adaptateur par fichier, le format d'identifiant à mettre dans catalogue/annuaire.yaml, et un brouillon
+d'adaptateur par fichier, le format d'identifiant à mettre dans consentement-minimisation/catalogue/annuaire.yaml, et un brouillon
 d'annuaire USSD (numéros et PIN FICTIFS liés à quelques identifiants).
-Lit les fichiers avec le MÊME code que les registres (registres_sim/app/sources.py). Ne modifie rien.
+Lit les fichiers avec le MÊME code que les registres (registres/app/sources.py). Ne modifie rien.
 """
 import argparse
 import importlib.util
@@ -27,7 +27,7 @@ from pathlib import Path
 import yaml
 
 RACINE = Path(__file__).resolve().parents[1]
-_spec = importlib.util.spec_from_file_location("sources", RACINE / "registres_sim/app/sources.py")
+_spec = importlib.util.spec_from_file_location("sources", RACINE / "registres/app/sources.py")
 sources = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(sources)
 
@@ -274,7 +274,7 @@ def cle_retenue(f: dict, commun: bool):
 
 
 def identifiant_usager(f: dict, cle) -> tuple[dict, list[str]]:
-    """Format d'identifiant pour catalogue/annuaire.yaml, et quelques identifiants d'exemple."""
+    """Format d'identifiant pour consentement-minimisation/catalogue/annuaire.yaml, et quelques identifiants d'exemple."""
     if isinstance(cle, dict):
         exemples = ["|".join(date_iso(l[c]) if "naiss" in simple(c) else l[c] for c in cle["colonnes"])
                     for l in f["lignes"] if all(l.get(c) for c in cle["colonnes"])][:5]
@@ -289,7 +289,7 @@ def proposer_yaml(f: dict, commun: bool = True) -> Path:
     seulement la description des données (source, identité, colonnes, format des dates)."""
     nom = simple(Path(f["adresse"]).stem)
     registre = next((r for mot, r in REGISTRES if mot in nom), "etat-civil")
-    conf = yaml.safe_load((RACINE / f"adaptateurs/{registre}.yaml").read_text(encoding="utf-8"))
+    conf = yaml.safe_load((RACINE / f"registres/adaptateurs/{registre}.yaml").read_text(encoding="utf-8"))
     conf["source"] = f["source"]
     conf["identite"] = cle_retenue(f, commun)
     champs = {}
@@ -316,7 +316,7 @@ def proposer_yaml(f: dict, commun: bool = True) -> Path:
     chemin = dossier / f"{registre}-{Path(f['adresse']).name.replace('.', '-')}.yaml"     # un brouillon par fichier
     entete = (f"# BROUILLON proposé par scripts/inspecter_donnees.py pour {Path(f['adresse']).name} : À RELIRE.\n"
               f"# Chercher « À VÉRIFIER ». Les « correspondances » (oui / non) sont devinées : les relire une par une.\n"
-              f"# Puis copier dans adaptateurs/{registre}.yaml et tester :\n"
+              f"# Puis copier dans registres/adaptateurs/{registre}.yaml et tester :\n"
               f"#   .venv\\Scripts\\python scripts\\tester_adaptateur.py {registre} <identifiant> --yaml {chemin.relative_to(RACINE)}\n")
     chemin.write_text(entete + yaml.safe_dump(conf, allow_unicode=True, sort_keys=False, width=120), encoding="utf-8")
     return chemin
@@ -337,14 +337,14 @@ def main():
     format_id, exemples = identifiant_usager(fichiers[0], cle)
     print("\n=== Clé d'identité proposée")
     print("  " + ("identifiant commun : " + cle if isinstance(cle, str) else "clé composée : " + " + ".join(cle["colonnes"])))
-    print(f"  format pour catalogue/annuaire.yaml : {format_id}")
+    print(f"  format pour consentement-minimisation/catalogue/annuaire.yaml : {format_id}")
     if args.proposer_yaml:
         print("\n=== Brouillons (À RELIRE)")
         for f in fichiers:
             print(f"  {proposer_yaml(f, commun).relative_to(RACINE)}")
         dossier = RACINE / "donnees_jury/brouillons"
         (dossier / "identifiant_usager.yaml").write_text(
-            "# À copier dans catalogue/annuaire.yaml (remplace le bloc identifiant_usager) : À RELIRE\n"
+            "# À copier dans consentement-minimisation/catalogue/annuaire.yaml (remplace le bloc identifiant_usager) : À RELIRE\n"
             + yaml.safe_dump({"identifiant_usager": format_id}, allow_unicode=True, sort_keys=False), encoding="utf-8")
         abonnes = {f"700001{i:02d}": {"sujet_ref": e, "pin": "1234"} for i, e in enumerate(exemples, start=1)}
         (dossier / "abonnes.yaml").write_text(

@@ -15,7 +15,7 @@
 #               mais la consultation apparaît dans son historique avec le texte cité)
 #   texte     : texte qui autorise la consultation (obligatoire en base légale)
 #   attributs : ce qui est demandé, et RIEN d'autre. Chaque attribut est déclaré par un registre
-#               (adaptateurs/<registre>.yaml), qui vérifie de son côté que le service y a droit.
+#               (registres/adaptateurs/<registre>.yaml), qui vérifie de son côté que le service y a droit.
 #               Facultatif, pour l'affichage au guichet : « attendu » (réponse qui remplit la condition,
 #               true par défaut) et « si_non » (texte montré à l'agent quand la réponse est « non »).
 #

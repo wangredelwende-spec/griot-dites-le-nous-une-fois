@@ -27,7 +27,7 @@ from .adaptateur import Adaptateur, Refus, SourceIndisponible
 
 ADAPTATEUR = Adaptateur(Path(os.environ["ADAPTATEUR"]))
 DUREE_VALIDITE = 600          # une réponse signée vaut 10 minutes
-# Interrupteur de panne (banc de pannes) : scripts/panne.py écrit « lent » ou « corrompu » dans ce fichier
+# Interrupteur de panne (banc de pannes) : resilience/panne.py écrit « lent » ou « corrompu » dans ce fichier
 PANNE = Path(os.environ.get("PANNE", "/tmp/panne"))
 CLES = Path(os.environ.get("CLES", "/cles"))                  # clé privée : volume de CE registre seulement
 PUBLIQUE = Path(os.environ.get("PUBLIQUE", "/publique"))      # clé publique : volume monté en lecture seule

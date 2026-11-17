@@ -14,7 +14,7 @@ médiateur. L'API côté usager (USSD, portail) est décrite dans [API_USAGER.md
 ### Obtenir le jeton d'un agent
 
 1. Déclarer l'application dans Keycloak (realm `griot`) comme client OIDC **confidentiel**, flux « authorization
-   code » + PKCE, avec les mêmes trois « mappers » que le client `guichet` (`keycloak/realm-griot.json`) :
+   code » + PKCE, avec les mêmes trois « mappers » que le client `guichet` (`socle/keycloak/realm-griot.json`) :
    `roles` (rôles du realm), `groupes` (groupes de l'agent = son service), `audience-mediateur` (audience
    `mediateur`).
 2. L'agent se connecte dans son navigateur : **mot de passe + code TOTP** (obligatoires pour tous les comptes).
@@ -80,7 +80,7 @@ de X-Road : voir la feuille de route.)
 | Champ | Règle |
 |---|---|
 | `id_demande` | UUID v4 créé par l'application. **Le même identifiant renvoie le même résultat** sans rappeler les registres (rejeu). Réutilisé pour une autre demande : `409`. |
-| `demarche` | Code d'une démarche de `catalogue/demarches.yaml` ouverte au service de l'agent. |
+| `demarche` | Code d'une démarche de `consentement-minimisation/catalogue/demarches.yaml` ouverte au service de l'agent. |
 | `sujet_ref` | Identifiant de l'usager : lettres, chiffres, tirets (1 à 64). |
 | `finalite` | **Exactement** celle du catalogue, sinon refus « finalité non autorisée ». |
 | `attributs` | Facultatif. S'il est présent, ce doit être exactement la liste du catalogue (sinon refus). |

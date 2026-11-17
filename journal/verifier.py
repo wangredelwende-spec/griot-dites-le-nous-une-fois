@@ -28,8 +28,8 @@ ZEROS = "0" * 64
 
 
 def empreinte(ligne: dict) -> str:
-    """Même calcul que mediateur/app/journal.py (clés triées, séparateurs compacts, UTF-8)."""
-    # NULL = colonne « canal » ajoutée après l'écriture de la ligne : exclue (voir mediateur/app/journal.py)
+    """Même calcul que journal/tracabilite/journal.py (clés triées, séparateurs compacts, UTF-8)."""
+    # NULL = colonne « canal » ajoutée après l'écriture de la ligne : exclue (voir journal/tracabilite/journal.py)
     sans_hash = {k: v for k, v in ligne.items() if k != "hash" and v is not None}
     canonique = json.dumps(sans_hash, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256((ligne["prev_hash"] + canonique).encode("utf-8")).hexdigest()

@@ -60,8 +60,8 @@ def charger(nom: str):
     """Adaptateur du dépôt, lisant le CSV fictif du dépôt (au lieu de /donnees dans Docker)."""
     from conftest import TMP
     chemin = TMP / f"{nom}.yaml"
-    chemin.write_text((RACINE / f"adaptateurs/{nom}.yaml").read_text(encoding="utf-8").replace(
-        "/donnees/", (RACINE / "registres_sim/donnees_fictives").as_posix() + "/"), encoding="utf-8")
+    chemin.write_text((RACINE / f"registres/adaptateurs/{nom}.yaml").read_text(encoding="utf-8").replace(
+        "/donnees/", (RACINE / "registres/donnees_fictives").as_posix() + "/"), encoding="utf-8")
     return adaptateur.Adaptateur(chemin)
 
 
@@ -99,11 +99,11 @@ def test_personne_connue():
 
 def test_casier_absence_vierge(tmp_path):
     """« absence: vierge » : une personne absente du casier est vierge (le médiateur a vérifié son existence)."""
-    texte = (RACINE / "adaptateurs/casier.yaml").read_text(encoding="utf-8")
+    texte = (RACINE / "registres/adaptateurs/casier.yaml").read_text(encoding="utf-8")
     assert "absence: refus" in texte                    # comportement par défaut du dépôt
     chemin = tmp_path / "casier.yaml"
     chemin.write_text(texte.replace("absence: refus", "absence: vierge").replace(
-        "/donnees/casier.csv", (RACINE / "registres_sim/donnees_fictives/casier.csv").as_posix()), encoding="utf-8")
+        "/donnees/casier.csv", (RACINE / "registres/donnees_fictives/casier.csv").as_posix()), encoding="utf-8")
     casier = adaptateur.Adaptateur(chemin)
     assert casier.calculer("casier_judiciaire_vierge", "BF-0003") == {"casier_judiciaire_vierge": True}
     assert casier.calculer("casier_judiciaire_vierge", "BF-0008") == {"casier_judiciaire_vierge": False}
@@ -154,8 +154,8 @@ def test_double_cle_declaree_par_le_registre():
 
 def casier_du_depot(tmp_path):
     chemin = tmp_path / "casier.yaml"
-    chemin.write_text((RACINE / "adaptateurs/casier.yaml").read_text(encoding="utf-8").replace(
-        "/donnees/casier.csv", (RACINE / "registres_sim/donnees_fictives/casier.csv").as_posix()), encoding="utf-8")
+    chemin.write_text((RACINE / "registres/adaptateurs/casier.yaml").read_text(encoding="utf-8").replace(
+        "/donnees/casier.csv", (RACINE / "registres/donnees_fictives/casier.csv").as_posix()), encoding="utf-8")
     return adaptateur.Adaptateur(chemin)
 
 

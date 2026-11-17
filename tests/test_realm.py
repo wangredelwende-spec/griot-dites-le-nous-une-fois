@@ -1,4 +1,4 @@
-"""Le realm du dépôt (keycloak/realm-griot.json) suffit à reconstruire la pile à partir de zéro.
+"""Le realm du dépôt (socle/keycloak/realm-griot.json) suffit à reconstruire la pile à partir de zéro.
 
 Keycloak l'importe au premier démarrage (--import-realm) : groupes, comptes, rôles et flux TOTP doivent donc y être,
 et correspondre aux services de l'annuaire et des registres. Seuls les TOTP sont à réenrôler (QR code).
@@ -8,7 +8,7 @@ import json
 import yaml
 from conftest import RACINE
 
-REALM = json.loads((RACINE / "keycloak/realm-griot.json").read_text(encoding="utf-8"))
+REALM = json.loads((RACINE / "socle/keycloak/realm-griot.json").read_text(encoding="utf-8"))
 GROUPES = {g["name"] for g in REALM["groups"]}
 COMPTES = {u["username"]: u for u in REALM["users"]}
 ONI = "Service des passeports – ONI (ministère de la Sécurité)"
@@ -17,10 +17,10 @@ CONCOURS = "Direction des concours – ministère des Serviteurs du peuple"
 
 def test_groupes_renommes_presents_partout():
     assert {ONI, CONCOURS, "Service des bourses", "Mairie"} <= GROUPES
-    annuaire = yaml.safe_load((RACINE / "catalogue/annuaire.yaml").read_text(encoding="utf-8"))
+    annuaire = yaml.safe_load((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_text(encoding="utf-8"))
     assert {s["groupe"] for s in annuaire["services"].values()} <= GROUPES
     for registre in ("etat-civil", "nationalite", "casier"):
-        adaptateur = yaml.safe_load((RACINE / f"adaptateurs/{registre}.yaml").read_text(encoding="utf-8"))
+        adaptateur = yaml.safe_load((RACINE / f"registres/adaptateurs/{registre}.yaml").read_text(encoding="utf-8"))
         assert set(adaptateur["groupes"]) <= GROUPES, registre
 
 

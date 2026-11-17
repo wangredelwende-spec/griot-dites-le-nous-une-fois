@@ -2,7 +2,7 @@
 
     python scripts/remise_a_zero.py --oui
 
-Si catalogue/demarches.yaml diffère de la version committée (démarche ajoutée pendant une répétition), le script
+Si consentement-minimisation/catalogue/demarches.yaml diffère de la version committée (démarche ajoutée pendant une répétition), le script
 le montre et propose de le restaurer (git checkout du fichier, copie de la version modifiée gardée en .bak).
     --restaurer-catalogue   restaurer sans poser la question
     --garder-catalogue      garder le catalogue modifié sans poser la question
@@ -49,9 +49,9 @@ def dans_le_volume(service: str, script: str, entree: str | None = None) -> str:
 
 def verifier_catalogue(date: str):
     """Une démarche ajoutée pendant une répétition (scène 4) ne doit pas rester pour la démo : si
-    catalogue/demarches.yaml diffère de la version committée, on le montre et on propose de le restaurer
+    consentement-minimisation/catalogue/demarches.yaml diffère de la version committée, on le montre et on propose de le restaurer
     (git checkout). Une copie de la version modifiée est gardée (rien n'est perdu)."""
-    fichier = "catalogue/demarches.yaml"
+    fichier = "consentement-minimisation/catalogue/demarches.yaml"
     r = subprocess.run(["git", "diff", "HEAD", "--", fichier], cwd=RACINE, capture_output=True, text=True,
                        encoding="utf-8")
     if r.returncode or not r.stdout.strip():
@@ -74,7 +74,7 @@ def verifier_catalogue(date: str):
         print(f"Catalogue gardé tel quel. Pour le restaurer : git checkout HEAD -- {fichier}  "
               "(ou relancer avec --restaurer-catalogue)\n", flush=True)
         return
-    copie = RACINE / f"catalogue/demarches-avant-remise-{date}.yaml.bak"
+    copie = RACINE / f"consentement-minimisation/catalogue/demarches-avant-remise-{date}.yaml.bak"
     copie.write_bytes((RACINE / fichier).read_bytes())
     executer("git", "checkout", "HEAD", "--", fichier)
     print(f"Catalogue restauré (version committée). Copie de la version modifiée : {copie.relative_to(RACINE)}\n",

@@ -1,5 +1,5 @@
 # Démarche VOLONTAIREMENT invalide (démo « le médiateur refuse, et continue de tourner »).
-# À coller À LA FIN de catalogue/demarches.yaml, sans cette entête. Elle demande la DATE DE NAISSANCE :
+# À coller À LA FIN de consentement-minimisation/catalogue/demarches.yaml, sans cette entête. Elle demande la DATE DE NAISSANCE :
 # aucun registre ne déclare cet attribut, donc le médiateur la refuse et garde le catalogue en vigueur.
 
   curiosite-date-naissance:

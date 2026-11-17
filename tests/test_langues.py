@@ -5,7 +5,8 @@ import copy
 import pytest
 from conftest import CANAL, RACINE
 
-from app import catalogue, main as mediateur
+from app import main as mediateur
+from consentement import catalogue
 
 
 def catalogue_avec(monkeypatch, finalites: dict):
@@ -46,9 +47,9 @@ def test_finalite_traduite_seulement_si_c_est_la_meme_finalite():
 def test_finalite_mos_vide_ou_pas_un_texte_refusee(monkeypatch, tmp_path, valeur):
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
-    (dossier / "annuaire.yaml").write_bytes((RACINE / "catalogue/annuaire.yaml").read_bytes())
+    (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
-    texte = (RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8")
+    texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
     ancre = "    finalite: attribution de la bourse nationale\n"
     assert ancre in texte
     brut = texte.replace(ancre, ancre + f"    finalite_mos: {'null' if valeur is None else repr(valeur)}\n")
@@ -59,9 +60,9 @@ def test_finalite_mos_vide_ou_pas_un_texte_refusee(monkeypatch, tmp_path, valeur
 def test_finalite_mos_remplie_acceptee(monkeypatch, tmp_path):
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
-    (dossier / "annuaire.yaml").write_bytes((RACINE / "catalogue/annuaire.yaml").read_bytes())
+    (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
-    texte = (RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8")
+    texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
     ancre = "    finalite: attribution de la bourse nationale\n"
     brut = texte.replace(ancre, ancre + "    finalite_mos: \"[mos] bourse\"\n")
     assert catalogue.charger(brut.encode("utf-8"))["demarches"]["bourse-nationale"]["finalite_mos"] == "[mos] bourse"

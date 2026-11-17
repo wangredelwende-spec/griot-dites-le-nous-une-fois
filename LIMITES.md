@@ -2,10 +2,10 @@
 
 ## Ce qui est simulé
 
-- **Registres** : `registres_sim/`, données fictives (`registres_sim/donnees_fictives/`), en attendant les données du jury.
-- **Connexion des usagers** : USSD simulé, numéro + PIN fictifs (`ussd_sim/abonnes.yaml` ; jour J : `donnees_jury/abonnes.yaml` produit par `scripts/annuaire_ussd.py` pour chaque citoyen), PIN de démo en clair, non hachés.
+- **Registres** : `registres/`, données fictives (`registres/donnees_fictives/`), en attendant les données du jury.
+- **Connexion des usagers** : USSD simulé, numéro + PIN fictifs (`espace-usager/ussd/abonnes.yaml` ; jour J : `donnees_jury/abonnes.yaml` produit par `scripts/annuaire_ussd.py` pour chaque citoyen), PIN de démo en clair, non hachés.
   En production : connexion par l'identifiant unique électronique.
-- **Textes de loi** des démarches : références à faire valider (voir `catalogue/`).
+- **Textes de loi** des démarches : références à faire valider (voir `consentement-minimisation/catalogue/`).
 
 - **Portail web usager** (`/portail`) : même connexion que l'USSD (numéro + PIN de démo). Le compteur de PIN faux
   est tenu par chaque écran, en mémoire : 3 essais sur l'USSD et 3 sur le portail par période de 5 minutes, remis
@@ -16,7 +16,7 @@
 ## Règles de données à confirmer
 
 - **Personne absente du casier** : le vrai casier ne contient que les condamnations ; une personne jamais condamnée
-  n'y figure pas. Réglable dans `adaptateurs/casier.yaml` :
+  n'y figure pas. Réglable dans `registres/adaptateurs/casier.yaml` :
   - `absence: refus` (par défaut) : absent → « réponse impossible » (on ne devine pas) ;
   - `absence: vierge` : absent → « casier vierge », **après** vérification par le médiateur, à l'état civil, que la
     personne existe (une seule fiche, vivante). Sinon : « identité non confirmée ». État civil en panne : « identité non

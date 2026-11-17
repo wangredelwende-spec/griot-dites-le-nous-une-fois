@@ -44,6 +44,10 @@ Importés puis supprimés (propres à la messagerie) : `console/app/keycloak.py`
 Non repris : `synapse/`, `element/`, `scripts/`, `docs/`, `README.md`, `console/app/synapse.py`,
 `console/tests/`, `.env`, `caddy-racine.crt`.
 
+> **Rangement du 17/11 (un dossier par couche)** : les chemins ci-dessus sont ceux de l'import. Depuis le commit
+> de rangement, `keycloak/`, `caddy/` et `postgres/` sont dans `socle/`, et `mediateur/app/journal.py` est devenu
+> `journal/tracabilite/journal.py` ; l'historique de chaque fichier se suit avec `git log --follow`.
+
 ## Code écrit pendant la finale
 
 Tout le reste est écrit pendant la finale (16 – 18 novembre 2026), à partir du commit `317fe8b`.

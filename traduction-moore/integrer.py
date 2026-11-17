@@ -5,9 +5,9 @@ Une langue n'est publiée que si TOUTES ses phrases sont remplies : sinon son fi
 est retiré et elle n'est pas proposée (pas d'écran à moitié traduit).
 
 Le script met à jour :
-- keycloak/themes/griot/login/messages/messages_<code>.properties (langues complètes) ;
+- socle/keycloak/themes/griot/login/messages/messages_<code>.properties (langues complètes) ;
 - le nom de chaque langue dans tous les fichiers de messages (sélecteur de langue) ;
-- « locales » de theme.properties et « supportedLocales » de keycloak/realm-griot.json ;
+- « locales » de theme.properties et « supportedLocales » de socle/keycloak/realm-griot.json ;
 - le realm « griot » déjà en place (par kcadm, réseau interne), si la pile tourne.
 
 Utilisation :  python traduction-moore/integrer.py
@@ -22,9 +22,9 @@ from pathlib import Path
 
 ICI = Path(__file__).parent
 RACINE = ICI.parent
-THEME = RACINE / "keycloak/themes/griot/login"
+THEME = RACINE / "socle/keycloak/themes/griot/login"
 MESSAGES = THEME / "messages"
-REALM = RACINE / "keycloak/realm-griot.json"
+REALM = RACINE / "socle/keycloak/realm-griot.json"
 
 # Code de langue -> nom de la langue écrit dans cette langue (affiché dans le sélecteur)
 LANGUES = {

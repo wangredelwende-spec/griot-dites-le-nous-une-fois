@@ -12,9 +12,9 @@ from fastapi.testclient import TestClient
 
 from conftest import RACINE
 
-os.environ.update(ABONNES=str(RACINE / "ussd_sim/abonnes.yaml"), TEXTES=str(RACINE / "traduction-moore/phrases-portail.csv"),
+os.environ.update(ABONNES=str(RACINE / "espace-usager/ussd/abonnes.yaml"), TEXTES=str(RACINE / "traduction-moore/phrases-portail.csv"),
                   MEDIATEUR="http://mediateur:8000")
-spec = importlib.util.spec_from_file_location("portail_app", RACINE / "portail_usager/app/main.py")
+spec = importlib.util.spec_from_file_location("portail_app", RACINE / "espace-usager/portail/app/main.py")
 portail = importlib.util.module_from_spec(spec)
 sys.modules["portail_app"] = portail
 spec.loader.exec_module(portail)

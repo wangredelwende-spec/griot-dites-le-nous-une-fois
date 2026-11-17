@@ -1,4 +1,4 @@
-"""Lecture d'un registre décrite par un fichier YAML (adaptateurs/<registre>.yaml).
+"""Lecture d'un registre décrite par un fichier YAML (registres/adaptateurs/<registre>.yaml).
 
 On branche un nouveau registre en écrivant un fichier YAML, sans changer ce code.
 Règle d'or : si la donnée ne permet pas de conclure, on REFUSE avec un motif ; on ne devine jamais.

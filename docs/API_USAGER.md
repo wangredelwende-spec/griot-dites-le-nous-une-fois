@@ -1,6 +1,6 @@
 # API usager du médiateur (figée le 16/11/2026, catalogue multi-attributs le 16/11 après-midi)
 
-Utilisée par les écrans usager : **USSD simulé** (`ussd_sim/`) et **portail web** (`portail_usager/`, `/portail`).
+Utilisée par les écrans usager : **USSD simulé** (`espace-usager/ussd/`) et **portail web** (`espace-usager/portail/`, `/portail`).
 Elle est indépendante de l'écran : le texte d'aperçu est fourni, mais aussi ses morceaux, pour
 composer l'écran dans une autre langue (mooré).
 

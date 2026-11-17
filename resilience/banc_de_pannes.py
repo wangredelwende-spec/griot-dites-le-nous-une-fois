@@ -3,7 +3,7 @@
 Prérequis : `docker compose up -d --wait`, puis comptes de test activés :
     OUTILS_TEST=1 dans .env, puis   python scripts/outils_test.py
 Utilisation :
-    python scripts/banc_de_pannes.py
+    python resilience/banc_de_pannes.py
 À la fin, remettre OUTILS_TEST=0 (puis python scripts/outils_test.py) avant la démonstration devant le jury.
 
 Les appels « outil » passent par les comptes de test outil-test-* (jeton Keycloak, mêmes règles que les agents,
@@ -21,11 +21,11 @@ from pathlib import Path
 import httpx
 import yaml
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))     # client_guichet.py
 from client_guichet import RACINE, autorite_caddy, connecter, envoyer, texte  # noqa: E402
 
 FINALITES = {code: d["finalite"] for code, d in
-             yaml.safe_load((RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8"))["demarches"].items()}
+             yaml.safe_load((RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8"))["demarches"].items()}
 
 # Fonctions disponibles dans le conteneur du médiateur pour chaque scénario
 PRELUDE = r'''
@@ -104,7 +104,7 @@ def dans_le_mediateur(code: str) -> dict:
 
 
 def panne(registre: str, mode: str):
-    subprocess.run([sys.executable, str(RACINE / "scripts/panne.py"), registre, mode], cwd=RACINE,
+    subprocess.run([sys.executable, str(RACINE / "resilience/panne.py"), registre, mode], cwd=RACINE,
                    capture_output=True, check=True)
 
 
@@ -323,11 +323,11 @@ resultat["remise"] = suivre('outil-test-bourses', d['id_demande']).get("statut")
 
 
 def journal_modifie():
-    sortie = subprocess.run([sys.executable, str(RACINE / "scripts/falsifier_journal.py"), "5"], cwd=RACINE,
+    sortie = subprocess.run([sys.executable, str(RACINE / "resilience/falsifier_journal.py"), "5"], cwd=RACINE,
                             capture_output=True, text=True, encoding="utf-8").stdout
     noter("8. Ligne du journal modifiée", "OK  Journal intègre" in sortie and "ERREUR  Ligne 5 modifiée" in sortie,
           "vrai journal intègre ; copie falsifiée : « Ligne 5 modifiée »", sortie)
-    sortie = subprocess.run([sys.executable, str(RACINE / "scripts/falsifier_journal.py"), "--cacher"], cwd=RACINE,
+    sortie = subprocess.run([sys.executable, str(RACINE / "resilience/falsifier_journal.py"), "--cacher"], cwd=RACINE,
                             capture_output=True, text=True, encoding="utf-8").stdout
     noter("8 bis. Consultation cachée + chaîne recalculée", "ABSENTE du journal du médiateur" in sortie,
           "la chaîne seule ne voit rien, la double trace des registres le détecte", sortie)
@@ -377,7 +377,7 @@ def main():
         except Exception as e:      # un scénario qui plante est un échec, pas un arrêt du banc
             noter(scenario.__name__, False, "erreur pendant le scénario", repr(e))
     print(f"\n{sum(RESULTATS)}/{len(RESULTATS)} vérifications réussies en {time.monotonic() - debut:.0f} s", flush=True)
-    print(subprocess.run([sys.executable, str(RACINE / "scripts/panne.py")], capture_output=True, text=True).stdout)
+    print(subprocess.run([sys.executable, str(RACINE / "resilience/panne.py")], capture_output=True, text=True).stdout)
     print("Ensuite, dans cet ordre : OUTILS_TEST=0 + outils_test.py, puis remise_a_zero.py --oui, puis la démo.\n"
           "Jamais de banc après la dernière remise à zéro (il consommerait les limites et remplirait les historiques).")
     sys.exit(0 if all(RESULTATS) else 1)

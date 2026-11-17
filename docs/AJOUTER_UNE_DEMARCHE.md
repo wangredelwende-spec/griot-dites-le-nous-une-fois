@@ -4,7 +4,7 @@ Scène de démonstration « Adapter » : une administration ajoute une démarche
 
 ## 1. Écrire la démarche (1 minute)
 
-Ajouter un bloc à la fin de `catalogue/demarches.yaml`, par exemple :
+Ajouter un bloc à la fin de `consentement-minimisation/catalogue/demarches.yaml`, par exemple :
 
 ```yaml
   inscription-universite:
@@ -22,7 +22,7 @@ Ajouter un bloc à la fin de `catalogue/demarches.yaml`, par exemple :
 
 À retenir :
 - `base: base_legale` exige `texte:`, c'est-à-dire le texte qui autorise la consultation sans accord.
-- Les attributs possibles sont ceux que **les registres déclarent** dans `adaptateurs/<registre>.yaml` :
+- Les attributs possibles sont ceux que **les registres déclarent** dans `registres/adaptateurs/<registre>.yaml` :
   `age_entre` (paramètres `min`, `max` facultatif, `date_reference` : une date ou `aujourd'hui`),
   `nationalite_burkinabe`, `casier_judiciaire_vierge` et `interdiction_sortie_territoire`.
 - Facultatif, pour le guichet : `attendu: false` quand la bonne réponse est « non » (interdiction de sortie du
@@ -62,12 +62,12 @@ du registre lui-même (« base juridique non autorisée par le registre pour ce 
 passeport en `base: base_legale` est refusé, car la nationalité et le casier n'ont déclaré que le consentement
 pour le service passeport.
 
-Le catalogue ne suffit pas : **chaque registre décide lui-même**, dans `adaptateurs/<registre>.yaml`,
+Le catalogue ne suffit pas : **chaque registre décide lui-même**, dans `registres/adaptateurs/<registre>.yaml`,
 quels services peuvent lui demander quel attribut, **et avec quels paramètres**. Pour l'exemple ci-dessus,
 l'état civil doit ajouter les seuils du service des bourses :
 
 ```yaml
-# adaptateurs/etat-civil.yaml, attribut age_entre
+# registres/adaptateurs/etat-civil.yaml, attribut age_entre
     services:
       service-bourses:
         - {min: 18, date_reference: aujourd'hui}

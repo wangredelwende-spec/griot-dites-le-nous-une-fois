@@ -28,7 +28,7 @@ from .config import (ADAPTATEURS, CATALOGUE, CLES_PUBLIQUES, CLIENT_ID, GUICHET_
 
 SECRET_OIDC = lire_secret("guichet_oidc")
 # Mêmes fichiers que le médiateur, en lecture seule : annuaire, catalogue des démarches,
-# et attributs déclarés par chaque registre (adaptateurs/<registre>.yaml).
+# et attributs déclarés par chaque registre (registres/adaptateurs/<registre>.yaml).
 ANNUAIRE = yaml.safe_load((CATALOGUE / "annuaire.yaml").read_text(encoding="utf-8"))
 # Catalogue des démarches : celui que le MÉDIATEUR applique (GET /catalogue), jamais le fichier brut.
 # Ainsi une démarche que le médiateur a refusée (invalide) n'apparaît jamais au guichet.

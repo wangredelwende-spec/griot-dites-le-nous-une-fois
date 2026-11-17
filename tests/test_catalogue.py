@@ -1,7 +1,7 @@
 """Repli « casier vierge » du passeport : UNE ligne du catalogue change, aucun code (JOUR_J_DONNEES_JURY.md).
 
 Le casier du jury risque de n'avoir pas de colonne « peines complémentaires » : la démarche passeport doit
-pouvoir basculer sur « casier judiciaire vierge » en remplaçant une seule ligne de catalogue/demarches.yaml.
+pouvoir basculer sur « casier judiciaire vierge » en remplaçant une seule ligne de consentement-minimisation/catalogue/demarches.yaml.
 Le catalogue doit rester VALIDE (sinon le médiateur refuse de démarrer) et sans avertissement de double clé
 (sinon le registre casier refuserait de répondre au service passeport). L'aperçu USSD suit tout seul :
 il est fabriqué depuis le catalogue, jamais en dur.
@@ -9,7 +9,8 @@ il est fabriqué depuis le catalogue, jamais en dur.
 import pytest
 from conftest import RACINE
 
-from app import catalogue, main as mediateur
+from app import main as mediateur
+from consentement import catalogue
 
 LIGNE_INTERDICTION = ("- {attribut: interdiction_sortie_territoire, "
                       "libelle: interdiction de sortie du territoire, attendu: false}")
@@ -21,8 +22,8 @@ def charger_le_catalogue(monkeypatch, tmp_path, repli):
     """Charge le catalogue du dépôt, ou sa copie avec la SEULE ligne du casier passeport remplacée."""
     dossier = tmp_path / "catalogue"
     dossier.mkdir(exist_ok=True)
-    (dossier / "annuaire.yaml").write_bytes((RACINE / "catalogue/annuaire.yaml").read_bytes())
-    texte = (RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8")
+    (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
+    texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
     assert LIGNE_INTERDICTION in texte, "la ligne à remplacer en repli a disparu du catalogue"
     if repli:
         texte = texte.replace(LIGNE_INTERDICTION, LIGNE_REPLI)
@@ -72,10 +73,10 @@ def test_demarche_a_coller_en_direct(monkeypatch, tmp_path):
     de double clé (les registres l'autorisent déjà) : la démo « ajouter une démarche » ne peut pas échouer."""
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
-    (dossier / "annuaire.yaml").write_bytes((RACINE / "catalogue/annuaire.yaml").read_bytes())
+    (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
     a_coller = "\n".join(l for l in (RACINE / "docs/demarche_a_coller.yaml").read_text(encoding="utf-8").splitlines()
                          if not l.startswith("#"))
-    texte = (RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8").rstrip("\n") + "\n" + a_coller + "\n"
+    texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8").rstrip("\n") + "\n" + a_coller + "\n"
     (dossier / "demarches.yaml").write_text(texte, encoding="utf-8")
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     chat = catalogue.charger()
@@ -146,8 +147,8 @@ def ecrire_et_surveiller(dossier, texte):
 def test_catalogue_invalide_refuse_ancien_garde(monkeypatch, tmp_path, ajout, raison, client):
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
-    (dossier / "annuaire.yaml").write_bytes((RACINE / "catalogue/annuaire.yaml").read_bytes())
-    texte = (RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8")
+    (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
+    texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     monkeypatch.setattr(mediateur, "CAT", mediateur.CAT)
     monkeypatch.setattr(mediateur, "REFUS_CATALOGUE", {})
@@ -188,10 +189,10 @@ def test_demarche_refusee_de_la_demo(monkeypatch, tmp_path):
     """docs/demarche_refusee.yaml (essai raté de test-manuel.md, scène 4) est bien REFUSÉE : date de naissance."""
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
-    (dossier / "annuaire.yaml").write_bytes((RACINE / "catalogue/annuaire.yaml").read_bytes())
+    (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
     a_coller = "\n".join(l for l in (RACINE / "docs/demarche_refusee.yaml").read_text(encoding="utf-8").splitlines()
                          if not l.startswith("#"))
-    texte = (RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8").rstrip("\n") + "\n" + a_coller + "\n"
+    texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8").rstrip("\n") + "\n" + a_coller + "\n"
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     with pytest.raises(catalogue.CatalogueInvalide, match="attribut inconnu « date_naissance »"):
         catalogue.charger(texte.encode("utf-8"))
@@ -202,8 +203,8 @@ def test_passeport_en_base_legale_refuse_au_chargement(monkeypatch, tmp_path):
     n'ont déclaré que le consentement pour le service passeport). Le registre refuse aussi : test_registre.py."""
     dossier = tmp_path / "catalogue"
     dossier.mkdir()
-    (dossier / "annuaire.yaml").write_bytes((RACINE / "catalogue/annuaire.yaml").read_bytes())
-    texte = (RACINE / "catalogue/demarches.yaml").read_text(encoding="utf-8")
+    (dossier / "annuaire.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_bytes())
+    texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
     avant = """    finalite: établissement d'un passeport ordinaire
     base: consentement
 """

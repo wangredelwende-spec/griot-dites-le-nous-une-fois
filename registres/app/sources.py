@@ -1,4 +1,4 @@
-"""Lecture de la SOURCE d'un registre, décrite dans adaptateurs/<registre>.yaml (« source: »).
+"""Lecture de la SOURCE d'un registre, décrite dans registres/adaptateurs/<registre>.yaml (« source: »).
 
 Formats : csv, xlsx, json, sqlite, sql (dump), pdf (PDF TEXTE : tableaux lus avec pdfplumber),
 api (API HTTP du jury, interrogée à chaque demande). Un PDF SCANNÉ (images) est refusé ici : il est converti

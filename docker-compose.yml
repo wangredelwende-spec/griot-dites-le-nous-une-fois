@@ -14,7 +14,7 @@ services:
       KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}   # lu par init-bases.sh
     volumes:
       - postgres_donnees:/var/lib/postgresql/data
-      - ./postgres/init-bases.sh:/docker-entrypoint-initdb.d/init-bases.sh:ro
+      - ./socle/postgres/init-bases.sh:/docker-entrypoint-initdb.d/init-bases.sh:ro
     networks: [interne]
     healthcheck:
       test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres"]
@@ -52,8 +52,8 @@ services:
       # Valeur injectée dans le fichier du realm (${...})
       GUICHET_OIDC_SECRET: ${GUICHET_OIDC_SECRET}
     volumes:
-      - ./keycloak/realm-griot.json:/opt/keycloak/data/import/realm-griot.json:ro
-      - ./keycloak/themes/griot:/opt/keycloak/themes/griot:ro
+      - ./socle/keycloak/realm-griot.json:/opt/keycloak/data/import/realm-griot.json:ro
+      - ./socle/keycloak/themes/griot:/opt/keycloak/themes/griot:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,7 +70,7 @@ services:
   # Registre simulé de l'état civil : calcule l'attribut minimal et le SIGNE avec sa propre clé.
   # Uniquement sur le réseau « registres » : seul le médiateur peut l'appeler.
   registre-etat-civil:
-    build: ./registres_sim
+    build: ./registres
     image: griot-registre:local
     restart: unless-stopped
     environment:
@@ -78,9 +78,9 @@ services:
       OUTILS_TEST: ${OUTILS_TEST:-0}       # comptes de test refusés sauf si 1
     volumes:
       # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
-      - ./adaptateurs/etat-civil.yaml:/adaptateurs/etat-civil.yaml:ro
+      - ./registres/adaptateurs/etat-civil.yaml:/adaptateurs/etat-civil.yaml:ro
       # Données : fictives par défaut ; le jour J, DONNEES_REGISTRES=./donnees_jury dans .env (aucun code changé)
-      - ${DONNEES_REGISTRES:-./registres_sim/donnees_fictives}:/donnees:ro
+      - ${DONNEES_REGISTRES:-./registres/donnees_fictives}:/donnees:ro
       - cle_privee_etat_civil:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_etat_civil:/publique  # sa clé publique : seul ce registre peut l'écrire
       - trace_etat_civil:/trace                 # double trace : ses réponses signées (jamais la valeur)
@@ -95,7 +95,7 @@ services:
       retries: 10
 
   registre-nationalite:
-    build: ./registres_sim
+    build: ./registres
     image: griot-registre:local
     restart: unless-stopped
     environment:
@@ -103,9 +103,9 @@ services:
       OUTILS_TEST: ${OUTILS_TEST:-0}       # comptes de test refusés sauf si 1
     volumes:
       # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
-      - ./adaptateurs/nationalite.yaml:/adaptateurs/nationalite.yaml:ro
+      - ./registres/adaptateurs/nationalite.yaml:/adaptateurs/nationalite.yaml:ro
       # Données : fictives par défaut ; le jour J, DONNEES_REGISTRES=./donnees_jury dans .env (aucun code changé)
-      - ${DONNEES_REGISTRES:-./registres_sim/donnees_fictives}:/donnees:ro
+      - ${DONNEES_REGISTRES:-./registres/donnees_fictives}:/donnees:ro
       - cle_privee_nationalite:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_nationalite:/publique  # sa clé publique : seul ce registre peut l'écrire
       - trace_nationalite:/trace                 # double trace : ses réponses signées (jamais la valeur)
@@ -120,7 +120,7 @@ services:
       retries: 10
 
   registre-casier:
-    build: ./registres_sim
+    build: ./registres
     image: griot-registre:local
     restart: unless-stopped
     environment:
@@ -128,9 +128,9 @@ services:
       OUTILS_TEST: ${OUTILS_TEST:-0}       # comptes de test refusés sauf si 1
     volumes:
       # SON adaptateur seulement, en lecture seule (le médiateur ne peut ni le lire en écriture ni le modifier)
-      - ./adaptateurs/casier.yaml:/adaptateurs/casier.yaml:ro
+      - ./registres/adaptateurs/casier.yaml:/adaptateurs/casier.yaml:ro
       # Données : fictives par défaut ; le jour J, DONNEES_REGISTRES=./donnees_jury dans .env (aucun code changé)
-      - ${DONNEES_REGISTRES:-./registres_sim/donnees_fictives}:/donnees:ro
+      - ${DONNEES_REGISTRES:-./registres/donnees_fictives}:/donnees:ro
       - cle_privee_casier:/cles        # clé PRIVÉE : aucun autre service ne monte ce volume
       - cle_publique_casier:/publique  # sa clé publique : seul ce registre peut l'écrire
       - trace_casier:/trace                 # double trace : ses réponses signées (jamais la valeur)
@@ -147,7 +147,9 @@ services:
   # Médiateur : règles, appel des registres, vérification, consentement, journal chaîné.
   # API JSON jamais publiée par Caddy.
   mediateur:
-    build: ./mediateur
+    build:
+      context: .                         # racine : la passerelle embarque aussi consentement/ et tracabilite/
+      dockerfile: passerelle/Dockerfile
     image: griot-mediateur:local
     restart: unless-stopped
     environment:
@@ -161,9 +163,9 @@ services:
     # Un secret par écran usager (USSD, portail web) : le canal écrit au journal vient du secret présenté
     secrets: [sujet_hmac, canal_usager, canal_web]
     volumes:
-      - ./catalogue:/catalogue:ro          # annuaire + catalogue des démarches
+      - ./consentement-minimisation/catalogue:/catalogue:ro          # annuaire + catalogue des démarches
       - ./journal:/journal:ro              # verifier.py
-      - ./adaptateurs:/adaptateurs:ro      # descriptions publiées par les registres (« absence » du casier)
+      - ./registres/adaptateurs:/adaptateurs:ro      # descriptions publiées par les registres (« absence » du casier)
       - mediateur_donnees:/donnees         # journal chaîné + demandes en attente (SQLite)
       # Clé publique de chaque registre, en LECTURE SEULE (un volume par registre)
       - cle_publique_etat_civil:/publiques/etat-civil:ro
@@ -193,8 +195,8 @@ services:
       AUTHLIB_INSECURE_TRANSPORT: "1"
     secrets: [guichet_oidc]
     volumes:
-      - ./catalogue:/catalogue:ro          # annuaire + catalogue des démarches
-      - ./adaptateurs:/adaptateurs:ro      # attributs déclarés par les registres
+      - ./consentement-minimisation/catalogue:/catalogue:ro          # annuaire + catalogue des démarches
+      - ./registres/adaptateurs:/adaptateurs:ro      # attributs déclarés par les registres
       # Même clé publique que le médiateur, lue directement dans le volume du registre (lecture seule) :
       # le médiateur ne peut ni la fournir ni la remplacer.
       - cle_publique_etat_civil:/publiques/etat-civil:ro
@@ -215,13 +217,13 @@ services:
   # USSD simulé *226# (usager.griot.test) : l'usager voit avant, vérifie après.
   # Il parle au médiateur par l'API usager, authentifiée par le secret du canal.
   ussd_sim:
-    build: ./ussd_sim
+    build: ./espace-usager/ussd
     image: griot-ussd:local
     restart: unless-stopped
     secrets: [canal_usager]
     volumes:
       # Annuaire USSD (numéro -> identifiant, PIN), séparé des registres : le jour J, ABONNES_USSD=./donnees_jury/abonnes.yaml
-      - ${ABONNES_USSD:-./ussd_sim/abonnes.yaml}:/app/abonnes.yaml:ro
+      - ${ABONNES_USSD:-./espace-usager/ussd/abonnes.yaml}:/app/abonnes.yaml:ro
       - ./traduction-moore/phrases-ussd.csv:/app/phrases-ussd.csv:ro
     networks: [interne]
     healthcheck:
@@ -234,13 +236,13 @@ services:
   # Seulement l'API usager du médiateur, avec SON secret (« canal = web » au journal).
   # Indépendant : « docker compose stop portail » l'arrête sans toucher à l'USSD ni au reste.
   portail:
-    build: ./portail_usager
+    build: ./espace-usager/portail
     image: griot-portail:local
     restart: unless-stopped
     secrets: [canal_web]
     volumes:
       # Le même annuaire que l'USSD (numéro -> identifiant, PIN) : mêmes comptes, mêmes règles
-      - ${ABONNES_USSD:-./ussd_sim/abonnes.yaml}:/app/abonnes.yaml:ro
+      - ${ABONNES_USSD:-./espace-usager/ussd/abonnes.yaml}:/app/abonnes.yaml:ro
       - ./traduction-moore/phrases-portail.csv:/app/phrases-portail.csv:ro
     networks: [interne]
     healthcheck:
@@ -257,7 +259,7 @@ services:
       - "127.0.0.1:80:80"
       - "127.0.0.1:443:443"
     volumes:
-      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./socle/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_donnees:/data              # contient la CA interne : à conserver
     networks: [interne, externe]
 
@@ -265,7 +267,7 @@ services:
   # Conversion UNE SEULE FOIS d'un PDF scanné en CSV (Tesseract). Jamais lancé avec la pile :
   #   docker compose --profile ocr run --rm ocr /donnees/<fichier>.pdf
   ocr:
-    build: ./ocr
+    build: ./registres/import/ocr
     image: griot-ocr:local
     profiles: [ocr]
     network_mode: none                 # aucun réseau : les données du jury ne sortent pas
@@ -276,7 +278,7 @@ services:
   # SEUL conteneur qui touche le réseau extérieur ; ne transmet qu'à API_JURY_URL (.env), en GET, avec délai.
   #   docker compose --profile api-jury up -d --no-deps relais-api-jury
   relais-api-jury:
-    build: ./relais_api_jury
+    build: ./passerelle/sortie
     image: griot-relais-api-jury:local
     profiles: [api-jury]
     restart: unless-stopped

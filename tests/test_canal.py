@@ -66,7 +66,7 @@ def test_secret_vide_ou_absent_n_ouvre_aucun_canal(client, monkeypatch):
 
 def test_ajout_de_la_colonne_canal_garde_les_anciennes_empreintes(tmp_path):
     """Journal écrit AVANT l'ajout du canal : même calcul qu'avant pour ses lignes, nouvelles lignes chaînées."""
-    from app.journal import CHAMPS, ZEROS, Journal, empreinte
+    from tracabilite.journal import CHAMPS, ZEROS, Journal, empreinte
     chemin = tmp_path / "ancien.sqlite3"
     ancien = sqlite3.connect(chemin, isolation_level=None)
     anciens_champs = [c for c in CHAMPS if c != "canal"]

@@ -24,7 +24,7 @@ docker compose restart keycloak
 ```
 
 Le script indique pour chaque langue le nombre de phrases remplies et si elle est publiée. Il met à
-jour les fichiers de messages, `theme.properties`, `keycloak/realm-griot.json` et le realm
+jour les fichiers de messages, `theme.properties`, `socle/keycloak/realm-griot.json` et le realm
 déjà en place (pas besoin de tout réinitialiser).
 
 ## Ajouter une langue en 3 étapes

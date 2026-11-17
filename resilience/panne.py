@@ -1,11 +1,11 @@
 """Interrupteur de panne d'un registre simulé (banc de pannes, démonstration devant le jury).
 
 Utilisation :
-    python scripts/panne.py etat-civil lent       # répond après 10 s (le médiateur abandonne à 3 s)
-    python scripts/panne.py etat-civil corrompu   # réponse modifiée en chemin (signature fausse)
-    python scripts/panne.py etat-civil coupe      # conteneur arrêté (docker compose stop)
-    python scripts/panne.py etat-civil normal     # tout revient à la normale
-    python scripts/panne.py                       # état de chaque registre
+    python resilience/panne.py etat-civil lent       # répond après 10 s (le médiateur abandonne à 3 s)
+    python resilience/panne.py etat-civil corrompu   # réponse modifiée en chemin (signature fausse)
+    python resilience/panne.py etat-civil coupe      # conteneur arrêté (docker compose stop)
+    python resilience/panne.py etat-civil normal     # tout revient à la normale
+    python resilience/panne.py                       # état de chaque registre
 
 Registres : etat-civil, nationalite, casier.
 """
@@ -55,7 +55,7 @@ def main():
             print(f"{registre:12} {etat(registre)}")
         return
     if len(sys.argv) != 3 or sys.argv[1] not in REGISTRES or sys.argv[2] not in MODES:
-        sys.exit(f"Utilisation : python scripts/panne.py <{'|'.join(REGISTRES)}> <{'|'.join(MODES)}>")
+        sys.exit(f"Utilisation : python resilience/panne.py <{'|'.join(REGISTRES)}> <{'|'.join(MODES)}>")
     registre, mode = sys.argv[1], sys.argv[2]
     changer(registre, mode)
     print(f"Registre {registre} : {etat(registre)}")

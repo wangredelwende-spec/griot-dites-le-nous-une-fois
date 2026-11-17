@@ -13,9 +13,9 @@ from fastapi.testclient import TestClient
 
 from conftest import RACINE
 
-os.environ.update(ABONNES=str(RACINE / "ussd_sim/abonnes.yaml"), TEXTES=str(RACINE / "traduction-moore/phrases-ussd.csv"),
+os.environ.update(ABONNES=str(RACINE / "espace-usager/ussd/abonnes.yaml"), TEXTES=str(RACINE / "traduction-moore/phrases-ussd.csv"),
                   MEDIATEUR="http://mediateur:8000")
-spec = importlib.util.spec_from_file_location("ussd_app", RACINE / "ussd_sim/app/main.py")
+spec = importlib.util.spec_from_file_location("ussd_app", RACINE / "espace-usager/ussd/app/main.py")
 ussd = importlib.util.module_from_spec(spec)
 sys.modules["ussd_app"] = ussd
 spec.loader.exec_module(ussd)

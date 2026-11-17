@@ -232,7 +232,7 @@ def test_journal_integre_puis_ligne_modifiee_detectee():
     spec = importlib.util.spec_from_file_location("verifier", RACINE / "journal/verifier.py")
     verifier = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(verifier)
-    from app.journal import empreinte
+    from tracabilite.journal import empreinte
     lignes = journal_de()
     assert all(verifier.empreinte(l) == empreinte(l) == l["hash"] for l in lignes)   # même calcul
     integre, message, _ = verifier.verifier(str(CHEMIN_JOURNAL))
@@ -411,13 +411,13 @@ def test_consentement_plusieurs_attributs_un_apercu_une_confirmation(client, mon
 
 def test_empreinte_du_catalogue_au_journal(client):
     import hashlib
-    attendue = hashlib.sha256((RACINE / "catalogue/demarches.yaml").read_bytes()).hexdigest()
+    attendue = hashlib.sha256((RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_bytes()).hexdigest()
     lignes = [l for l in journal_de() if l["evenement"] == "catalogue"]
     assert lignes and lignes[0]["motif"].endswith(f"sha256 {attendue}") and lignes[0]["sujet"] == ""
 
 
 def test_catalogue_invalide_refuse_de_demarrer():
-    from app import catalogue
+    from consentement import catalogue
     attributs = {"age_entre": {"regle": "age_entre"}, "nationalite_burkinabe": {"regle": "egal"}}
     services = {"mairie": {}}
     bonne = {"libelle": "x", "services": ["mairie"], "finalite": "f", "base": "base_legale", "texte": "loi",

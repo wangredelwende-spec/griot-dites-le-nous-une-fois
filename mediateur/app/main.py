@@ -73,7 +73,16 @@ def controler_identifiant(sujet_ref: str):
 
 
 SECRET_PSEUDONYME = lire_secret("sujet_hmac").encode()
-SECRET_CANAL = lire_secret("canal_usager").encode()
+# Un secret par écran usager : le médiateur sait d'où vient une action (canal écrit au journal) sans croire
+# l'écran sur parole. Un secret absent ou vide ferme ce canal (jamais « secret vide = tout le monde »).
+def secret_canal(nom: str) -> bytes:
+    try:
+        return lire_secret(nom).encode()
+    except FileNotFoundError:
+        return b""
+
+
+SECRETS_CANAUX = {"ussd": secret_canal("canal_usager"), "web": secret_canal("canal_web")}
 
 def archiver_ancien_journal() -> str:
     """Journal d'une version précédente (sans la colonne id_demande) : il est gardé INTACT sous un autre nom
@@ -260,8 +269,8 @@ def effacer_reponses(demande: dict):
         base.execute("UPDATE volets SET valeur = NULL, jeton = NULL WHERE id_demande = ?", (demande["id_demande"],))
 
 
-def refuser(demande: dict, statut: str, evenement: str, motif: str) -> dict:
-    tracer(demande, evenement, "refuse", motif, **transmis(demande))
+def refuser(demande: dict, statut: str, evenement: str, motif: str, canal: str = "") -> dict:
+    tracer(demande, evenement, "refuse", motif, canal=canal, **transmis(demande))
     changer(demande, statut=statut, motif=motif)
     effacer_reponses(demande)
     return demande
@@ -528,9 +537,12 @@ def suivre_demande(id_demande: str, agent: dict = Depends(agent_connecte)):
 
 # --- Côté usager (USSD simulé, portail) : canal authentifié par un secret partagé ---
 
-def canal_usager(x_cle_canal: str = Header("")):
-    if not hmac.compare_digest(x_cle_canal.encode(), SECRET_CANAL):
-        raise HTTPException(401, "canal usager non authentifié")
+def canal_usager(x_cle_canal: str = Header("")) -> str:
+    """Renvoie le canal (« ussd » ou « web ») d'après le secret présenté ; sinon 401."""
+    for canal, secret in SECRETS_CANAUX.items():
+        if secret and x_cle_canal and hmac.compare_digest(x_cle_canal.encode(), secret):
+            return canal
+    raise HTTPException(401, "canal usager non authentifié")
 
 
 class Usager(BaseModel):
@@ -581,19 +593,19 @@ def demande_de_l_usager(id_demande: str, usager: Usager) -> dict:
     return demande
 
 
-@app.post("/demandes/{id_demande}/confirmer", dependencies=[Depends(canal_usager)])
-def confirmer(id_demande: str, usager: Usager):
+@app.post("/demandes/{id_demande}/confirmer")
+def confirmer(id_demande: str, usager: Usager, canal: str = Depends(canal_usager)):
     """UNE confirmation pour tout l'aperçu (un ou plusieurs attributs)."""
     demande = demande_de_l_usager(id_demande, usager)
-    ligne = tracer(demande, "confirmation", "ok", **transmis(demande))
+    ligne = tracer(demande, "confirmation", "ok", canal=canal, **transmis(demande))
     changer(demande, statut="confirmee")
     return {"id_demande": id_demande, "statut": "confirmee", "empreinte": ligne["hash"]}
 
 
-@app.post("/demandes/{id_demande}/refuser", dependencies=[Depends(canal_usager)])
-def refuser_par_usager(id_demande: str, usager: Usager):
+@app.post("/demandes/{id_demande}/refuser")
+def refuser_par_usager(id_demande: str, usager: Usager, canal: str = Depends(canal_usager)):
     demande = demande_de_l_usager(id_demande, usager)
-    refuser(demande, "refuse", "refus-usager", "refusé par l'usager : rien n'a été transmis")
+    refuser(demande, "refuse", "refus-usager", "refusé par l'usager : rien n'a été transmis", canal)
     return {"id_demande": id_demande, "statut": "refuse"}
 
 
@@ -621,8 +633,8 @@ def accords(sujet_ref: str):
     return resultat
 
 
-@app.post("/demandes/{id_demande}/retirer", dependencies=[Depends(canal_usager)])
-def retirer(id_demande: str, usager: Usager):
+@app.post("/demandes/{id_demande}/retirer")
+def retirer(id_demande: str, usager: Usager, canal: str = Depends(canal_usager)):
     """Retrait de l'accord. Pas encore remis : plus rien ne partira. Déjà remis : on ne peut pas rappeler une
     réponse transmise, mais le retrait est écrit au journal (le service ne doit plus l'utiliser)."""
     demande = lire(id_demande)
@@ -633,13 +645,13 @@ def retirer(id_demande: str, usager: Usager):
         raise HTTPException(409, "base légale : il n'y a pas d'accord à retirer")
     if demande["statut"] in ("en_attente", "confirmee"):
         motif = "accord retiré par l'usager : rien n'a été transmis"
-        ligne = tracer(demande, "retrait", "ok", motif, **transmis(demande))
+        ligne = tracer(demande, "retrait", "ok", motif, canal=canal, **transmis(demande))
         changer(demande, statut="retiree", motif=motif)
         effacer_reponses(demande)
         return {"id_demande": id_demande, "statut": "retiree", "transmis": False, "empreinte": ligne["hash"]}
     if demande["statut"] == "remise":
         motif = "accord retiré après la transmission : le service ne doit plus utiliser la réponse"
-        ligne = tracer(demande, "retrait", "ok", motif, **transmis(demande))
+        ligne = tracer(demande, "retrait", "ok", motif, canal=canal, **transmis(demande))
         changer(demande, statut="retiree_apres_remise", motif=motif)
         return {"id_demande": id_demande, "statut": "retiree_apres_remise", "transmis": True,
                 "empreinte": ligne["hash"]}
@@ -680,7 +692,7 @@ def historique(sujet_ref: str):
             "attributs": [{"code": c, "libelle": connus.get(c, {}).get("libelle", c)}
                           for c in l["attribut"].split("+") if c],
             "evenement": l["evenement"], "resultat": l["resultat"],
-            "motif": l["motif"], "empreinte": l["hash"]})
+            "motif": l["motif"], "canal": l.get("canal") or "", "empreinte": l["hash"]})
     return lignes
 
 

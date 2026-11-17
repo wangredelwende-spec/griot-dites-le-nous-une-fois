@@ -22,6 +22,7 @@ for dossier in ("secrets", "donnees", "publiques"):
     (TMP / dossier).mkdir()
 (TMP / "secrets/sujet_hmac").write_text("secret-de-test-pseudonyme")
 (TMP / "secrets/canal_usager").write_text("secret-de-test-canal")
+(TMP / "secrets/canal_web").write_text("secret-de-test-canal-web")
 os.environ.update(GRIOT_SECRETS=str(TMP / "secrets"), GRIOT_DONNEES=str(TMP / "donnees"),
                   GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_CATALOGUE=str(RACINE / "catalogue"),
                   GRIOT_ADAPTATEURS=str(RACINE / "adaptateurs"),

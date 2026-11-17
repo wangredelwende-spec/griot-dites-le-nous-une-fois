@@ -67,7 +67,7 @@ services:
       retries: 30
       start_period: 30s
 
-  # Registres simulés SELON LE CONTRAT (PROVISOIRE, à remplacer par celui du jury) : un seul code, trois instances.
+  # Registres simulés SELON NOTRE CONTRAT (registres/contrat/contrat-registres.yaml) : un seul code, trois instances.
   # Plus de signature ni de jeton Keycloak côté registre (LIMITES.md).
   registre-etat-civil:
     build:
@@ -81,9 +81,9 @@ services:
       REGISTRE_CHEMIN: "/etat-civil/{id}"        # la route de CE registre dans le contrat
       PANNE: ${PANNE_ETAT_CIVIL:-normal}      # normal | lent | eteint | non_conforme (resilience/panne.py)
     volumes:
-      # Le contrat et la liste des citoyens : à remplacer par ceux du jury (variables CONTRAT_REGISTRES, CITOYENS_REGISTRES)
-      - ${CONTRAT_REGISTRES:-./registres/contrat/contrat-provisoire.yaml}:/contrat/contrat.yaml:ro
-      - ${CITOYENS_REGISTRES:-./registres/donnees/citoyens-provisoires.yaml}:/donnees/citoyens.yaml:ro
+      # Le contrat et la liste des citoyens (réglables : variables CONTRAT_REGISTRES, CITOYENS_REGISTRES)
+      - ${CONTRAT_REGISTRES:-./registres/contrat/contrat-registres.yaml}:/contrat/contrat.yaml:ro
+      - ${CITOYENS_REGISTRES:-./registres/donnees/citoyens-fictifs.yaml}:/donnees/citoyens.yaml:ro
     # Uniquement le réseau « registres » (sans Internet) : seule la passerelle peut l'appeler
     networks: [registres]
     healthcheck:
@@ -104,9 +104,9 @@ services:
       REGISTRE_CHEMIN: "/nationalite/{id}"        # la route de CE registre dans le contrat
       PANNE: ${PANNE_NATIONALITE:-normal}      # normal | lent | eteint | non_conforme (resilience/panne.py)
     volumes:
-      # Le contrat et la liste des citoyens : à remplacer par ceux du jury (variables CONTRAT_REGISTRES, CITOYENS_REGISTRES)
-      - ${CONTRAT_REGISTRES:-./registres/contrat/contrat-provisoire.yaml}:/contrat/contrat.yaml:ro
-      - ${CITOYENS_REGISTRES:-./registres/donnees/citoyens-provisoires.yaml}:/donnees/citoyens.yaml:ro
+      # Le contrat et la liste des citoyens (réglables : variables CONTRAT_REGISTRES, CITOYENS_REGISTRES)
+      - ${CONTRAT_REGISTRES:-./registres/contrat/contrat-registres.yaml}:/contrat/contrat.yaml:ro
+      - ${CITOYENS_REGISTRES:-./registres/donnees/citoyens-fictifs.yaml}:/donnees/citoyens.yaml:ro
     # Uniquement le réseau « registres » (sans Internet) : seule la passerelle peut l'appeler
     networks: [registres]
     healthcheck:
@@ -127,9 +127,9 @@ services:
       REGISTRE_CHEMIN: "/casier/{id}"        # la route de CE registre dans le contrat
       PANNE: ${PANNE_CASIER:-normal}      # normal | lent | eteint | non_conforme (resilience/panne.py)
     volumes:
-      # Le contrat et la liste des citoyens : à remplacer par ceux du jury (variables CONTRAT_REGISTRES, CITOYENS_REGISTRES)
-      - ${CONTRAT_REGISTRES:-./registres/contrat/contrat-provisoire.yaml}:/contrat/contrat.yaml:ro
-      - ${CITOYENS_REGISTRES:-./registres/donnees/citoyens-provisoires.yaml}:/donnees/citoyens.yaml:ro
+      # Le contrat et la liste des citoyens (réglables : variables CONTRAT_REGISTRES, CITOYENS_REGISTRES)
+      - ${CONTRAT_REGISTRES:-./registres/contrat/contrat-registres.yaml}:/contrat/contrat.yaml:ro
+      - ${CITOYENS_REGISTRES:-./registres/donnees/citoyens-fictifs.yaml}:/donnees/citoyens.yaml:ro
     # Uniquement le réseau « registres » (sans Internet) : seule la passerelle peut l'appeler
     networks: [registres]
     healthcheck:
@@ -162,7 +162,7 @@ services:
       - ./journal:/journal:ro              # verifier.py
       # Le contrat des registres, par CONFIGURATION : remplacer ce fichier (CONTRAT_REGISTRES dans .env) pour brancher
       # les registres du jury ou d'une autre équipe. Les réponses des registres sont validées contre lui.
-      - ${CONTRAT_REGISTRES:-./registres/contrat/contrat-provisoire.yaml}:/contrat/contrat.yaml:ro
+      - ${CONTRAT_REGISTRES:-./registres/contrat/contrat-registres.yaml}:/contrat/contrat.yaml:ro
       - mediateur_donnees:/donnees         # journal chaîné + demandes en attente (SQLite)
     depends_on:
       # Les registres montent leur volume en premier (ils en deviennent propriétaires et y écrivent leur clé).

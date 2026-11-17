@@ -1,8 +1,8 @@
 """Registre simulé SELON LE CONTRAT : une route, la fiche d'un citoyen par son identifiant, 404 s'il est inconnu.
 
 Un seul code, une instance par registre (état civil, nationalité, casier). Tout vient de la configuration :
-- GRIOT_CONTRAT  : le contrat OpenAPI (registres/contrat/contrat-provisoire.yaml, à remplacer par celui du jury) ;
-- GRIOT_CITOYENS : la liste des citoyens fictifs (registres/donnees/citoyens-provisoires.yaml) ;
+- GRIOT_CONTRAT  : le contrat OpenAPI (registres/contrat/contrat-registres.yaml) ;
+- GRIOT_CITOYENS : la liste des citoyens fictifs (registres/donnees/citoyens-fictifs.yaml) ;
 - REGISTRE_CHEMIN : la route que CETTE instance sert (ex. /etat-civil/{id}) : ses champs sont ceux du schéma de sa
   réponse 200 dans le contrat. Rien d'autre ne sort de la fiche du citoyen.
 - PANNE : normal | lent | eteint | non_conforme (lue à chaque appel ; resilience/panne.py la change).

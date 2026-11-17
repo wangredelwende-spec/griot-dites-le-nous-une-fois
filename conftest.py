@@ -2,7 +2,7 @@
 
 La passerelle est testée SANS Docker : les registres sont remplacés par respx (faux serveur HTTP) qui répondent
 comme le contrat (fiche JSON d'un citoyen, 404 s'il est inconnu). Le contrat et la liste des citoyens sont ceux du dépôt
-(PROVISOIRES) : les remplacer par ceux du jury et relancer les tests suffit (README.md).
+(notre contrat des registres) : en désigner d'autres (GRIOT_CONTRAT, GRIOT_CITOYENS) et relancer les tests suffit.
 """
 import os
 import sys
@@ -25,9 +25,10 @@ for dossier in ("secrets", "donnees", "publiques"):
 (TMP / "secrets/canal_usager").write_text("secret-de-test-canal")
 (TMP / "secrets/canal_web").write_text("secret-de-test-canal-web")
 os.environ.update(GRIOT_SECRETS=str(TMP / "secrets"), GRIOT_DONNEES=str(TMP / "donnees"),
-                  GRIOT_PUBLIQUES=str(TMP / "publiques"), GRIOT_CATALOGUE=str(RACINE / "consentement-minimisation/catalogue"),
+                  GRIOT_PUBLIQUES=str(TMP / "publiques"),
+                  GRIOT_CATALOGUE=os.environ.get("GRIOT_CATALOGUE", str(RACINE / "consentement-minimisation/catalogue")),
                   GRIOT_ADAPTATEURS=str(RACINE / "registres/adaptateurs"),
-                  GRIOT_CONTRAT=os.environ.get("GRIOT_CONTRAT", str(RACINE / "registres/contrat/contrat-provisoire.yaml")),
+                  GRIOT_CONTRAT=os.environ.get("GRIOT_CONTRAT", str(RACINE / "registres/contrat/contrat-registres.yaml")),
                   LIMITE_PAR_CITOYEN="1000", LIMITE_SUJETS="1000",   # des tests dédiés baissent les limites
                   DELAI_REGISTRE="0.5", GRIOT_VERIFIER=str(RACINE / "journal/verifier.py"))
 
@@ -81,11 +82,11 @@ for _d in DEMARCHES_DE_TEST.values():
         _a.setdefault("parametres", {})          # le chargeur du catalogue le fait pour les vraies démarches
 mediateur.CAT["demarches"].update(DEMARCHES_DE_TEST)
 
-# --- Faux registres selon le contrat (PROVISOIRE) ---
+# --- Faux registres selon le contrat ---
 
-# Le contrat et la liste des citoyens : ceux du dépôt (PROVISOIRES), ou ceux désignés par GRIOT_CONTRAT / GRIOT_CITOYENS
+# Le contrat et la liste des citoyens : ceux du dépôt, ou ceux désignés par GRIOT_CONTRAT / GRIOT_CITOYENS
 CHEMIN_CONTRAT = Path(os.environ["GRIOT_CONTRAT"])
-CHEMIN_CITOYENS = Path(os.environ.get("GRIOT_CITOYENS", RACINE / "registres/donnees/citoyens-provisoires.yaml"))
+CHEMIN_CITOYENS = Path(os.environ.get("GRIOT_CITOYENS", RACINE / "registres/donnees/citoyens-fictifs.yaml"))
 CONTRAT_DE_TEST = yaml.safe_load(CHEMIN_CONTRAT.read_text(encoding="utf-8"))
 CITOYENS_DE_TEST = {str(c["id"]): c for c in yaml.safe_load(CHEMIN_CITOYENS.read_text(encoding="utf-8"))["citoyens"]}
 def champs_de_la_route(chemin: str) -> list[str]:

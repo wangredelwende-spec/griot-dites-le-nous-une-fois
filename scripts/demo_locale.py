@@ -8,7 +8,7 @@ Puis ouvrir dans le navigateur :
     http://127.0.0.1:8000/journal/verification   le badge « journal intègre » en JSON
 
 Pour voir quelque chose, le script prépare 3 consultations fictives de « Aminata Kaboré » (BF-0001) avec des
-registres simulés RÉELS, branchés en mémoire selon le contrat provisoire (aucune donnée du jury) : un concours (base légale), une création d'entreprise
+registres simulés RÉELS, branchés en mémoire selon notre contrat des registres (données fictives) : un concours (base légale), une création d'entreprise
 au CEFORE (confirmée, accord valable 7 jours) et une demande de certificat de nationalité EN ATTENTE, à confirmer ou
 refuser vous-même. Tout est jeté à l'arrêt (Ctrl+C). Ce n'est PAS la pile Docker : les données ne sont pas conservées.
 """

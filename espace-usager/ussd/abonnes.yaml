@@ -1,7 +1,7 @@
 # Abonnés FICTIFS du service *226# (démonstration) : numéro de téléphone -> usager et code PIN.
 # En production : le numéro est fourni par l'opérateur (il n'est pas saisi) et le PIN est géré
 # par le fournisseur d'identité, jamais dans un fichier (voir LIMITES.md).
-# Citoyens de la liste PROVISOIRE (registres/donnees/citoyens-provisoires.yaml)
+# Citoyens de la liste fictive (registres/donnees/citoyens-fictifs.yaml)
 "70000001": {sujet_ref: BF-0001, pin: "1234"}    # Aminata Kaboré, majeure (démonstration)
 "70000002": {sujet_ref: BF-0002, pin: "1234"}    # Moussa Ouédraogo, majeur (test de bout en bout USSD)
 "70000003": {sujet_ref: BF-0003, pin: "1234"}    # Fatimata Sawadogo, mineure

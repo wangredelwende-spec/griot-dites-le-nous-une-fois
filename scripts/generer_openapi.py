@@ -28,7 +28,7 @@ RACINE = Path(__file__).resolve().parents[1]
 COUCHES = {
     "registres": ("registres/openapi.yaml", "Registres (état civil, nationalité, casier)",
                   "Chaque registre expose la fiche d'un citoyen par son identifiant (404 si inconnu), selon le contrat "
-                  "commun (PROVISOIRE : registres/contrat/contrat-provisoire.yaml, à remplacer par celui du jury). "
+                  "commun de nos registres (registres/contrat/contrat-registres.yaml). "
                   "Appelé par la passerelle d'échange seulement (réseau « registres »), jamais publié."),
     "passerelle": ("passerelle/openapi.yaml", "Passerelle d'échange",
                    "Fait circuler les pièces entre administrations : demande d'un agent (jeton Keycloak), appel des "
@@ -76,7 +76,7 @@ def preparer_dossiers() -> Path:
                       GRIOT_PUBLIQUES=str(tmp / "publiques"),
                       GRIOT_CATALOGUE=str(RACINE / "consentement-minimisation/catalogue"),
                       GRIOT_ADAPTATEURS=str(RACINE / "registres/adaptateurs"),
-                      GRIOT_CONTRAT=str(RACINE / "registres/contrat/contrat-provisoire.yaml"),
+                      GRIOT_CONTRAT=str(RACINE / "registres/contrat/contrat-registres.yaml"),
                       GRIOT_VERIFIER=str(RACINE / "journal/verifier.py"))
     return tmp
 
@@ -151,10 +151,10 @@ def contrat(couche: str) -> str:
     _, titre, description = COUCHES[couche]
     if couche == "registres":
         # Le contrat des registres EST leur OpenAPI : on le publie tel quel (c'est lui, pas le code, qui fait foi)
-        schema = yaml.safe_load((RACINE / "registres/contrat/contrat-provisoire.yaml").read_text(encoding="utf-8"))
+        schema = yaml.safe_load((RACINE / "registres/contrat/contrat-registres.yaml").read_text(encoding="utf-8"))
         schema["info"] = {"title": f"Griot : {titre}", "version": "1.0", "description": description}
         entete = ("# Contrat d'API de la couche « Registres ». GÉNÉRÉ par scripts/generer_openapi.py à partir de\n"
-                  "# registres/contrat/contrat-provisoire.yaml (PROVISOIRE) : ne pas modifier à la main.\n")
+                  "# registres/contrat/contrat-registres.yaml : ne pas modifier à la main.\n")
         return entete + yaml.safe_dump(schema, allow_unicode=True, sort_keys=False, width=120)
     schema = get_openapi(title=f"Griot : {titre}", version="1.0", description=description, routes=routes_de(couche))
     if couche in ETIQUETTES:

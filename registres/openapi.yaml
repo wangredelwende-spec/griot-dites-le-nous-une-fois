@@ -1,12 +1,12 @@
 # Contrat d'API de la couche « Registres ». GÉNÉRÉ par scripts/generer_openapi.py à partir de
-# registres/contrat/contrat-provisoire.yaml (PROVISOIRE) : ne pas modifier à la main.
+# registres/contrat/contrat-registres.yaml : ne pas modifier à la main.
 openapi: 3.1.0
 info:
   title: 'Griot : Registres (état civil, nationalité, casier)'
   version: '1.0'
-  description: 'Chaque registre expose la fiche d''un citoyen par son identifiant (404 si inconnu), selon le contrat commun
-    (PROVISOIRE : registres/contrat/contrat-provisoire.yaml, à remplacer par celui du jury). Appelé par la passerelle d''échange
-    seulement (réseau « registres »), jamais publié.'
+  description: Chaque registre expose la fiche d'un citoyen par son identifiant (404 si inconnu), selon le contrat commun
+    de nos registres (registres/contrat/contrat-registres.yaml). Appelé par la passerelle d'échange seulement (réseau « registres
+    »), jamais publié.
 paths:
   /etat-civil/{id}:
     get:

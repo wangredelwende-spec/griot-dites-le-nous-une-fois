@@ -1,6 +1,6 @@
 """Tests GÉNÉRÉS depuis le contrat (Schemathesis, MIT) contre les 3 registres simulés.
 
-Le contrat est celui de GRIOT_CONTRAT (aujourd'hui le PROVISOIRE ; demain celui du jury, sans changer ce fichier).
+Le contrat est celui de GRIOT_CONTRAT (par défaut registres/contrat/contrat-registres.yaml ; un autre, sans changer ce fichier).
 Pour chaque route du contrat servie par un registre, Schemathesis fabrique des identifiants (quelconques, longs,
 accentués…) et vérifie que CHAQUE réponse a un code prévu par le contrat (200 ou 404) et un corps conforme à son schéma.
 """

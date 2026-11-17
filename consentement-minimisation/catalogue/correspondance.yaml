@@ -1,6 +1,7 @@
 # CORRESPONDANCE DES CHAMPS : l'UNIQUE endroit où figurent les noms de champs des registres du contrat.
 #
-# PROVISOIRE : rempli d'après registres/contrat/contrat-provisoire.yaml. À refaire quand le contrat du jury arrive.
+# Rempli d'après notre contrat des registres (registres/contrat/contrat-registres.yaml). Brancher le registre d'une
+# autre équipe (autres noms de champs) = modifier ce fichier et annuaire.yaml seulement : docs/brancher-un-registre.md.
 # À gauche : le nom que la passerelle utilise (ne pas changer) ; à droite : le nom du champ dans la réponse du
 # registre (le contrat). Une valeur vide (null) = « correspondance non renseignée » : la minimisation REFUSE,
 # on ne devine jamais un nom de champ.

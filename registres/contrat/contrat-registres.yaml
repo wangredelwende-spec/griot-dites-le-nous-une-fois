@@ -1,17 +1,15 @@
-# PROVISOIRE — à remplacer par le contrat du jury
+# Contrat des registres de Griot Secure (pas de contrat commun imposé : chaque équipe définit ses registres).
 #
-# Contrat OpenAPI commun aux 3 registres (état civil, nationalité, casier), écrit par l'équipe en attendant le
-# contrat officiel du jury. Une route par registre : lire la fiche d'un citoyen par son identifiant ; 404 si le
-# citoyen est inconnu. Les noms de champs ci-dessous sont NOS hypothèses : ils ne sont écrits qu'ici et dans
+# Contrat OpenAPI commun à nos 3 registres simulés (état civil, nationalité, casier). Une route par registre : lire la fiche d'un citoyen par son identifiant ; 404 si le
+# citoyen est inconnu. Les noms de champs ci-dessous ne sont écrits qu'ici et dans
 # consentement-minimisation/catalogue/correspondance.yaml.
 #
-# Remplacer ce contrat = remplacer ce fichier (GRIOT_CONTRAT), remplir correspondance.yaml, remplacer la liste des
-# citoyens, puis relancer les tests (README.md). Les réponses des registres sont validées contre ce fichier :
+# Brancher le registre d'une autre équipe : annuaire.yaml + correspondance.yaml seulement (docs/brancher-un-registre.md). Les réponses des registres sont validées contre ce fichier :
 # une réponse non conforme est rejetée et écrite au journal.
 openapi: 3.1.0
 info:
-  title: Contrat des registres (PROVISOIRE)
-  version: 0.0.1-provisoire
+  title: Contrat des registres (Griot Secure)
+  version: 1.0.0
 paths:
   /etat-civil/{id}:
     get:

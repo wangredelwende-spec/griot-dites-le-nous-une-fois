@@ -68,7 +68,7 @@ non;Retrait;Non;;;
 retrait_titre;Retrait;Accord retiré;;;
 retrait_fait;Retrait;Rien n'a été transmis.;;;
 retrait_apres;Retrait;Déjà transmis : le service ne doit plus l'utiliser.;;;
-bandeau;Commun;Registres simulés, données fictives du jury;;;
+bandeau;Commun;Registres simulés, données fictives;;;
 pour;Historique;Pour :;;;
 journal_ok;Journal;Journal intègre : {n} lignes, aucune modifiée.;;;
 journal_ko;Journal;ATTENTION : la ligne {n} du journal a été modifiée.;;;

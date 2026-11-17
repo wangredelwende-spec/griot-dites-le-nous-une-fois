@@ -199,7 +199,7 @@ def test_deconnexion():
 
 def test_bandeau_registres_simules_sur_toutes_les_pages():
     nav = Navigateur()
-    assert "Registres simulés, données fictives du jury" in nav.client.get("/portail").text      # connexion
+    assert "Registres simulés, données fictives" in nav.client.get("/portail").text      # connexion
     assert "Registres simulés" in nav.client.post("/portail/connexion", data={"csrf": nav.csrf, "numero": "1"}).text
 
 

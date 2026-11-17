@@ -22,7 +22,7 @@ def demander(client: httpx.Client, csrf: str, sujet: str, demarche: str = "conco
     return texte(envoyer(client, csrf, sujet, demarche).text)
 
 
-# (démarche, usager, textes attendus au guichet) ; citoyens de registres/donnees/citoyens-provisoires.yaml
+# (démarche, usager, textes attendus au guichet) ; citoyens de registres/donnees/citoyens-fictifs.yaml
 CAS = [
     # Concours direct : UNE demande, 3 registres, base légale
     ("concours-direct", "BF-0002", ["majeur (18 ans accomplis) : oui", "nationalité burkinabè : oui",

@@ -3,9 +3,9 @@
 **Rôle** : détenir la donnée des citoyens (registres SIMULÉS, données fictives) et la servir **selon le contrat
 commun** des trois registres : état civil, nationalité, casier judiciaire.
 
-Contrat actuel : **PROVISOIRE** (`contrat/contrat-provisoire.yaml`), en attendant celui du jury. Une route par registre :
+Contrat : `contrat/contrat-registres.yaml` (le nôtre ; pas de contrat commun imposé). Une route par registre :
 `GET /etat-civil/{id}`, `GET /nationalite/{id}`, `GET /casier/{id}` → la fiche du citoyen (exactement les champs du
-schéma de la réponse 200), ou **404** s'il est inconnu. Citoyens fictifs provisoires : `donnees/citoyens-provisoires.yaml`.
+schéma de la réponse 200), ou **404** s'il est inconnu. Citoyens fictifs : `donnees/citoyens-fictifs.yaml`.
 
 Un seul code (`app/main.py`), trois instances (docker-compose.yml) ; tout vient de la configuration :
 `GRIOT_CONTRAT` (le contrat), `GRIOT_CITOYENS` (la liste), `REGISTRE_CHEMIN` (la route de cette instance),
@@ -23,6 +23,6 @@ L'ancien registre « signé » : `app/ancien_main.py` (signature Ed25519, jeton 
 
 ## Contrat et tests
 
-`openapi.yaml` = le contrat des registres (généré depuis `contrat/contrat-provisoire.yaml`). Tests :
+`openapi.yaml` = le contrat des registres (généré depuis `contrat/contrat-registres.yaml`). Tests :
 `tests/test_registre_contrat.py` (chaque citoyen conforme au contrat, 404, champs exposés, pannes) et
 `tests/test_schemathesis.py` (tests générés depuis le contrat de `GRIOT_CONTRAT`).

@@ -1,2 +1,6 @@
 # Jeux d essai par format : octets exacts (CSV Windows-1252 avec CRLF, PDF, Excel, SQLite)
 registres/tests/donnees_formats/** -text
+
+# Scripts lus par Linux dans les conteneurs : toujours LF (sinon « bad interpreter » sur un clone Windows)
+*.sh text eol=lf
+socle/secrets-demo/* -text

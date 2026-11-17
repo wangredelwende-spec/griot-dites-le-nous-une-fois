@@ -202,3 +202,32 @@ def test_demarche_refusee_de_la_demo(monkeypatch, tmp_path):
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     with pytest.raises(catalogue.CatalogueInvalide, match="attribut inconnu « date_naissance »"):
         catalogue.charger(texte.encode("utf-8"))
+
+
+def test_nouvelle_administration_par_configuration_seule(tmp_path, monkeypatch):
+    """Une nouvelle administration (ici « mairie ») = 3 blocs de YAML, aucun code : un service dans annuaire.yaml, son
+    autorisation dans attributs.yaml (double clé), sa démarche dans demarches.yaml. Sans l'autorisation (attributs.yaml),
+    le catalogue est REFUSÉ."""
+    import shutil
+    copie = tmp_path / "catalogue"
+    shutil.copytree(RACINE / "consentement-minimisation/catalogue", copie)
+    monkeypatch.setattr(catalogue, "CATALOGUE", copie)
+
+    def ajouter(fichier, avant, apres):
+        chemin = copie / fichier
+        texte = chemin.read_text(encoding="utf-8").replace("\r\n", "\n")
+        assert avant in texte
+        chemin.write_text(texte.replace(avant, apres, 1), encoding="utf-8")
+
+    ajouter("annuaire.yaml", "  cefore:\n", "  mairie:\n    groupe: Mairie\n    nom: La mairie\n    nom_court: la mairie\n"
+            "    cle_api_sha256: " + "0" * 64 + "\n  cefore:\n")
+    ajouter("demarches.yaml", "  entreprise-individuelle-cefore:\n",
+            "  attestation-mairie:\n    libelle: Attestation de nationalité (mairie)\n    services: [mairie]\n"
+            "    finalite: attestation de nationalité à la mairie\n    base: consentement\n    duree_accord_heures: 24\n"
+            "    attributs:\n      - attribut: nationalite_bf\n        libelle: nationalité burkinabè\n\n"
+            "  entreprise-individuelle-cefore:\n")
+    with pytest.raises(catalogue.CatalogueInvalide, match="n'autorise pas mairie"):
+        catalogue.charger()                                   # démarche déclarée, mais attributs.yaml ne l'autorise pas
+    ajouter("attributs.yaml", "    valeur: burkinabe\n    services: [direction-concours]",
+            "    valeur: burkinabe\n    services: [direction-concours, mairie]")
+    assert "attestation-mairie" in catalogue.charger()["demarches"]

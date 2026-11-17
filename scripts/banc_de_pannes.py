@@ -77,7 +77,8 @@ resultat = {}
 
 # Citoyens de la DÉMO devant le jury : le banc ne les utilise JAMAIS (sinon il consommerait leur limite de 5 demandes
 # par 24 h et remplirait leur historique). Vérifié par tests/test_banc.py. Ordre fixe : banc -> remise à zéro -> démo.
-CITOYENS_DE_LA_DEMO = {"BF-0012", "BF-0005", "BF-0015"}
+CITOYENS_DE_LA_DEMO = {"BF-0012", "BF-0005", "BF-0015", "BF-0001"}
+# BF-0021 : citoyen fictif RÉSERVÉ au banc (adulte ordinaire, burkinabè, casier vierge), jamais montré en démo.
 
 RESULTATS: list[bool] = []
 APPELS_DIRECTS: set[str] = set()     # demandes envoyées directement aux registres (scénario A), sans le médiateur
@@ -186,12 +187,12 @@ resultat.update(premiere=premiere["corps"], seconde=seconde["corps"], journal=jo
 
 
 def mauvaise_finalite():
-    x = dans_le_mediateur(concours("BF-0001", finalite="curiosité"))
+    x = dans_le_mediateur(concours("BF-0021", finalite="curiosité"))
     r = x["r"]["corps"]
     appels = sum(l["evenement"] == "reponse-registre" for l in x["journal"])
     noter("5. Mauvaise finalité", r.get("statut") == "refuse" and r.get("motif") == "finalité non autorisée" and appels == 0,
           "« finalité non autorisée », aucun registre appelé", json.dumps(x))
-    x = dans_le_mediateur(concours("BF-0001", attributs=["age_entre", "nationalite_burkinabe",
+    x = dans_le_mediateur(concours("BF-0021", attributs=["age_entre", "nationalite_burkinabe",
                                                          "casier_judiciaire_vierge", "personne_connue"]))
     r = x["r"]["corps"]
     noter("5 bis. Attribut demandé en plus", r.get("statut") == "refuse" and "attributs non autorisés" in r.get("motif", ""),
@@ -206,7 +207,7 @@ def renforcements_registre():
 corps = {"id_demande": ids[0], "attribut": "casier_judiciaire_vierge", "sujet_ref": "BF-0008",
          "destinataire": "direction-concours"}
 resultat["sans_jeton"] = registre_direct("casier", corps, {})
-corps = {"id_demande": ids[1], "attribut": "age_entre", "sujet_ref": "BF-0001",
+corps = {"id_demande": ids[1], "attribut": "age_entre", "sujet_ref": "BF-0021",
          "destinataire": "direction-concours", "parametres": {"min": 25, "date_reference": time.strftime("%Y-%m-%d")}}
 resultat["seuil"] = registre_direct("etat-civil", corps, {"Authorization": "Bearer " + jeton("outil-test-concours")})
 corps = {"id_demande": ids[2], "attribut": "casier_judiciaire_vierge", "sujet_ref": "BF-0008",
@@ -240,7 +241,7 @@ def passeport_casier_en_panne():
     corrompu : l'usager ne voit que ce qui est arrivé (signé), le guichet reçoit la réponse signée de la
     nationalité et un volet en échec, jamais tout."""
     F = FINALITES["passeport-ordinaire"]
-    for mode, sujet, attendu in (("coupe", "BF-0001", "injoignable"), ("lent", "BF-0002", "délai dépassé"),
+    for mode, sujet, attendu in (("coupe", "BF-0021", "injoignable"), ("lent", "BF-0002", "délai dépassé"),
                                  ("corrompu", "BF-0006", "réponse corrompue")):
         panne("casier", mode)
         try:

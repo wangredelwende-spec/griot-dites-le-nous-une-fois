@@ -15,6 +15,7 @@ Personnes inventées, sans lien avec des personnes réelles. Les colonnes `pere`
 | BF-0011 | année seule (2004) | oui : même né le 31/12/2004, elle a 18 ans |
 | BF-0019 | doublon (deux fiches pour le même nip) | refus : identité ambiguë |
 | BF-0099 | absent du registre | refus : introuvable |
+| BF-0021 | **réservé au banc de pannes** (adulte, burkinabè, casier vierge, aucune interdiction) : jamais utilisé en démo | oui |
 
 ## Nationalité (`nationalite.csv`) et casier (`casier.csv`)
 

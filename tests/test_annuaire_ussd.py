@@ -29,7 +29,7 @@ def lancer(tmp_path, adaptateur=None):
 def test_chaque_citoyen_a_un_numero(tmp_path):
     abonnes, tableau = lancer(tmp_path)
     sujets = [a["sujet_ref"] for a in abonnes.values()]
-    assert len(sujets) == len(set(sujets)) == 20                    # 21 fiches, dont un doublon BF-0019
+    assert len(sujets) == len(set(sujets)) == 21                    # 22 fiches, dont un doublon BF-0019
     assert {a["pin"] for a in abonnes.values()} == {"4321"}
     assert abonnes["71000001"] == {"sujet_ref": "BF-0001", "pin": "4321"}
     assert ["BF-0001", "KABORE Aminata", "71000001", "4321", ""] in tableau

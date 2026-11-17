@@ -10,9 +10,9 @@ aucun JavaScript.
 - Choix de la démarche (seulement celles du catalogue **en vigueur** à la passerelle), identifiant de l'usager
   (champ vide, exemple grisé), envoi.
 - Statut « en attente de l'usager » avec un bouton Actualiser.
-- Résultat : « majeur : oui — signé par le registre d'état civil, signature vérifiée, valable jusqu'à 14 h 13 »,
-  avec l'empreinte courte de la clé du registre. Le guichet **revérifie lui-même** chaque signature avec la clé
-  publique lue dans le volume du registre (lecture seule) : la passerelle ne peut ni la fournir ni la remplacer.
+- Résultat : « majeur : oui », nationalité, casier vierge… (seulement ce que la démarche demande), ou le motif de refus
+  de chaque attribut. Depuis le 17/11 les registres ne signent plus (LIMITES.md) : la passerelle valide la réponse
+  contre le contrat et ne remet que l'attribut calculé ; le guichet ne vérifie plus de signature.
 - Refus : motif clair (« Registre indisponible, rien n'a été deviné », « finalité non autorisée »…).
 - Page `/controle` pour le rôle `controleur` (comme un délégué à la protection des données) : alertes, état des
   registres, catalogue et son empreinte, bouton « Vérifier le journal ». **Lecture seule**.
@@ -28,5 +28,6 @@ il ne peut pas la contourner.
 
 ## Tests
 
-Pas encore de tests unitaires : le guichet est testé de bout en bout contre la pile qui tourne
+`tests/test_guichet.py` : gabarits sans script ni ressource externe, et (pile démarrée) pages protégées renvoyées vers la
+connexion Keycloak. Le reste est testé de bout en bout contre la pile qui tourne
 (`tests/e2e/e2e_jalon1.py`, banc de pannes `resilience/banc_de_pannes.py`) et par son contrat (`tests/test_openapi.py`).

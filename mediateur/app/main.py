@@ -689,7 +689,9 @@ def historique(sujet_ref: str):
             "demarche": demarche.get("libelle", l["demarche"]), "finalite": l["finalite"],
             "finalites": finalites_traduites(demarche, l["finalite"]), "base": l["base"],
             "texte_base": demarche.get("texte", "") if l["base"] == "base_legale" else "",
-            "attributs": [{"code": c, "libelle": connus.get(c, {}).get("libelle", c)}
+            # « parametres » (seuils d'âge…) : pour composer le libellé dans une autre langue
+            "attributs": [{"code": c, "libelle": connus.get(c, {}).get("libelle", c),
+                           "parametres": connus.get(c, {}).get("parametres", {})}
                           for c in l["attribut"].split("+") if c],
             "evenement": l["evenement"], "resultat": l["resultat"],
             "motif": l["motif"], "canal": l.get("canal") or "", "empreinte": l["hash"]})

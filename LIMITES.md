@@ -50,6 +50,15 @@
 - Le médiateur lit les adaptateurs des registres (lecture seule) pour valider le catalogue ; en production, chaque
   registre publierait sa description signée.
 
+- **Le registre ne peut pas vérifier que l'usager a vraiment confirmé.** Il répond (et signe) AVANT l'accord : la
+  réponse est gardée en attente par le médiateur, qui ne la remet qu'après la confirmation. C'est donc le médiateur
+  qui fait respecter le consentement. Un médiateur compromis qui remettrait une réponse sans accord ne passerait
+  pas inaperçu : (1) la consultation apparaît dans l'historique de l'usager (« Qui a consulté mes données »), qui
+  voit « transmis » ou « accordé » sans avoir rien confirmé et n'a aucun reçu pour cette ligne ; (2) le registre
+  garde SA propre trace des réponses qu'il a signées (double trace, hors de portée du médiateur) : une consultation
+  effacée du journal du médiateur y reste visible (`verifier.py --registres`). Feuille de route : accord signé par
+  l'usager lui-même (clé sur son téléphone), vérifiable par le registre.
+
 ## Ce que voit le médiateur
 
 - La réponse minimale signée (ex. « nationalité burkinabè : oui »), gardée en attente jusqu'au consentement, puis effacée.

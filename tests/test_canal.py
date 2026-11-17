@@ -94,3 +94,13 @@ def test_ajout_de_la_colonne_canal_garde_les_anciennes_empreintes(tmp_path):
     base.execute("DROP TRIGGER journal_sans_modification")
     base.execute("UPDATE journal SET canal = 'web' WHERE n = 1")
     assert verifier.verifier(str(chemin))[1] == "Ligne 1 modifiée"
+
+
+@respx.mock
+def test_historique_donne_les_seuils_de_la_demarche(client):
+    from conftest import URL_REGISTRE
+    respx.post(URL_REGISTRE).mock(side_effect=registre_qui_signe())
+    client.agent["nom"] = "issa.sawadogo"
+    client.post("/demandes", json=demande(sujet="BF-0010"))
+    ligne = client.get("/usagers/BF-0010/historique", headers=CANAL).json()[0]
+    assert ligne["attributs"][0]["code"] == "age_entre" and ligne["attributs"][0]["parametres"]["min"] == 18

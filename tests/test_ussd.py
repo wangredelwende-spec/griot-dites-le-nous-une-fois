@@ -325,3 +325,18 @@ def test_phrases_et_finalites_completes_moore_propose(monkeypatch):
 
 def test_cle_attribut_age_entre_presente_en_francais():
     assert ussd.TEXTES["fr"]["attribut_age_entre"]
+
+
+def test_libelle_age_traduit_avec_les_seuils_de_la_demarche(monkeypatch):
+    """Autre langue : « âge entre {min} et {max} ans » rempli avec les seuils de LA démarche ; le français affiché
+    reste le libellé du catalogue. (Mooré simulé ici par une copie marquée : on n'invente jamais de mooré.)"""
+    faux = {cle: f"[mos] {texte}" for cle, texte in ussd.TEXTES["fr"].items()}
+    monkeypatch.setitem(ussd.TEXTES, "mos", faux)
+    concours = {"code": "age_entre", "libelle": "âge de 18 à 37 ans au 31/12/2026",
+                "parametres": {"min": 18, "max": 37, "date_reference": "2026-12-31"}}
+    majorite = {"code": "age_entre", "libelle": "majeur (18 ans accomplis)",
+                "parametres": {"min": 18, "date_reference": "aujourd'hui"}}
+    assert ussd.nom_attribut({"langue": "mos"}, concours) == "[mos] âge entre 18 et 37 ans"
+    assert ussd.nom_attribut({"langue": "mos"}, majorite) == "[mos] âge d'au moins 18 ans"
+    assert ussd.nom_attribut({"langue": "fr"}, concours) == "âge de 18 à 37 ans au 31/12/2026"     # inchangé
+    assert ussd.nom_attribut({"langue": "mos"}, {"code": "age_entre", "libelle": "x"}) == "x"     # sans seuils

@@ -90,6 +90,8 @@ composer l'écran dans une autre langue (mooré).
 - **Jamais la valeur** de l'attribut : le journal ne la contient pas.
 - `base` : `consentement` ou `base_legale` (alors `texte_base` donne le texte qui l'autorise).
 - `attributs` : ce que concerne la ligne (une ligne `reponse-registre` ne concerne qu'un attribut).
+  Chaque attribut porte aussi ses `parametres` (ex. `{"min": 18, "max": 37, "date_reference": "2026-12-31"}`, ajouté
+  le 17/11) : un écran dans une autre langue compose ainsi « âge entre 18 et 37 ans » (`phrases-ussd.csv`).
 - `evenement` : `demande` | `reponse-registre` | `confirmation` | `refus-usager` | `remise` | `expiration` | `alerte` | `retrait`.
 - `resultat` : `ok` | `refuse` | `indisponible`. `motif` explique un refus.
 - `canal` (ajouté le 17/11) : `ussd` ou `web` pour une action de l'usager (confirmation, refus, retrait) ; vide pour

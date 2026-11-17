@@ -43,6 +43,7 @@ Démonstration pas à pas : `docs/test-manuel.md`.
 26 bis. **Le service pourrait-il passer une démarche en « base légale » pour se passer de l'accord de l'usager ?** → Non : chaque registre déclare, par service, le mode accepté et les textes de loi qu'il reconnaît. Le passeport passé en base légale est refusé au chargement du catalogue et par le registre lui-même (réponse signée).
 
 27. **L'usager refuse, ne répond pas ou change d'avis ?** → Refus : rien n'est transmis. 10 minutes sans réponse : expiration, rien n'est remis. Retrait (menu 3) : avant la remise, rien ne part ; après, le retrait est écrit au journal et le service ne doit plus utiliser la réponse (on le dit honnêtement à l'usager).
+27 bis. **Le registre sait-il que l'usager a vraiment dit oui ?** → Non, et on le dit franchement : le registre répond avant l'accord, c'est le médiateur qui retient la réponse jusqu'à la confirmation. Mais une consultation sans accord ne peut pas se cacher : elle apparaît dans l'historique de l'usager (« transmis » sans reçu de confirmation de sa part), et le registre garde sa propre trace signée des réponses qu'il a données, que `verifier.py --registres` compare au journal. Plus tard : accord signé par l'usager lui-même, vérifiable par le registre.
 28. **Et un usager sans smartphone ?** → USSD `*226#`, écrans de 160 caractères, sur n'importe quel téléphone. Le mooré est prévu ; une langue incomplète n'est pas proposée (jamais de mooré inventé).
 
 **Traçabilité et pannes**

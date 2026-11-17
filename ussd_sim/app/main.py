@@ -112,6 +112,14 @@ def nom_attribut(s: dict, a: dict, court: bool = False) -> str:
         return textes.get(f"attribut_court_{a['code']}", a["code"][:8])
     if s["langue"] == "fr":         # le catalogue est écrit en français
         return a["libelle"]
+    if a["code"] == "age_entre":
+        # Seuils de LA démarche (paramètres du catalogue) : « âge entre 18 et 37 ans », traduit avec ses nombres
+        p = a.get("parametres") or {}
+        if "min" in p and "max" in p:
+            return textes["attribut_age_entre"].format(min=p["min"], max=p["max"])
+        if "min" in p:
+            return textes["attribut_age_au_moins"].format(min=p["min"])
+        return a["libelle"]
     return textes.get(f"attribut_{a['code']}", a["libelle"])
 
 

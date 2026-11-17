@@ -397,7 +397,9 @@ def volet_depuis_registre(demande: dict, demande_attribut: dict, lecture: dict) 
     else:
         try:
             fiche = lecture["fiche"]
-            if registre == "etat-civil" and minimisation.lire_ou_vide(fiche, CORRESPONDANCE, registre, "date_deces"):
+            # Décès : vérifié pour tout registre dont la correspondance déclare « date_deces » (aucun nom de registre en dur)
+            if ("date_deces" in (CORRESPONDANCE.get("registres", {}).get(registre) or {})
+                    and minimisation.lire_ou_vide(fiche, CORRESPONDANCE, registre, "date_deces")):
                 raise Refus("personne décédée")
             resultat = minimisation.minimiser(definition, registre, fiche, CORRESPONDANCE,
                                               catalogue.resoudre(demande_attribut["parametres"]))

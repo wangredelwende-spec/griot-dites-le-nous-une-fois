@@ -27,14 +27,14 @@ dans l'historique git (`git log --follow <fichier>`).
 | `traduction-moore/integrer.py` | `traduction-moore/integrer.py` |
 | `traduction-moore/phrases.csv` | `traduction-moore/phrases.csv` |
 | `traduction-moore/LISEZMOI.md` | `traduction-moore/LISEZMOI.md` |
-| `console/Dockerfile` | `guichet/Dockerfile` |
-| `console/requirements.txt` | `guichet/requirements.txt` |
-| `console/app/__init__.py` | `guichet/app/__init__.py` |
-| `console/app/config.py` | `guichet/app/config.py` |
-| `console/app/main.py` (connexion OIDC + CSRF) | `guichet/app/main.py` |
-| `console/app/static/style.css` | `guichet/app/static/style.css` |
-| `console/app/templates/base.html` | `guichet/app/templates/base.html` |
-| `console/app/templates/erreur.html` | `guichet/app/templates/erreur.html` |
+| `console/Dockerfile` | `guichet-agent/Dockerfile` |
+| `console/requirements.txt` | `guichet-agent/requirements.txt` |
+| `console/app/__init__.py` | `guichet-agent/app/__init__.py` |
+| `console/app/config.py` | `guichet-agent/app/config.py` |
+| `console/app/main.py` (connexion OIDC + CSRF) | `guichet-agent/app/main.py` |
+| `console/app/static/style.css` | `guichet-agent/app/static/style.css` |
+| `console/app/templates/base.html` | `guichet-agent/app/templates/base.html` |
+| `console/app/templates/erreur.html` | `guichet-agent/app/templates/erreur.html` |
 
 `console/app/audit.py` (journal SQLite en ajout seul) a été importé puis retiré du guichet : son principe (déclencheurs SQLite qui refusent UPDATE et DELETE) est repris dans `mediateur/app/journal.py`, complété par le chaînage par hachage.
 

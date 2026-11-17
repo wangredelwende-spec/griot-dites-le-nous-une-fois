@@ -20,7 +20,8 @@ DELAI_REGISTRE = float(os.environ.get("DELAI_REGISTRE", "3"))           # second
 DUREE_CONSENTEMENT = int(os.environ.get("DUREE_CONSENTEMENT", "600"))   # 10 minutes
 # Limite par (service, citoyen) : un même service ne peut pas interroger sans fin la même personne
 # (sinon, avec des questions répétées, il pourrait reconstituer des données)
-LIMITE_PAR_CITOYEN = int(os.environ.get("LIMITE_PAR_CITOYEN", "5"))     # demandes par 24 heures
+# DÉSACTIVÉE par défaut (0) : elle bloquerait l'épreuve en direct. Pour la réactiver : LIMITE_PAR_CITOYEN=5
+LIMITE_PAR_CITOYEN = int(os.environ.get("LIMITE_PAR_CITOYEN", "0"))     # demandes par 24 heures (0 = pas de limite)
 # Limite de débit : nombre de citoyens DIFFÉRENTS qu'un agent peut consulter dans la fenêtre (bas pour la démo)
 LIMITE_SUJETS = int(os.environ.get("LIMITE_SUJETS", "5"))
 FENETRE_LIMITE = int(os.environ.get("FENETRE_LIMITE", "3600"))          # 1 heure

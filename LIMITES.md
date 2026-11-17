@@ -24,10 +24,25 @@
   Limite de `vierge` : on suppose que l'identifiant du casier est le même que celui de l'état civil.
 - **Double nationalité** : la façon dont le registre de la nationalité l'écrit est inconnue (voir `docs/A_TRANCHER_DONNEES_JURY.md`).
 
+## Fonctions désactivées (conservées dans le code, non supprimées)
+
+Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe encore mais ne fait pas partie de la démonstration.
+
+| Fonction | État | Pour la réactiver |
+|---|---|---|
+| Quota 5 demandes / 24 h par service et par personne | désactivé (0) | `LIMITE_PAR_CITOYEN: "5"` |
+| Conversion OCR / PDF / Excel des données du jury | profil docker `ocr`, jamais démarré | `docker compose --profile ocr up` |
+| Relais vers l'API du jury (`relais-api-jury`) | profil docker `api-jury`, jamais démarré | `--profile api-jury` |
+| Mooré | non proposé : aucune langue complète (colonnes vides dans `traduction-moore/`), l'écran reste en français | traduire, puis `integrer.py` |
+| Signature Ed25519 des réponses des registres + double clé côté registre | **à désactiver à l'adaptation des registres au contrat du jury** (le contrat ne prévoit pas de signature) | — |
+| Double trace des registres (`verifier.py --registres`) | idem, liée à la signature | — |
+
 ## Limites de débit (démonstration)
 
-- Un même service ne peut pas faire plus de 5 demandes sur une même personne en 24 h (`LIMITE_PAR_CITOYEN`) :
-  au-delà, refus + alerte dans l'historique du citoyen.
+- Quota « 5 demandes par service et par personne en 24 h » (`LIMITE_PAR_CITOYEN`) : **désactivé** (valeur 0),
+  il bloquerait l'épreuve en direct. Le code est conservé : mettre `LIMITE_PAR_CITOYEN: "5"` dans `docker-compose.yml`
+  pour le réactiver (refus + alerte dans l'historique du citoyen).
+- Limite « trop de citoyens différents par agent et par heure » (`LIMITE_SUJETS`) : toujours active.
 - Les comptes des tests de bout en bout (`agent.banc`, `agent.banc.bourses`) en sont exemptés (`LIMITE_EXEMPTES` dans
   `docker-compose.yml`) **seulement si `OUTILS_TEST=1`** (mode test) : ils interrogent des dizaines de fois les mêmes
   citoyens fictifs. Avec `OUTILS_TEST=0` (démonstration), ils suivent les limites comme tout le monde.

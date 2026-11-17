@@ -44,7 +44,7 @@ COUCHES = {
                       "Écrans du citoyen, rendus côté serveur, sans JavaScript : USSD *226# à la racine, portail web "
                       "sous /portail. Formulaires HTML ; ils n'utilisent que l'API de la couche consentement et "
                       "minimisation et l'historique du journal."),
-    "guichet": ("guichet/openapi.yaml", "Guichet agent",
+    "guichet": ("guichet-agent/openapi.yaml", "Guichet agent",
                 "Écran de l'agent (Keycloak : mot de passe + TOTP) : choix de la démarche, envoi, résultat signé "
                 "et revérifié ; page /controle en lecture seule pour le rôle controleur. Formulaires HTML."),
 }
@@ -105,8 +105,8 @@ def routes_de(couche: str) -> list:
         return ussd.app.routes + portail.app.routes       # /… pour l'USSD, /portail/… pour le portail
     if couche == "guichet":
         # Le guichet lit des chemins fixes (/run/secrets, /catalogue…) : on les remplace AVANT d'importer main
-        os.chdir(RACINE / "guichet")                     # StaticFiles et gabarits : chemins relatifs à guichet/
-        sys.path.insert(0, str(RACINE / "guichet"))
+        os.chdir(RACINE / "guichet-agent")                     # StaticFiles et gabarits : chemins relatifs à guichet-agent/
+        sys.path.insert(0, str(RACINE / "guichet-agent"))
         from app import config
         config.lire_secret = lambda nom: (tmp / "secrets" / nom).read_text().strip()
         config.CATALOGUE = RACINE / "consentement-minimisation/catalogue"

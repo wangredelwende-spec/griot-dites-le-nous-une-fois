@@ -396,7 +396,7 @@ def trop_de_demandes_sur_ce_citoyen(demande: dict) -> bool:
     """Un même service ne peut pas interroger sans fin la même personne : au-delà de LIMITE_PAR_CITOYEN
     demandes en 24 heures, la demande est bloquée (registres jamais appelés) et une ALERTE entre dans
     l'historique du citoyen (« Qui a consulté mes données »)."""
-    if exempte(demande["agent"]):
+    if LIMITE_PAR_CITOYEN <= 0 or exempte(demande["agent"]):   # 0 = limite désactivée (voir config.py)
         return False
     with VERROU:
         nombre = base.execute(

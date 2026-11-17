@@ -5,7 +5,7 @@ FROM python:3.13.5-slim-bookworm
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY registres/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --retries 10 --timeout 60 -r requirements.txt
 COPY registres/app ./app
 # Minimisation : la fiche reste dans CE conteneur, seule la réponse minimale en sort
 COPY consentement-minimisation/regles_attributs ./regles_attributs

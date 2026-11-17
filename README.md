@@ -16,18 +16,35 @@ Toutes les données et tous les comptes sont **fictifs**.
 
 <!-- à rédiger par Enock. Scène principale : le passeport ordinaire (voir docs/SCENARIO_PASSEPORT.md) -->
 
+## Les couches du socle
+
+Le sujet demande un socle en couches. Le détail de chacune : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+| Couche | En une phrase |
+|---|---|
+| 1. **Registres** | État civil, nationalité, casier : chacun garde ses données et répond « oui » ou « non », signé avec sa clé (registres simulés, en attendant le contrat commun du jury) |
+| 2. **Passerelle d'échange** | Fait circuler questions et réponses, en parallèle, avec un délai maximal ; vérifie chaque signature ; ne peut ni lire ni fabriquer une réponse |
+| 3. **Consentement et minimisation** | Un catalogue fixe à l'avance ce que chaque démarche peut demander, pourquoi et sur quelle base ; l'usager confirme avant l'envoi |
+| 4. **Journal de traçabilité** | Chaque consultation est notée (le fait, jamais la valeur), dans un journal chaîné ; l'usager reçoit un reçu |
+| 5. **Espace usager** | Téléphone simple (`*226#`) et portail web : voir avant, confirmer ou refuser, voir qui a consulté |
+| Bonus : **Guichet** | Écran de l'agent (mot de passe + code TOTP), qui revérifie les signatures ; page Contrôle en lecture seule |
+| Bonus : **Résilience** | Registre coupé, lent ou falsifié : refus clair, « rien n'a été deviné » ; tout marche sans Internet |
+
 ## Les 3 épreuves du sujet, et où les voir
 
-| Épreuve | Ce que fait le système | Où le voir dans la démo |
+| Épreuve | Couches | Où le voir dans la démo ([docs/test-manuel.md](docs/test-manuel.md)) |
 |---|---|---|
-| **Ne transmettre que l'utile** | Chaque registre calcule la réponse chez lui et la **signe**. Il ne renvoie jamais la fiche : seulement « oui » ou « non » à la question posée. Exemple : pour le passeport, l'ONI reçoit « burkinabè : oui » et « interdiction de sortie du territoire : non ». Rien d'autre | [test-manuel](docs/test-manuel.md), scène 1 (passeport). Scène 1 bis : `python scripts/preuve_minimisation.py BF-0008` cherche les données de la personne partout hors des registres et ne les trouve pas |
-| **Montrer à l'usager qui a consulté ses données** | Sur le téléphone (`*226#`), menu « Qui a consulté mes données » : qui, quand, pourquoi, sur quelle base, jamais la valeur. Chaque consultation donne un **reçu** de 16 caractères, qu'on retrouve dans un journal infalsifiable | [test-manuel](docs/test-manuel.md), scènes 3 et 8 |
-| **Tenir quand un registre tombe en panne** | Registre coupé, lent ou qui répond une réponse falsifiée : refus clair, « rien n'a été deviné ». Une réponse partielle n'est jamais présentée comme un « oui » complet | [test-manuel](docs/test-manuel.md), scènes 1 ter, 6 et 9 ; `python scripts/panne.py` |
+| **Ne transmettre que l'utile** | 1, 3 | Scène 1 (passeport) : l'ONI reçoit « burkinabè : oui » et « interdiction de sortie du territoire : non », rien d'autre. Scène 1 bis : l'outil de preuve cherche les données de la personne partout hors des registres et ne les trouve pas |
+| **Montrer à l'usager qui a consulté ses données** | 4, 5 | Scène 3 : « Qui a consulté mes données » et le reçu. Scène 3 bis : la même chose sur le portail web. Scène 8 : une ligne du journal modifiée est détectée |
+| **Tenir quand un registre tombe en panne** | 2, résilience | Scène 1 ter (un registre sur trois en panne), scène 6 (registre coupé, lent, falsifié), scène 9 (wifi coupé) |
 
 ## Installation pas à pas (Windows, PowerShell)
 
 **Prérequis** : Docker Desktop lancé, avec `docker compose` ; git ; Python 3 (les images utilisent Python 3.13) ;
-ports 80 et 443 libres sur l'ordinateur. **Après l'installation, aucun accès à Internet n'est nécessaire.**
+ports 80 et 443 libres. **Après l'installation, aucun accès à Internet n'est nécessaire.**
+
+Les commandes exactes (avec les chemins des fichiers) sont dans [docs/OU_TROUVER_QUOI.md](docs/OU_TROUVER_QUOI.md),
+section « Commandes ».
 
 1. Récupérer le code et créer le fichier des secrets :
    ```powershell
@@ -39,25 +56,19 @@ ports 80 et 443 libres sur l'ordinateur. **Après l'installation, aucun accès �
 2. Ajouter les noms des sites au fichier hosts (`C:\Windows\System32\drivers\etc\hosts`, Bloc-notes lancé en
    administrateur) :
    `127.0.0.1 guichet.griot.test usager.griot.test auth.griot.test`
-3. Démarrer : `docker compose up -d --wait`. Il y a 9 services : PostgreSQL, Keycloak, 3 registres, médiateur,
-   guichet, USSD et Caddy. `docker compose ps` doit les montrer « healthy ».
-4. Faire confiance au HTTPS local, qui est signé par l'autorité interne de Caddy :
-   `docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt caddy-racine.crt`, double-cliquer sur
-   le fichier, Installer le certificat, Utilisateur actuel, « Autorités de certification racines de confiance ».
-   Ce fichier n'est jamais commité.
-5. Pour les scripts et les tests, créer un environnement Python :
-   ```powershell
-   python -m venv .venv
-   .venv\Scripts\pip install -r mediateur\requirements.txt -r registres_sim\requirements.txt -r ussd_sim\requirements.txt -r tests\requirements.txt
-   .venv\Scripts\python -m pytest tests
-   ```
-6. Ouvrir <https://guichet.griot.test> (agents) et <https://usager.griot.test> (téléphone simulé de l'usager).
-   À la première connexion, chaque agent enregistre son code à 6 chiffres (TOTP) en scannant un QR code avec une
-   application libre comme FreeOTP ou Aegis.
+3. Démarrer : `docker compose up -d --wait`. Il y a 10 services : PostgreSQL, Keycloak, 3 registres, passerelle,
+   guichet, USSD, portail web et Caddy. `docker compose ps` doit les montrer « healthy ».
+4. Faire confiance au HTTPS local : copier le certificat de l'autorité interne de Caddy (commande dans « Où trouver
+   quoi »), double-cliquer dessus, Installer le certificat, Utilisateur actuel, « Autorités de certification
+   racines de confiance ». Ce fichier n'est jamais commité.
+5. Pour les scripts et les tests : créer l'environnement Python et lancer les tests (commandes dans « Où trouver
+   quoi »).
+6. Ouvrir <https://guichet.griot.test> (agents) et <https://usager.griot.test> (téléphone simulé ; portail web
+   sur `/portail`). À la première connexion, chaque agent enregistre son code à 6 chiffres (TOTP) en scannant un
+   QR code avec une application libre comme FreeOTP ou Aegis.
 
-Avant une démo : remise à zéro des données (`python scripts\remise_a_zero.py --oui`, le journal est archivé,
-jamais effacé). Sans réseau : `scripts\sauvegarder_hors_ligne.py` puis `scripts\charger_hors_ligne.py`.
-Tout le détail est dans [docs/test-manuel.md](docs/test-manuel.md).
+Avant une démo : remise à zéro des données de démo (le journal est archivé, jamais effacé). Sans réseau : les
+images se sauvegardent et se rechargent. Détail : [docs/test-manuel.md](docs/test-manuel.md).
 
 ## Comptes de démonstration (fictifs)
 
@@ -74,8 +85,8 @@ Agents (guichet) : mot de passe **et** code TOTP.
 
 `agent.banc` et `agent.banc.bourses` servent aux tests automatiques : ne pas les utiliser en démo.
 
-Usagers (téléphone simulé `*226#`) : numéro + code PIN. Exemple : `70000001`, PIN `1234` (Aminata Kaboré,
-`BF-0001`). La liste complète est dans `ussd_sim/abonnes.yaml` et dans [docs/test-manuel.md](docs/test-manuel.md).
+Usagers (`*226#` ou portail web) : numéro + code PIN. Exemple : `70000001`, PIN `1234` (Aminata Kaboré,
+`BF-0001`). La liste complète est dans [docs/test-manuel.md](docs/test-manuel.md).
 En production, l'usager se connecterait avec l'identifiant unique électronique (voir [LIMITES.md](LIMITES.md)).
 
 ## Licence
@@ -88,15 +99,16 @@ Les composants utilisés et leurs licences : [docs/DEPENDANCES.md](docs/DEPENDAN
 
 | Document | Pour qui | Contenu |
 |---|---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | jury, informaticiens | Composants, trajet d'une demande, qui voit quoi, pannes, choix techniques |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | jury, informaticiens | Les couches une par une, trajet d'une demande, qui voit quoi, choix techniques |
+| [docs/OU_TROUVER_QUOI.md](docs/OU_TROUVER_QUOI.md) | informaticiens | Tous les chemins des fichiers et toutes les commandes, par couche |
 | [docs/SCENARIO_PASSEPORT.md](docs/SCENARIO_PASSEPORT.md) | tous | L'histoire de l'usager, avant et après |
 | [docs/REGLES_DU_SOCLE.md](docs/REGLES_DU_SOCLE.md) | administrations | Les 10 règles, adoptables même sans notre logiciel |
 | [docs/test-manuel.md](docs/test-manuel.md) | équipe, jury | Démo pas à pas, scène par scène |
 | [docs/fiche-oral.md](docs/fiche-oral.md) | équipe | Réponses aux questions du jury |
 | [docs/AJOUTER_UNE_DEMARCHE.md](docs/AJOUTER_UNE_DEMARCHE.md) | administrations | Ajouter une démarche avec un fichier YAML, sans code |
 | [docs/JOUR_J_DONNEES_JURY.md](docs/JOUR_J_DONNEES_JURY.md) | équipe | Brancher les données du jury (configuration seulement) |
-| [docs/API.md](docs/API.md) | intégrateurs | API du médiateur côté administration |
-| [docs/API_USAGER.md](docs/API_USAGER.md) | intégrateurs | API côté usager (USSD, futur portail) |
+| [docs/API.md](docs/API.md) | intégrateurs | API de la passerelle, côté administration |
+| [docs/API_USAGER.md](docs/API_USAGER.md) | intégrateurs | API côté usager (USSD, portail web) |
 | [docs/DEPENDANCES.md](docs/DEPENDANCES.md) | tous | Composants, versions, licences |
 | [LIMITES.md](LIMITES.md) | jury | Ce qui est simulé, ce qui n'est pas protégé |
 | [FEUILLE_DE_ROUTE.md](FEUILLE_DE_ROUTE.md) | jury | Ce qui viendrait ensuite |

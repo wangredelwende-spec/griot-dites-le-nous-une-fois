@@ -52,7 +52,8 @@ def test_pannes_par_variable_d_environnement(monkeypatch):
     registre = brancher_les_registres_reels()["etat-civil"]
     chemin = ANNUAIRE_DE_TEST["registres"]["etat-civil"]["chemin"].replace("{id}", "BF-0001")
     c = TestClient(registre.app)
-    registre.mode_de_panne = lambda: os.environ.get("PANNE", "normal")      # le vrai comportement : lire la variable d'environnement
+    # le vrai comportement : lire la variable d'environnement (monkeypatch remet l'interrupteur de test ensuite)
+    monkeypatch.setattr(registre, "mode_de_panne", lambda: os.environ.get("PANNE", "normal"))
     monkeypatch.setenv("PANNE", "eteint")
     assert c.get(chemin).status_code == 503
     monkeypatch.setenv("PANNE", "non_conforme")

@@ -1,0 +1,68 @@
+﻿cle;francais;moore_brouillon_ia;statut;doutes;longueur_max;hors_gsm
+nom_langue;Français;Moore;à relire;Nom de la langue écrit en mooré : « Moore » ou « Mooré » ? Choisir l'écriture officielle pour le sélecteur.;5;non
+composer;Composez le code du service (*226#).;Ning-y *226# n paam tʋʋmdã.;à relire;« ning » (mettre/taper) pour « composer un code » : vérifier le verbe qu'on dit au téléphone. « tʋʋmdã » pour « le service ». Hors GSM : ã ʋ.;27;oui
+code_inconnu;Code inconnu. Composez *226#.;B pa mi code kãnga ye. Ning-y *226#.;à relire;« code » gardé en français. « B pa mi … ye » (on ne connaît pas) : tournure à vérifier. Hors GSM : ã.;36;oui
+non_inscrit;Ce numéro n'est pas inscrit au service.;Sõor kãnga pa gʋls tʋʋmd kãnga pʋgẽ ye.;à relire;« sõore » pour « numéro de téléphone » ? On dit peut-être « numéro » à l'oral. « gʋlse » (écrire) pour « inscrire ». Hors GSM : ã õ ʋ ẽ.;39;oui
+pin;Griot *226# : entrez votre code PIN.;Griot *226# : ning-y y code PIN.;à relire;« code PIN » gardé en français (pas d'équivalent courant).;32;non
+pin_faux;Code PIN incorrect. Essais restants : {n}.;Code PIN pa sɩd ye. Y tõe n le maana {n}.;à relire;« Essais restants » rendu par « vous pouvez refaire {n} (fois) » : tournure incertaine, il manque peut-être « naoor » (fois). Hors GSM : õ ɩ.;39;oui
+bloque;Trop d'essais. Réessayez dans 5 minutes.;Y maana wʋsgo. Gũ-y minit 5 la y le maan.;à relire;« minit » (minute) emprunté au français : écriture à vérifier. « maana wʋsgo » pour « trop d'essais » : sens à vérifier. Hors GSM : ũ ʋ.;41;oui
+session_expiree;Session expirée.;Wakatã baasa.;à relire;« Session » non traduit : « le temps est fini ». Suffisant pour l'usager ? Hors GSM : ã.;13;oui
+menu_attente;1. Demandes en attente;1. Kos sẽn gũudi;à relire;« kos/kosgo » (demande) et « gũudi » (attendre) : vérifier le pluriel (« kotã » ?). Hors GSM : ũ ẽ.;16;oui
+menu_historique;2. Qui a consulté mes données;2. Ãnd n get m kibaya?;à relire;« kibaya » (nouvelles, informations) pour « données » : est-ce compris ainsi ? « get » (regarder) pour « consulter ». Hors GSM : Ã.;22;oui
+menu_retrait;3. Retirer un accord;3. Lebs m sakrã;à relire;« sakre » (accord, consentement) et « lebse » (reprendre) : à vérifier, notion abstraite. Hors GSM : ã.;15;oui
+menu_langue;4. Langue;4. Goama;à relire;« goama » (langues) : singulier « goam » plus juste ?;8;non
+menu_quitter;0. Quitter;0. Yi;à relire;« Yi » (sortir) pour « Quitter » : trop court ou ambigu ?;5;non
+choix_invalide;Choix invalide.;Y sẽn yãkã pa zems ye.;à relire;« yãke » (choisir), « zemse » (convenir) : tournure à vérifier. Hors GSM : ã ẽ.;22;oui
+aucune_demande;Aucune demande en attente.;Kos sẽn gũudi ka be ye.;à relire;Hors GSM : ũ ẽ.;23;oui
+apercu;{service} recevra : {liste}. Rien d'autre.;{service} na n paama : {liste}. Bũmb a to ka be ye.;à relire;Phrase CLÉ de la démo : « na n paama » (recevra) et « Bũmb a to ka be ye » (rien d'autre) doivent être exacts. {liste} contient « … = ẽe ». Hors GSM : ũ.;140;oui
+confirmer_refuser;1. Confirmer 2. Refuser;1. Sake 2. Zãgse;à relire;« sake » (accepter) / « zãgse » (refuser) : vérifier la forme polie (« Sak-y » ?). Hors GSM : ã.;16;oui
+suivante;9. Suivante;9. Sẽn pʋgdẽ;à relire;« la suivante » : forme à vérifier. Hors GSM : ʋ ẽ.;12;oui
+retour;0. Retour;0. Lebga;à relire;« Lebga » pour « Retour » : forme impérative ou nom ?;8;non
+retour_menu;0. Menu;0. Menu;à relire;« Menu » gardé en français (mot du téléphone).;7;non
+confirme;Confirmé. Reçu : {recu};Y sakame. Reçu : {recu};à relire;« Reçu » gardé en français : existe-t-il un mot courant (« seb-kãsenga » ?) . Hors GSM : ç.;36;oui
+refuse;Refusé. Rien n'a été transmis.;Y zãgsame. Bũmb pa loog ye.;à relire;« Bũmb pa loog ye » (rien n'est passé) pour « rien n'a été transmis » : à vérifier. Hors GSM : ã ũ.;27;oui
+deja_traitee;Demande déjà traitée ou expirée.;Kosgã maana bɩ a wakat baasa.;à relire;Tournure incertaine : « la demande est déjà faite ou son temps est fini ». Hors GSM : ã ɩ.;29;oui
+historique_vide;Personne n'a consulté vos données.;Ned pa get y kibaya ye.;à relire;;23;non
+suite;9.Suite 0.Retour;9.Sẽn pʋgdẽ 0.Lebga;à relire;Même doute que « suivante » et « retour ». Hors GSM : ʋ ẽ.;19;oui
+pour;Pour : {finalite};Yĩnga : {finalite};à relire;{finalite} reste en FRANÇAIS (texte du catalogue) même en mooré : à signaler à l'équipe. Hors GSM : ĩ.;96;oui
+base_legale;Base légale;Noorã n kõ sor;à relire;« La loi donne le droit » : notion juridique, formulation très incertaine. Hors GSM : ã õ.;14;oui
+base_consentement;Avec votre accord;Ne y sakrã;à relire;« avec votre accord » : à vérifier. Hors GSM : ã.;10;oui
+recu;Reçu : {recu};Reçu : {recu};à relire;« Reçu » gardé en français (voir « confirme »). Hors GSM : ç.;26;oui
+etat_confirmation;accordé;sakame;à relire;États très courts (une ligne d'historique) : vérifier que chaque mot se comprend seul.;6;non
+etat_remise;transmis;kõome;à relire;« kõ » (donner) pour « transmis » : à vérifier. Hors GSM : õ.;5;oui
+etat_refuse;refusé;zãgsame;à relire;Hors GSM : ã.;7;oui
+etat_expiration;expiré;wakat baasa;à relire;;11;non
+etat_alerte;ALERTE;ALERTE;à relire;Gardé en français, en majuscules, pour qu'il saute aux yeux. Un mot mooré existe-t-il ?;6;non
+etat_retrait;retiré;lebsame;à relire;;7;non
+accords_titre;Vos accords :;Y sakrã :;à relire;Hors GSM : ã.;9;oui
+aucun_accord;Aucun accord à retirer.;Sakr ka be n na lebs ye.;à relire;Tournure à vérifier.;24;non
+accord_en_cours;en cours;gũudi;à relire;« en cours » rendu par « attend » : correct pour un accord pas encore transmis ? Hors GSM : ũ.;5;oui
+retrait_question;Retirer votre accord ? {service} : {attributs};Lebs y sakrã? {service} : {attributs};à relire;Hors GSM : ã.;56;oui
+retrait_confirmer;1. Retirer;1. Lebse;à relire;;8;non
+retrait_fait;Accord retiré. Rien n'a été transmis. Reçu : {recu};Sakrã lebsame. Bũmb pa loog ye. Reçu : {recu};à relire;Hors GSM : ã ç ũ.;58;oui
+retrait_apres;Accord retiré. Déjà transmis : le service ne doit plus l'utiliser. Reçu : {recu};Sakrã lebsame. Kibarã ra loogame : tʋʋm-zĩigã ka segd n le tũnug ne a ye. Reçu : {recu};à relire;Phrase la plus difficile : « déjà transmis, le service ne doit plus l'utiliser ». Formulation très incertaine. Hors GSM : ã ç ĩ ũ ʋ.;100;oui
+langue;Langue :;Goama :;à relire;;7;non
+au_revoir;Merci. Au revoir.;Barka. Wẽnd na kõ laafɩ.;à relire;Formule d'adieu : vérifier la formule usuelle. Hors GSM : õ ɩ ẽ.;24;oui
+indisponible;Service momentanément indisponible. Rien n'a été transmis.;Tʋʋmdã pa tõe masã ye. Bũmb pa loog ye.;à relire;« momentanément indisponible » rendu par « le service ne peut pas maintenant ». Hors GSM : ã õ ũ ʋ.;39;oui
+oui;oui;ẽe;à relire;Mot qui s'affiche dans l'aperçu (« = ẽe ») : vérifier l'écriture. Hors GSM : ẽ.;2;oui
+non;non;ayo;à relire;;3;non
+service_long_service-bourses;Le service des bourses;Bourse tʋʋm-zĩigã;à relire;« bourse » gardé en français. « tʋʋm-zĩiga » (lieu de travail) pour « service ». Hors GSM : ã ĩ ʋ.;17;oui
+service_long_direction-concours;La direction des concours;Concours tʋʋm-zĩigã;à relire;« concours » gardé en français. Hors GSM : ã ĩ ʋ.;19;oui
+service_long_mairie;La mairie;Meerã;à relire;« Meeri » (mairie) tel qu'on le dit à l'oral : écriture à vérifier. Hors GSM : ã.;5;oui
+service_court_service-bourses;Bourses;Bourse;à relire;Gardé en français.;6;non
+service_court_direction-concours;Concours;Concours;à relire;Gardé en français.;8;non
+service_court_mairie;Mairie;Meeri;à relire;Voir « service_long_mairie ».;5;non
+service_long_service-passeport;L'ONI (passeports);ONI (paspoor);à relire;« passeport » dit « paspoor » à l'oral ? Écriture à vérifier.;13;non
+service_court_service-passeport;Passeport;Paspoor;à relire;Voir ligne précédente.;7;non
+attribut_nationalite_burkinabe;nationalité burkinabè;Burkĩnabe;à relire;« est burkinabè » : faut-il « ya Burkĩnabe » ? Écriture « Burkĩna » avec tilde ? Hors GSM : ĩ.;9;oui
+attribut_casier_judiciaire_vierge;casier judiciaire vierge;casier judiciaire vierge;à relire;Gardé en français : pas d'équivalent courant. Une explication (« pa tar bʋʋd ye » ?) serait plus longue et risquée.;24;non
+attribut_court_age_entre;âge;yʋʋmã;à relire;« les années / l'âge » : vérifier. Hors GSM : ã ʋ.;5;oui
+attribut_court_nationalite_burkinabe;nation.;Burk.;à relire;Abréviation : compréhensible ?;5;non
+attribut_court_casier_judiciaire_vierge;casier;casier;à relire;Gardé en français.;6;non
+attribut_interdiction_sortie_territoire;interdiction de sortie du territoire;gɩdgr n yi tẽnga;à relire;« interdiction de sortir du pays » : « gɩdgre » (interdiction) à vérifier. Hors GSM : ɩ ẽ.;16;oui
+attribut_court_interdiction_sortie_territoire;sortie terr.;yi tẽnga;à relire;Hors GSM : ẽ.;8;oui
+n_infos;{n} infos;kibay {n};à relire;Ordre nom + nombre en mooré : à vérifier.;7;non
+telephone_numero;Numéro de téléphone (simulation);Telefõn sõore (simulation);à relire;Bouton du faux téléphone (pas un écran USSD). « simulation » gardé en français. Hors GSM : õ.;26;oui
+telephone_allumer;Allumer;Yik-a;à relire;« Allumer » le téléphone : verbe incertain.;5;non
+telephone_envoyer;Envoyer;Tʋʋm-a;à relire;« Envoyer » : verbe incertain (« tʋʋme » = envoyer quelqu'un). Hors GSM : ʋ.;6;oui
+telephone_raccrocher;Raccrocher;Basa;à relire;« Raccrocher » rendu par « laisser » : très incertain.;4;non

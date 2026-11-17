@@ -126,14 +126,19 @@ def charger(brut: bytes | None = None) -> dict:
         attributs[code] = {"registre": a["registre"], "regle": a["regle"], "champ": a.get("champ"),
                            "valeur": a.get("valeur"), "services": a.get("services", []),
                            "champs": a.get("champs") or []}      # règle « champs » : cases renvoyées, rien d'autre
-    # Chaque registre de l'annuaire doit avoir sa route DANS LE CONTRAT (le contrat se remplace par configuration)
-    try:
-        routes = (yaml.safe_load(CONTRAT.read_text(encoding="utf-8")) or {}).get("paths") or {}
-    except (OSError, yaml.YAMLError) as e:
-        raise CatalogueInvalide(f"  - contrat illisible ({CONTRAT}) : {str(e)[:300]}")
+    # Chaque registre de l'annuaire doit avoir sa route DANS SON CONTRAT : le nôtre (GRIOT_CONTRAT) ou, pour le
+    # registre d'une autre équipe, le sien (« contrat: contrats/<fichier>.yaml », relatif au catalogue)
     for code, r in annuaire["registres"].items():
+        fichier = CATALOGUE / r["contrat"] if r.get("contrat") else CONTRAT
+        try:
+            routes = (yaml.safe_load(fichier.read_text(encoding="utf-8")) or {}).get("paths") or {}
+        except (OSError, yaml.YAMLError) as e:
+            problemes_registres.append(f"registre « {code} » : contrat illisible ({fichier.name}) : {str(e)[:200]}")
+            continue
         if r.get("chemin") not in routes:
-            problemes_registres.append(f"registre « {code} » : route « {r.get('chemin')} » absente du contrat")
+            problemes_registres.append(f"registre « {code} » : route « {r.get('chemin')} » absente de son contrat")
+        elif len(re.findall(r"\{[^{}/]+\}", r["chemin"])) != 1:
+            problemes_registres.append(f"registre « {code} » : la route doit avoir UN paramètre (l'identifiant)")
     absence_vierge = set()          # (ancien réglage du casier simulé, désactivé : un citoyen inconnu = 404 = refus)
 
     identifiant = annuaire.get("identifiant_usager") or {"format": r"^[A-Za-z0-9-]{1,64}$", "exemple": "BF-0001"}

@@ -41,6 +41,29 @@ from regles_attributs import Refus, minimisation     # couche consentement-minim
 # Le contrat des registres et la correspondance de ses champs : lus au démarrage (CONFIGURATION, pas du code)
 CONTRAT_CHARGE = contrat.charger()
 CORRESPONDANCE = yaml.safe_load((CATALOGUE / "correspondance.yaml").read_text(encoding="utf-8"))
+_CORRESPONDANCE_VUE = {"date": (CATALOGUE / "correspondance.yaml").stat().st_mtime}
+
+
+def relire_correspondance():
+    """correspondance.yaml modifié (registre d'une autre équipe branché) : relu à chaud, sans redémarrer. Fichier
+    illisible : l'ancienne correspondance reste en vigueur (on ne devine pas), la raison est écrite au journal."""
+    global CORRESPONDANCE
+    fichier = CATALOGUE / "correspondance.yaml"
+    try:
+        date = fichier.stat().st_mtime
+        if date == _CORRESPONDANCE_VUE["date"]:
+            return
+        _CORRESPONDANCE_VUE["date"] = date
+        nouvelle = yaml.safe_load(fichier.read_text(encoding="utf-8"))
+        if not isinstance((nouvelle or {}).get("registres"), dict):
+            raise ValueError("« registres » absent")
+    except OSError:
+        return                                  # fichier en cours d'écriture : on regardera à la requête suivante
+    except (yaml.YAMLError, ValueError) as e:
+        journal.ecrire(agent="systeme", evenement="catalogue", resultat="refuse",
+                       motif=f"correspondance.yaml refusée, l'ancienne reste en vigueur : {str(e)[:300]}")
+        return
+    CORRESPONDANCE = nouvelle
 
 # Catalogue validé au démarrage. Copie du dernier catalogue VALIDE gardée dans le volume du médiateur :
 # si le fichier est invalide au démarrage, on repart de cette copie au lieu de s'arrêter devant le jury.
@@ -231,6 +254,7 @@ def surveiller_catalogue():
 @app.middleware("http")
 async def catalogue_a_jour(requete, suite):
     surveiller_catalogue()
+    relire_correspondance()
     return await suite(requete)
 
 
@@ -359,7 +383,9 @@ async def lire_registre(registre_code: str, sujet_ref: str) -> dict:
     try:
         fiche = await registres.lire_fiche(registre["url"], registre["chemin"], sujet_ref, DELAI_REGISTRE,
                                            cle_du_registre(registre))
-        ecarts = contrat.erreurs_de_conformite(CONTRAT_CHARGE, registre["chemin"], fiche)
+        # Jugée sur le contrat de CE registre (le nôtre, ou celui de l'autre équipe déclaré dans annuaire.yaml)
+        ecarts = contrat.erreurs_de_conformite(contrat.contrat_du_registre(registre, CONTRAT_CHARGE),
+                                               registre["chemin"], fiche)
         if ecarts:
             raise registres.ReponseCorrompue("non conforme au contrat (" + " ; ".join(ecarts[:3]) + ")")
         return {"etat": "ok", "fiche": fiche}

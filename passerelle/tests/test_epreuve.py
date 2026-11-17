@@ -180,3 +180,18 @@ def test_cle_api_par_administration():
         r = c.post("/demandes", json=demande(demarche="entreprise-individuelle-cefore"), headers={"X-Cle-Api": "cle-demo-concours"})
         assert r.status_code == 403
         assert c.post("/demandes", json=demande(), headers={"X-Cle-Api": "mauvaise"}).status_code == 401
+
+
+def test_essai_a_blanc_registre_d_une_autre_equipe():
+    """docs/brancher-un-registre.md : le registre d'une autre équipe (autre adresse, autre route, autres noms de champs,
+    SON contrat) est branché en modifiant seulement annuaire.yaml et correspondance.yaml (sur une COPIE du catalogue),
+    sans redémarrer la passerelle. Le script est lancé tel quel, dans un processus séparé."""
+    import subprocess
+    import sys
+    from conftest import RACINE
+    env = {k: v for k, v in __import__("os").environ.items() if k not in ("GRIOT_CATALOGUE",)}
+    r = subprocess.run([sys.executable, str(RACINE / "scripts/essai_a_blanc_autre_equipe.py"), "--auto", "--port", "0"],
+                       capture_output=True, text=True, encoding="utf-8", env=env | {"PYTHONIOENCODING": "utf-8"},
+                       timeout=120, cwd=RACINE)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "8/8 vérifications" in r.stdout

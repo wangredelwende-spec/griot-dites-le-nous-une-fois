@@ -12,6 +12,7 @@ Règle d'or : au moindre doute, on refuse ; on ne devine jamais.
 Le registre signe TOUT ce qu'il répond, y compris ses refus : un refus non signé est une réponse corrompue.
 """
 import asyncio
+import re
 import ssl
 from urllib.parse import quote
 
@@ -46,7 +47,9 @@ async def lire_fiche(url: str, chemin: str, sujet_ref: str, delai: float, cle_ap
     Délai de 2 s par essai (httpx ET asyncio.wait_for) et UN réessai si le registre ne répond pas à temps ou est
     injoignable. 404 -> CitoyenInconnu ; autre code, ou pas de réponse -> Indisponible ; corps illisible -> ReponseCorrompue."""
     entetes = {cle_api[0]: cle_api[1]} if cle_api else {}
-    adresse = url + chemin.replace("{id}", quote(sujet_ref, safe=""))
+    # L'identifiant remplace LE paramètre de la route, quel que soit son nom ({id}, {numero}…) : la route est
+    # recopiée du contrat du registre (un seul paramètre, vérifié au chargement du catalogue)
+    adresse = url + re.sub(r"\{[^{}/]+\}", lambda _: quote(sujet_ref, safe=""), chemin, count=1)
     for tentative in range(1, TENTATIVES + 1):
         try:
             async with httpx.AsyncClient(timeout=delai, verify=CONTEXTE_TLS) as client:

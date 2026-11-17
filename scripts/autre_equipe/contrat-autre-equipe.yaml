@@ -1,0 +1,40 @@
+# FAUX contrat d'une AUTRE équipe, pour l'essai à blanc (scripts/essai_a_blanc_autre_equipe.py).
+# Volontairement différent du nôtre : autre route (/api/v2/personnes/{numero}), autres noms de champs
+# (ne_le, decede_le…). On le copie TEL QUEL dans consentement-minimisation/catalogue/contrats/ : on n'écrit
+# jamais le contrat d'une autre équipe, on utilise celui qu'elle publie.
+openapi: 3.1.0
+info:
+  title: Registre de l'état civil (équipe fictive « Autre équipe »)
+  version: 2.0.0
+paths:
+  /api/v2/personnes/{numero}:
+    get:
+      summary: Fiche d'une personne
+      parameters:
+        - {name: numero, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: La fiche
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Personne"}
+        "404":
+          description: Personne inconnue
+          content:
+            application/json:
+              schema: {type: object, properties: {erreur: {type: string}}}
+components:
+  schemas:
+    Personne:
+      type: object
+      additionalProperties: false
+      required: [numero, nom_famille, prenom, ne_le, ne_a, pere_nom, mere_nom, decede_le]
+      properties:
+        numero: {type: string}
+        nom_famille: {type: string}
+        prenom: {type: string}
+        ne_le: {type: string}
+        ne_a: {type: string}
+        pere_nom: {type: string}
+        mere_nom: {type: string}
+        decede_le: {type: [string, "null"]}

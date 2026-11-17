@@ -168,20 +168,30 @@ async def badge_journal() -> dict:
         v = (await mediateur("GET", "/journal/verification")).json()
     except (MediateurInjoignable, ValueError):
         return {"etat": "indisponible", "texte": T["journal_indispo"]}
-    if v.get("integre"):
-        return {"etat": "ok", "texte": T["journal_ok"].format(n=v["lignes"])}
+    if v.get("integre"):     # sans le nombre de lignes : l'heure de la vérification suffit à l'usager
+        return {"etat": "ok", "texte": T["journal_ok"].format(
+            heure=datetime.fromtimestamp(time.time(), timezone.utc).strftime("%H h %M"))}
     return {"etat": "ko", "texte": T["journal_ko"].format(n=v.get("premiere_ligne_modifiee"))}
 
 
 @app.get(RACINE)
-async def accueil(request: Request):
+async def accueil(request: Request, page_n: int = 0):
+    """Après la connexion, tout sur une page : « Bonjour », le compteur et la liste des consultations (qui, quoi,
+    quand, pourquoi, statut ; détail au clic), puis les accords (retirables), puis les accords à donner."""
     s = session_de(request)
     if s is None:
         return page(request, "connexion.html", {})
     attente = (await mediateur("GET", f"/usagers/{ref(s)}/en-attente")).json()
-    consultations = await nombre_de_consultations(s)
-    return page(request, "accueil.html", {"nombre": len(attente), "consultations": consultations,
-                                          "journal": await badge_journal()})
+    for d in attente:
+        d["jusqu_a"] = heure(d["expire_le"])
+    lignes = await historique_de(s)
+    page_n = max(0, page_n)
+    debut = page_n * PAR_PAGE
+    return page(request, "accueil.html", {
+        "prenom": s.get("prenom", ""), "consultations": len(lignes), "lignes": lignes[debut:debut + PAR_PAGE],
+        "page_n": page_n, "suite": debut + PAR_PAGE < len(lignes), "journal": await badge_journal(),
+        "accords": (await mediateur("GET", f"/usagers/{ref(s)}/accords")).json(), "demandes": attente,
+        "accueil": True})
 
 
 @app.post(f"{RACINE}/connexion")
@@ -205,7 +215,9 @@ def connexion(request: Request, csrf: str = Form(...), numero: str = Form(""), p
     ECHECS_PIN.pop(numero, None)
     SESSIONS.pop(request.session.get("sid", ""), None)
     sid = secrets.token_urlsafe(32)
-    SESSIONS[sid] = {"sujet_ref": ABONNES[numero]["sujet_ref"], "vu_le": time.time()}
+    # Prénom de l'annuaire de démo (affiché « Bonjour, … ») : l'espace usager ne lit jamais les registres
+    SESSIONS[sid] = {"sujet_ref": ABONNES[numero]["sujet_ref"], "prenom": str(ABONNES[numero].get("prenom", "")),
+                     "vu_le": time.time()}
     request.session["sid"] = sid
     request.session["csrf"] = secrets.token_urlsafe(32)      # nouveau jeton après connexion
     return RedirectResponse(RACINE, status_code=303)
@@ -218,7 +230,7 @@ def deconnexion(request: Request, csrf: str = Form(...)):
     return RedirectResponse(RACINE, status_code=303)
 
 
-# --- 1. Demandes en attente : voir AVANT, puis confirmer ou refuser ---
+# --- 1. Accords à donner : voir AVANT, puis confirmer ou refuser ---
 
 @app.get(f"{RACINE}/attente")
 async def attente(request: Request):

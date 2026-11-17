@@ -7,7 +7,7 @@ pin;Connexion;Griot *226# : entrez votre code PIN.;;;
 pin_faux;Connexion;Code PIN incorrect. Essais restants : {n}.;;;
 bloque;Connexion;Trop d'essais. Réessayez dans 5 minutes.;;;
 session_expiree;Connexion;Session expirée.;;;
-menu_attente;Menu;1. Demandes en attente;;;
+menu_attente;Menu;1. Accords à donner;;;
 menu_historique;Menu;2. Qui a consulté mes données;;;
 menu_retrait;Menu;3. Retirer un accord;;;
 menu_langue;Menu;4. Langue;;;

@@ -56,7 +56,7 @@ class Telephone:
 
     def connecter(self):
         assert "PIN" in self.taper("*226#")
-        assert "1. Demandes en attente" in self.taper("1234")
+        assert "1. Accords à donner" in self.taper("1234")
 
 
 @respx.mock
@@ -317,7 +317,7 @@ def test_phrases_et_finalites_completes_moore_propose(monkeypatch):
     tel.connecter()
     assert "4. Langue" in tel.ecran()
     assert "2. ~Français" in tel.taper("4")
-    assert tel.taper("2").startswith("~1. Demandes en attente")
+    assert tel.taper("2").startswith("~1. Accords à donner")
     tel.taper("2")                                   # historique
     detail = tel.taper("1")
     assert "~Pour : ~bourse" in detail and "attribution" not in detail

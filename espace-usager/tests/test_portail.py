@@ -39,6 +39,12 @@ def ligne(n, evenement="confirmation", canal="web"):
 VRAI_BADGE = portail.badge_journal
 
 
+def accueil_vide(*chemins, sujet="BF-0012"):
+    """L'accueil lit aussi l'historique et les accords : réponses vides pour ceux que le test ne simule pas."""
+    for chemin in chemins:
+        respx.get(f"{M}/usagers/{sujet}/{chemin}").mock(return_value=httpx.Response(200, json=[]))
+
+
 @pytest.fixture(autouse=True)
 def remise_a_zero(monkeypatch):
     portail.SESSIONS.clear()
@@ -116,9 +122,10 @@ def test_apercu_puis_confirmation_avec_recu_par_le_canal_web():
     respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=EN_ATTENTE))
     confirmer = respx.post(f"{M}/demandes/d-1/confirmer").mock(
         return_value=httpx.Response(200, json={"id_demande": "d-1", "statut": "confirmee", "empreinte": EMPREINTE}))
+    accueil_vide("historique", "accords")
     nav = Navigateur()
     accueil = nav.connecter()
-    assert "1 en attente" in accueil.text
+    assert "Accords à donner" in accueil.text and "Rien d&#39;autre." in accueil.text   # directement à l'accueil
     page = nav.client.get("/portail/attente").text
     assert "Le service des bourses recevra : nationalité burkinabè = oui. Rien d&#39;autre." in page
     assert "À confirmer avant 14h10" in page
@@ -133,7 +140,7 @@ def test_apercu_puis_confirmation_avec_recu_par_le_canal_web():
 def test_refus_et_demande_deja_traitee():
     respx.post(f"{M}/demandes/d-1/refuser").mock(return_value=httpx.Response(200, json={"statut": "refuse"}))
     respx.post(f"{M}/demandes/d-2/confirmer").mock(return_value=httpx.Response(409, json={"detail": "…"}))
-    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
+    accueil_vide("en-attente", "historique", "accords")
     nav = Navigateur()
     nav.connecter()
     assert "Rien n&#39;a été transmis." in nav.client.post("/portail/attente/d-1/refuser", data={"csrf": nav.csrf}).text
@@ -145,7 +152,7 @@ def test_refus_et_demande_deja_traitee():
 def test_historique_et_detail_avec_finalite_base_canal_et_recu():
     lignes = [ligne(12), ligne(11, "reponse-registre", ""), ligne(10, "remise", "")]
     respx.get(f"{M}/usagers/BF-0012/historique").mock(return_value=httpx.Response(200, json=lignes))
-    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
+    accueil_vide("en-attente", "accords")
     nav = Navigateur()
     nav.connecter()
     liste = nav.client.get("/portail/historique").text
@@ -164,7 +171,7 @@ def test_retrait_en_deux_temps_avec_recu():
                 "demarche": "Bourse nationale",
                 "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè"}], "transmis": True}]
     respx.get(f"{M}/usagers/BF-0012/accords").mock(return_value=httpx.Response(200, json=accords))
-    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
+    accueil_vide("en-attente", "historique")
     retirer = respx.post(f"{M}/demandes/d-1/retirer").mock(return_value=httpx.Response(
         200, json={"statut": "retiree_apres_remise", "transmis": True, "empreinte": EMPREINTE}))
     nav = Navigateur()
@@ -189,7 +196,7 @@ def test_mediateur_injoignable_message_clair():
 def test_deconnexion():
     nav = Navigateur()
     with respx.mock:
-        respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
+        accueil_vide("en-attente", "historique", "accords")
         nav.connecter()
     nav.client.post("/portail/deconnexion", data={"csrf": nav.csrf})
     assert nav.client.get("/portail/attente", follow_redirects=False).status_code == 303
@@ -206,7 +213,7 @@ def test_bandeau_registres_simules_sur_toutes_les_pages():
 @respx.mock
 def test_consultations_disent_qui_quoi_quand_pourquoi_sans_valeur():
     respx.get(f"{M}/usagers/BF-0012/historique").mock(return_value=httpx.Response(200, json=[ligne(12, "remise", "")]))
-    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
+    accueil_vide("en-attente", "accords")
     nav = Navigateur()
     nav.connecter()
     page = nav.client.get("/portail/historique").text
@@ -214,7 +221,7 @@ def test_consultations_disent_qui_quoi_quand_pourquoi_sans_valeur():
                     "Pour : attribution de la bourse nationale"):
         assert attendu in page
     assert "= oui" not in page and "intègre" in page
-    assert "consultées ou demandées 1 fois" in page                      # compteur
+    assert "consultées 1 fois" in page                      # compteur
 
 
 @respx.mock
@@ -222,7 +229,7 @@ def test_retirer_mon_accord_et_accord_valable():
     accord = {"id_demande": "d-1", "code_service": "cefore", "service": "Le CEFORE", "demarche": "Entreprise",
               "attributs": [{"code": "identite", "libelle": "identité"}], "transmis": True, "accord_valide": True}
     respx.get(f"{M}/usagers/BF-0012/accords").mock(return_value=httpx.Response(200, json=[accord]))
-    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
+    accueil_vide("en-attente", "historique")
     nav = Navigateur()
     nav.connecter()
     page = nav.client.get("/portail/accords").text
@@ -232,17 +239,40 @@ def test_retirer_mon_accord_et_accord_valable():
 @respx.mock
 def test_badge_journal_integre_puis_ligne_modifiee_puis_verification_impossible(monkeypatch):
     monkeypatch.setattr(portail, "badge_journal", VRAI_BADGE)
-    respx.get(f"{M}/usagers/BF-0012/en-attente").mock(return_value=httpx.Response(200, json=[]))
+    accueil_vide("en-attente", "historique", "accords")
     verification = respx.get(f"{M}/journal/verification")
     nav = Navigateur()
     nav.connecter()
     verification.mock(return_value=httpx.Response(200, json={"statut": "OK", "integre": True, "lignes": 42,
                                                              "premiere_ligne_modifiee": None, "message": ""}))
-    assert "Journal intègre : 42 lignes" in nav.client.get("/portail").text
+    page = nav.client.get("/portail").text
+    assert "Journal intègre ✓ — vérifié à " in page and "42" not in page       # l'heure, pas le nombre de lignes
     verification.mock(return_value=httpx.Response(200, json={"statut": "ALTERE", "integre": False, "lignes": 42,
                                                              "premiere_ligne_modifiee": 7, "message": ""}))
     page = nav.client.get("/portail").text
-    assert "la ligne 7 du journal a été modifiée" in page and "intègre :" not in page
+    assert "la ligne 7 du journal a été modifiée" in page and "intègre ✓" not in page
     verification.mock(side_effect=httpx.ConnectError("coupé"))
     page = nav.client.get("/portail").text
-    assert "Vérification du journal impossible" in page and "intègre :" not in page
+    assert "Vérification du journal impossible" in page and "intègre ✓" not in page
+
+
+@respx.mock
+def test_accueil_bonjour_compteur_consultations_accords_et_accords_a_donner():
+    """Après la connexion : « Bonjour, Aminata », le compteur, la liste des consultations (lien vers le détail), puis
+    les accords (retirables), puis les accords à donner ; pas de « Retour au menu » sur l'accueil."""
+    accord = {"id_demande": "d-9", "code_service": "cefore", "service": "Le CEFORE", "demarche": "Entreprise",
+              "attributs": [{"code": "identite", "libelle": "identité"}], "transmis": True, "accord_valide": True}
+    respx.get(f"{M}/usagers/BF-0001/historique").mock(return_value=httpx.Response(200, json=[ligne(12, "remise", "")]))
+    respx.get(f"{M}/usagers/BF-0001/accords").mock(return_value=httpx.Response(200, json=[accord]))
+    respx.get(f"{M}/usagers/BF-0001/en-attente").mock(return_value=httpx.Response(200, json=EN_ATTENTE))
+    nav = Navigateur()
+    connexion = nav.client.get("/portail").text
+    assert "Connexion simulée (démo)" in connexion
+    page = nav.connecter(numero="70000001").text
+    for attendu in ("Bonjour, Aminata", "Voici qui a consulté vos informations, quand et pourquoi.",
+                    "Vos informations ont été consultées 1 fois", "/portail/historique/12", "Pour : attribution",
+                    "Retirer mon accord", "Accords à donner", "Rien d&#39;autre."):
+        assert attendu in page, attendu
+    assert page.index("/portail/historique/12") < page.index("Retirer mon accord") < page.index("Accords à donner")
+    assert "Retour au menu" not in page and "vous vérifiez après" not in page
+    assert "Retour au menu" in nav.client.get("/portail/historique").text      # les autres pages le gardent

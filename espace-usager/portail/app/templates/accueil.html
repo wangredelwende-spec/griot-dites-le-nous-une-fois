@@ -1,11 +1,59 @@
 {% extends "base.html" %}
 {% block contenu %}
+<h1>{{ t.bonjour.format(prenom=prenom) if prenom else t.bonjour_seul }}</h1>
 <p class="legende">{{ t.legende }}</p>
 {% include "badge_journal.html" %}
 <p class="compteur">{{ t.nb_consultations.format(n=consultations) }}</p>
-<nav class="menu">
-  <a href="{{ racine }}/attente">{{ t.menu_attente }}{% if nombre %} <span class="pastille">{{ t.n_attente.format(n=nombre) }}</span>{% endif %}</a>
-  <a href="{{ racine }}/historique">{{ t.menu_historique }}</a>
-  <a href="{{ racine }}/accords">{{ t.menu_accords }}</a>
-</nav>
+
+<h2>{{ t.historique_titre }}</h2>
+<ul class="liste">
+{% for l in lignes %}
+  <li><a href="{{ racine }}/historique/{{ l.n }}">
+    <span class="petit">{{ l.date }}</span><br>
+    <strong>{{ l.service }}</strong> · {{ l.attributs | map(attribute="libelle") | join(", ") }}
+    · <span class="etat {{ l.evenement }}">{{ l.etat }}</span><br>
+    <span class="petit">{{ t.pour }} {{ l.finalite }}</span>
+  </a></li>
+{% else %}
+  <li class="vide">{{ t.historique_vide }}</li>
+{% endfor %}
+</ul>
+<p class="pages">
+  {% if page_n > 0 %}<a href="{{ racine }}?page_n={{ page_n - 1 }}">← {{ t.plus_recents }}</a>{% endif %}
+  {% if suite %}<a href="{{ racine }}?page_n={{ page_n + 1 }}">{{ t.plus_anciens }} →</a>{% endif %}
+</p>
+
+<h2>{{ t.accords_titre }}</h2>
+{% for a in accords %}
+<section class="carte">
+  <p><strong>{{ a.service }}</strong> · {{ a.demarche }}<br>
+  {{ a.attributs | map(attribute="libelle") | join(", ") }}<br>
+  <span class="petit">{{ t.accord_transmis if a.transmis else t.accord_en_cours }}
+  {% if a.accord_valide %} · {{ t.accord_valable }}{% endif %}</span></p>
+  <form method="post" action="{{ racine }}/accords/{{ a.id_demande }}/retirer">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><button class="second">{{ t.retirer }}</button>
+  </form>
+</section>
+{% else %}
+<p>{{ t.aucun_accord }}</p>
+{% endfor %}
+
+<h2>{{ t.attente_titre }}{% if demandes %} <span class="pastille">{{ demandes | length }}</span>{% endif %}</h2>
+{% for d in demandes %}
+<section class="carte">
+  <p class="apercu">{{ d.apercu }}</p>
+  <p class="petit">{{ t.demarche }} : {{ d.demarche }}<br>{{ t.finalite }} : {{ d.finalite }}</p>
+  <p class="petit">{{ t.valable.format(heure=d.jusqu_a) }}</p>
+  <div class="boutons">
+    <form method="post" action="{{ racine }}/attente/{{ d.id_demande }}/confirmer">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button>{{ t.confirmer }}</button>
+    </form>
+    <form method="post" action="{{ racine }}/attente/{{ d.id_demande }}/refuser">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><button class="second">{{ t.refuser }}</button>
+    </form>
+  </div>
+</section>
+{% else %}
+<p>{{ t.aucune_demande }}</p>
+{% endfor %}
 {% endblock %}

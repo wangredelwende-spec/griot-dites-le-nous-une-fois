@@ -145,7 +145,7 @@ def test_ussd_isolement_entre_citoyens(vrai_mediateur):
     # Changer de numéro sans le PIN de l'autre : retour à l'écran du PIN, jamais à son menu
     tel.client.post("/allumer", data={"csrf": tel.csrf, "numero": "70000001"})
     assert "PIN" in tel.taper("*226#")
-    assert "Demandes en attente" not in tel.taper("1")
+    assert "Accords à donner" not in tel.taper("1")
     assert lignes_web(en_attente_autre) == []
 
 

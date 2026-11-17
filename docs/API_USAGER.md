@@ -16,7 +16,7 @@ composer l'écran dans une autre langue (mooré).
   et ne transmet que SON `sujet_ref`.
 - `sujet_ref` : lettres, chiffres et tirets, 1 à 64 caractères (ex. `BF-0012`).
 
-## 1. Demandes en attente
+## 1. Accords à donner (demandes en attente)
 
 `GET /usagers/{sujet_ref}/en-attente` → `200`, liste (vide si rien en attente) :
 

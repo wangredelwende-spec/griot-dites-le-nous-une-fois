@@ -19,7 +19,7 @@
 </header>
 <main>
 {% block contenu %}{% endblock %}
-{% if connecte %}<p class="pied"><a href="{{ racine }}">{{ t.retour_menu }}</a></p>{% endif %}
+{% if connecte and not accueil %}<p class="pied"><a href="{{ racine }}">{{ t.retour_menu }}</a></p>{% endif %}
 </main>
 </body>
 </html>

@@ -265,3 +265,50 @@ def test_ecran_passeport_tient_en_160_caracteres(dernier, attendu):
     ecran = tel.taper("1")              # taper() vérifie déjà ≤ 160 caractères
     assert "(passeports) recevra : burkinabè = oui ; " + attendu + ". Rien d'autre." in ecran
     assert "1. Confirmer 2. Refuser" in ecran
+
+
+# --- Mooré préparé sans être activé (« ~ » devant un texte = marqueur de test, pas du mooré) ---
+
+def csv_complet(monkeypatch):
+    """Comme si toutes les phrases mooré de phrases-ussd.csv étaient remplies."""
+    monkeypatch.setattr(ussd, "TEXTES", {"fr": ussd.TEXTES["fr"],
+                                         "mos": {cle: f"~{texte}" for cle, texte in ussd.TEXTES["fr"].items()}})
+
+
+@respx.mock
+def test_phrases_completes_mais_finalites_manquantes_pas_de_moore(monkeypatch):
+    csv_complet(monkeypatch)
+    respx.get(f"{M}/catalogue/langues").respond(json={"langues": []})
+    tel = Telephone("70000003")
+    tel.connecter()
+    assert "4. Langue" not in tel.ecran()
+
+
+@respx.mock
+def test_mediateur_injoignable_francais_seul(monkeypatch):
+    csv_complet(monkeypatch)
+    respx.get(f"{M}/catalogue/langues").mock(side_effect=httpx.ConnectError("coupé"))
+    tel = Telephone("70000003")
+    tel.connecter()
+    assert "4. Langue" not in tel.ecran()
+
+
+@respx.mock
+def test_phrases_et_finalites_completes_moore_propose(monkeypatch):
+    csv_complet(monkeypatch)
+    respx.get(f"{M}/catalogue/langues").respond(json={"langues": ["mos"]})
+    historique = [ligne(1) | {"finalite": "attribution de la bourse nationale",
+                              "finalites": {"mos": "~bourse"}}]
+    respx.get(url__regex=rf"{M}/usagers/.*/historique").respond(json=historique)
+    tel = Telephone("70000003")
+    tel.connecter()
+    assert "4. Langue" in tel.ecran()
+    assert "2. ~Français" in tel.taper("4")
+    assert tel.taper("2").startswith("~1. Demandes en attente")
+    tel.taper("2")                                   # historique
+    detail = tel.taper("1")
+    assert "~Pour : ~bourse" in detail and "attribution" not in detail
+
+
+def test_cle_attribut_age_entre_presente_en_francais():
+    assert ussd.TEXTES["fr"]["attribut_age_entre"]

@@ -74,6 +74,7 @@ composer l'écran dans une autre langue (mooré).
   "service": "La Direction des concours – ministère des Serviteurs du peuple", "code_service": "direction-concours",
   "demarche": "Concours direct adjoints administratifs",
   "finalite": "vérification des conditions d'inscription au concours direct des adjoints administratifs",
+  "finalites": {},
   "base": "base_legale", "texte_base": "Loi n°081-2015/CNT …",
   "attributs": [{"code": "age_entre", "libelle": "âge de 18 à 37 ans au 31/12/2026"},
                 {"code": "nationalite_burkinabe", "libelle": "nationalité burkinabè"},
@@ -90,6 +91,14 @@ composer l'écran dans une autre langue (mooré).
 - **Reçu** = 16 premiers caractères de `empreinte` (64 bits), affichés « 9035 47b3 1c2e 9f04 ». Il se vérifie avec
   `docker compose exec mediateur python /journal/verifier.py --recu "9035 47b3 1c2e 9f04"`.
 - Pour un écran court, ne garder que les lignes `remise`, `refus-usager`, `expiration` et `alerte`.
+- `finalites` : la finalité traduite, par langue (`{"mos": "…"}`, champ `finalite_mos` du catalogue). Vide si
+  elle n'est pas traduite, ou si la ligne a été écrite sous une autre finalité que celle du catalogue en vigueur.
+
+## 4. Langues proposées
+
+`GET /catalogue/langues` → `200` `{"langues": ["mos"]}` : les langues dans lesquelles **toutes** les démarches
+actives ont leur finalité traduite. L'USSD ne propose une langue que si elle est ici **et** complète dans
+`traduction-moore/phrases-ussd.csv` (vérifié à la connexion ; médiateur injoignable : français seul).
 
 ## Essayer à la main
 

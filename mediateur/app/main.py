@@ -646,6 +646,22 @@ def retirer(id_demande: str, usager: Usager):
     raise HTTPException(409, f"rien à retirer (statut : {demande['statut']})")
 
 
+def finalites_traduites(demarche: dict, finalite: str) -> dict:
+    """{langue: finalité traduite} (champs finalite_mos… du catalogue). Seulement si la finalité écrite au journal
+    est celle du catalogue en vigueur : une traduction d'une AUTRE finalité serait fausse (l'écran garde le français)."""
+    if demarche.get("finalite") != finalite:
+        return {}
+    return {cle.removeprefix("finalite_"): v for cle, v in demarche.items() if cle.startswith("finalite_")}
+
+
+@app.get("/catalogue/langues", dependencies=[Depends(canal_usager)])
+def langues_du_catalogue():
+    """Langues dans lesquelles TOUTES les démarches actives ont leur finalité traduite. L'USSD ne propose une
+    langue que si elle est ici ET complète dans phrases-ussd.csv."""
+    par_demarche = [set(finalites_traduites(d, d.get("finalite"))) for d in CAT["demarches"].values()]
+    return {"langues": sorted(set.intersection(*par_demarche)) if par_demarche else []}
+
+
 @app.get("/usagers/{sujet_ref}/historique", dependencies=[Depends(canal_usager)])
 def historique(sujet_ref: str):
     controler_identifiant(sujet_ref)
@@ -658,7 +674,8 @@ def historique(sujet_ref: str):
             "n": l["n"], "ts": l["ts"], "agent": l["agent"],
             "service": CAT["services"].get(l["demandeur"], {}).get("nom", l["demandeur"]),
             "code_service": l["demandeur"],
-            "demarche": demarche.get("libelle", l["demarche"]), "finalite": l["finalite"], "base": l["base"],
+            "demarche": demarche.get("libelle", l["demarche"]), "finalite": l["finalite"],
+            "finalites": finalites_traduites(demarche, l["finalite"]), "base": l["base"],
             "texte_base": demarche.get("texte", "") if l["base"] == "base_legale" else "",
             "attributs": [{"code": c, "libelle": connus.get(c, {}).get("libelle", c)}
                           for c in l["attribut"].split("+") if c],

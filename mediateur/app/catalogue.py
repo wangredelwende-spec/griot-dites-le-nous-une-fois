@@ -57,6 +57,10 @@ def valider(demarches: dict, services: dict, attributs: dict) -> list[str]:
             problemes.append("libellé manquant")
         if not d.get("finalite"):
             problemes.append("finalité manquante")
+        # Traductions facultatives de la finalité : finalite_mos (mooré)… Si le champ est là, il doit être rempli.
+        for cle, valeur in d.items():
+            if cle.startswith("finalite_") and not (isinstance(valeur, str) and valeur.strip()):
+                problemes.append(f"« {cle} » doit être un texte non vide (ou être retiré)")
         if d.get("base") not in BASES:
             problemes.append("base manquante ou inconnue (consentement | base_legale)")
         if d.get("base") == "base_legale" and not d.get("texte"):

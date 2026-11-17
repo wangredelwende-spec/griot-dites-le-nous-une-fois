@@ -29,6 +29,9 @@ Ajouter un bloc à la fin de `catalogue/demarches.yaml`, par exemple :
   territoire), et `si_non:` pour le texte montré quand la réponse est « non » (repli casier du passeport : « casier
   non vierge : dossier à instruire »). Une réponse « non » n'est jamais un refus : c'est une réponse signée.
 - On ne peut pas demander « la date de naissance » : aucun registre ne la déclare.
+- Facultatif, pour l'USSD : `finalite_mos:` (la finalité en mooré). Le mooré n'est proposé sur *226# que si
+  **toutes** les démarches du catalogue ont leur `finalite_mos` ET si `phrases-ussd.csv` est complet en mooré :
+  ajouter une démarche sans `finalite_mos` retire donc le mooré jusqu'à ce qu'elle soit traduite.
 
 ## 2. Recharger : rien à faire (quelques secondes)
 

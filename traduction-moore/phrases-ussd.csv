@@ -56,6 +56,7 @@ service_long_service-passeport;Services;L'ONI (passeports);;;
 service_court_service-passeport;Services;Passeport;;;
 attribut_nationalite_burkinabe;Attributs;nationalité burkinabè;;;
 attribut_casier_judiciaire_vierge;Attributs;casier judiciaire vierge;;;
+attribut_age_entre;Attributs;condition d'âge;;;
 attribut_court_age_entre;Attributs;âge;;;
 attribut_court_nationalite_burkinabe;Attributs;nation.;;;
 attribut_court_casier_judiciaire_vierge;Attributs;casier;;;

@@ -9,6 +9,8 @@
 #   libelle   : nom montré à l'agent et à l'usager
 #   services  : services autorisés (codes de annuaire.yaml)
 #   finalite  : POURQUOI on consulte (montrée à l'usager, écrite au journal)
+#   finalite_mos : facultatif, la finalité en mooré. Le mooré n'est proposé sur *226# que si TOUTES les
+#               démarches l'ont ET si phrases-ussd.csv est complet en mooré (n'inventez jamais de mooré).
 #   base      : consentement (l'usager voit l'aperçu et confirme) | base_legale (pas de confirmation,
 #               mais la consultation apparaît dans son historique avec le texte cité)
 #   texte     : texte qui autorise la consultation (obligatoire en base légale)

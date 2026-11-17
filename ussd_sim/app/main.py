@@ -3,7 +3,8 @@
 - Écrans de 160 caractères au plus (comme un vrai écran USSD), rendu serveur, aucun JavaScript.
 - Branché sur l'API usager du médiateur (docs/API_USAGER.md), comme le serait la passerelle USSD
   d'un opérateur. Ce service authentifie l'usager (numéro + PIN) et ne transmet que SON identifiant.
-- Textes dans traduction-moore/phrases-ussd.csv ; une langue n'est proposée que si elle est complète.
+- Textes dans traduction-moore/phrases-ussd.csv ; une langue n'est proposée que si elle est complète,
+  phrases ET finalités des démarches (champ finalite_<langue> du catalogue, voir langues_proposees).
 """
 import csv
 import os
@@ -77,7 +78,23 @@ def ecran(*lignes: str) -> str:
 def menu(s: dict) -> str:
     s["etape"] = "menu"
     return ecran(t(s, "menu_attente"), t(s, "menu_historique"), t(s, "menu_retrait"),
-                 t(s, "menu_langue") if len(TEXTES) > 1 else "", t(s, "menu_quitter"))
+                 t(s, "menu_langue") if len(s.get("langues", ["fr"])) > 1 else "", t(s, "menu_quitter"))
+
+
+async def langues_proposees() -> list[str]:
+    """Le français, toujours. Une autre langue SEULEMENT si toutes ses phrases (phrases-ussd.csv) ET les finalités
+    de toutes les démarches actives (catalogue, champ finalite_<langue>) sont traduites : sinon, un écran en mooré
+    afficherait des morceaux de français. Médiateur injoignable : français seul."""
+    autres = [code for code in TEXTES if code != "fr"]
+    if not autres:
+        return ["fr"]
+    try:
+        r = await mediateur("GET", "/catalogue/langues")
+        r.raise_for_status()
+        completes = r.json()["langues"]
+    except (httpx.HTTPError, ValueError, KeyError, TypeError):
+        return ["fr"]
+    return ["fr"] + [code for code in autres if code in completes]
 
 
 async def mediateur(methode: str, chemin: str, **kwargs):
@@ -171,7 +188,9 @@ def ecran_detail(s: dict, l: dict) -> str:
     etat = t(s, EVENEMENTS.get(l["evenement"], "etat_refuse"))
     base = t(s, "base_legale" if l["base"] == "base_legale" else "base_consentement")
     # Une alerte dit POURQUOI (ex. « bloqué : … ») ; les autres lignes disent pour quelle finalité
-    pourquoi = l["motif"] if l["evenement"] == "alerte" and l["motif"] else t(s, "pour", finalite=l["finalite"])
+    # Finalité traduite par le catalogue (finalite_mos…) si elle existe, sinon celle du journal (français)
+    finalite = l.get("finalites", {}).get(s["langue"]) or l["finalite"]
+    pourquoi = l["motif"] if l["evenement"] == "alerte" and l["motif"] else t(s, "pour", finalite=finalite)
     lignes = [f"{service} : {attribut} {etat}", pourquoi, base,
               t(s, "recu", recu=format_recu(l["empreinte"])), t(s, "retour")]
     # Si l'écran déborde, on raccourcit la finalité : le reçu n'est JAMAIS coupé
@@ -204,6 +223,7 @@ async def traiter(s: dict, reponse: str) -> str:
             return ecran(t(s, "pin_faux", n=ESSAIS_PIN - echecs[0]))
         ECHECS_PIN.pop(s["numero"], None)
         s["sujet_ref"] = ABONNES[s["numero"]]["sujet_ref"]
+        s["langues"] = await langues_proposees()
         return menu(s)
 
     if etape == "menu":
@@ -228,9 +248,9 @@ async def traiter(s: dict, reponse: str) -> str:
         except httpx.HTTPError:
             s["etape"] = "info"
             return ecran(t(s, "indisponible"), t(s, "retour_menu"))
-        if reponse == "4" and len(TEXTES) > 1:
+        if reponse == "4" and len(s["langues"]) > 1:
             s["etape"] = "langue"
-            choix = [f"{i}. {TEXTES[code]['nom_langue']}" for i, code in enumerate(TEXTES, start=1)]
+            choix = [f"{i}. {TEXTES[code]['nom_langue']}" for i, code in enumerate(s["langues"], start=1)]
             return ecran(t(s, "langue"), *choix, t(s, "retour"))
         if reponse == "0":
             s["etape"] = "fin"
@@ -296,7 +316,7 @@ async def traiter(s: dict, reponse: str) -> str:
         return ecran_historique(s)          # « 0. Retour » : on revient à la même page
 
     if etape == "langue":
-        codes = list(TEXTES)
+        codes = s["langues"]
         if reponse.isdigit() and 1 <= int(reponse) <= len(codes):
             s["langue"] = codes[int(reponse) - 1]
         return menu(s)

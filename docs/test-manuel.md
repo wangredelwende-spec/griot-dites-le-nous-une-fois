@@ -272,7 +272,7 @@ Faire une demande **Concours direct** au guichet (`issa.sawadogo`, `BF-0001`) ap
 | `python resilience/panne.py etat-civil normal` | « oui », même empreinte de clé qu'avant |
 
 Pendant la panne, **la nationalité et le casier s'affichent quand même** (signés, vérifiés), et la conclusion dit
-« **résultat incomplet, aucune conclusion** » : jamais de « oui » global sur un résultat partiel.
+« **démarche en attente, résultat incomplet, aucune conclusion** » : jamais de « oui » global sur un résultat partiel.
 `python resilience/panne.py` affiche l'état des trois registres. **Toujours finir par `normal`.**
 
 ## Scène 7 : demander plus que prévu

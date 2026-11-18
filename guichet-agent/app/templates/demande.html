@@ -60,7 +60,8 @@
   <p><strong>Conclusion :
   {% if conclusion == "oui" %}toutes les conditions sont vérifiées.
   {% elif conclusion == "non" %}au moins une condition n'est pas remplie{% for l in lignes if l.si_non and l.resultat.valeur is sameas false %} ({{ l.si_non }}){% endfor %}.
-  {% else %}résultat incomplet, aucune conclusion. Rien n'a été deviné : refaire la demande plus tard.{% endif %}
+  {% else %}démarche en attente, résultat incomplet, aucune conclusion. Rien n'a été deviné et aucune pièce n'est
+  demandée à l'usager : refaire la demande plus tard.{% endif %}
   </strong></p>
 </div>
 {% endif %}

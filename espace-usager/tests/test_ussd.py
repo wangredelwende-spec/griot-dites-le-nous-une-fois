@@ -21,6 +21,14 @@ sys.modules["ussd_app"] = ussd
 spec.loader.exec_module(ussd)
 
 M = "http://mediateur:8000"
+VRAIS_TEXTES = ussd.TEXTES          # tel que chargé depuis traduction-moore/phrases-ussd.csv (mooré compris)
+
+
+@pytest.fixture(autouse=True)
+def francais_seul(monkeypatch):
+    """Les parcours ci-dessous sont écrits en français : on les joue avec le français seul, quel que soit l'état de la
+    traduction mooré du dépôt. Les tests du mooré remplacent TEXTES eux-mêmes (csv_complet, VRAIS_TEXTES)."""
+    monkeypatch.setattr(ussd, "TEXTES", {"fr": VRAIS_TEXTES["fr"]})
 EN_ATTENTE = [{"id_demande": "d-1", "service": "Le service des bourses", "code_service": "cefore",
                "demarche": "Bourse nationale", "finalite": "attribution de la bourse nationale",
                "attributs": [{"code": "nationalite_bf", "libelle": "nationalité burkinabè", "parametres": {},
@@ -168,12 +176,22 @@ def test_mediateur_en_panne_ecran_clair():
     assert tel.taper("1").startswith("Service momentanément indisponible. Rien n'a été transmis.")
 
 
-def test_moore_incomplet_non_propose():
-    # La colonne mos de phrases-ussd.csv est vide tant que l'équipe n'a pas traduit : pas de menu Langue
-    assert list(ussd.TEXTES) == ["fr"]
+@respx.mock
+def test_moore_du_depot_pas_propose_tant_que_les_finalites_manquent(monkeypatch):
+    """Les phrases mooré de phrases-ussd.csv sont traduites par l'équipe (18/11) ; tant que les finalités des démarches
+    ne le sont pas toutes (la passerelle répond « pas de langue complète »), pas de menu Langue."""
+    monkeypatch.setattr(ussd, "TEXTES", VRAIS_TEXTES)
+    assert "mos" in VRAIS_TEXTES                              # toutes les phrases mooré sont remplies
+    respx.get(f"{M}/catalogue/langues").respond(json={"langues": []})
     tel = Telephone("70000003")
     tel.connecter()
-    assert "3. Langue" not in tel.ecran()
+    assert "Langue" not in tel.ecran()
+
+
+def test_moore_du_depot_garde_les_reperes_du_francais():
+    """Chaque phrase mooré garde exactement les repères {n}, {recu}, {service}… de la phrase française."""
+    for cle, texte in VRAIS_TEXTES["mos"].items():
+        assert sorted(re.findall(r"\{\w+\}", texte)) == sorted(re.findall(r"\{\w+\}", VRAIS_TEXTES["fr"][cle])), cle
 
 
 @pytest.mark.parametrize("cle", ["apercu", "confirme", "pin_faux"])

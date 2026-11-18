@@ -24,6 +24,7 @@ demarches:
     libelle: Concours direct de la fonction publique
     services: [direction-concours]
     finalite: vérification des conditions d'inscription au concours direct de la fonction publique
+    finalite_mos: "gulsga noy-makr n na n ke konkuur directa"     # traduction de l'équipe
     base: base_legale
     # Aucun texte de loi n'est cité tant qu'il n'est pas vérifié. Seuil d'âge : « min » ci-dessous (seuil configurable,
     # 18 ans par défaut), à autoriser aussi pour ce service dans attributs.yaml.

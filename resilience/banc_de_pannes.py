@@ -207,6 +207,48 @@ def nouvelle_url_par_configuration():
           json.dumps([absente, autre], ensure_ascii=False))
 
 
+def registre_autre_equipe_sur_la_pile():
+    """Le registre d'état civil d'une AUTRE équipe, sur une autre « machine » (ici l'hôte, vu depuis Docker), branché sur
+    la passerelle qui tourne par configuration seule : son contrat copié dans contrats/, annuaire.yaml et
+    correspondance.yaml (mêmes blocs que docs/brancher-un-registre.md). La passerelle le joint par « sortie-registres ».
+    Les fichiers sont toujours rétablis."""
+    import threading
+    sys.path.insert(0, str(RACINE / "scripts"))
+    sys.path.insert(0, str(RACINE / "scripts/autre_equipe"))
+    import essai_a_blanc_autre_equipe as essai
+    import faux_registre
+    serveur = faux_registre.demarrer(0, "0.0.0.0")
+    port = serveur.server_address[1]
+    threading.Thread(target=serveur.serve_forever, daemon=True).start()
+    fichiers = {CATALOGUE / "annuaire.yaml": None, CATALOGUE / "correspondance.yaml": None}
+    for f in fichiers:
+        fichiers[f] = f.read_bytes()
+    contrat = CATALOGUE / "contrats/autre-equipe.yaml"
+    contrat_existait = contrat.exists()
+    try:
+        contrat.parent.mkdir(exist_ok=True)
+        contrat.write_bytes((RACINE / "scripts/autre_equipe/contrat-autre-equipe.yaml").read_bytes())
+        essai.remplacer(CATALOGUE / "annuaire.yaml", essai.ANNUAIRE_AVANT,
+                        essai.ANNUAIRE_APRES.format(port=port).replace("127.0.0.1", "host.docker.internal"))
+        essai.remplacer(CATALOGUE / "correspondance.yaml", essai.CORRESPONDANCE_AVANT, essai.CORRESPONDANCE_APRES)
+        time.sleep(2)                         # la passerelle relit ses fichiers au plus une fois par seconde
+        appels = faux_registre.FauxRegistre.appels
+        r = dans_la_passerelle(demande("concours-direct", "BF-0004") + "resultat.update(r=r)\n")["r"]
+        appels = faux_registre.FauxRegistre.appels - appels
+    finally:
+        for f, contenu in fichiers.items():
+            f.write_bytes(contenu)
+        if not contrat_existait:
+            contrat.unlink(missing_ok=True)
+        serveur.shutdown()
+        time.sleep(2)
+    v = volets(r)
+    ok = r["code"] == 200 and appels >= 1 and v["majeur"].get("valeur") is True and "date" not in json.dumps(v["majeur"])
+    noter("13. Registre d'une autre équipe (autre machine du réseau) branché par configuration sur la pile", ok,
+          f"http://host.docker.internal:{port}/api/v2/personnes/… appelé {appels} fois ; majeur = {v['majeur'].get('valeur')}",
+          json.dumps(r, ensure_ascii=False))
+
+
 def journal_modifie():
     r = subprocess.run([sys.executable, str(RACINE / "resilience/falsifier_journal.py"), "3"], cwd=RACINE,
                        capture_output=True, text=True, encoding="utf-8")
@@ -245,7 +287,7 @@ def main():
                      lambda: registre_en_panne("lent", "5. Registre lent -> délai dépassé (2 s + 1 réessai), « indisponible », rien deviné"),
                      lambda: registre_en_panne("eteint", "6. Registre éteint (503) -> « indisponible » pour lui seul"),
                      tous_eteints, non_conforme, hors_catalogue, nouvelle_url_par_configuration, journal_modifie,
-                     agent_curieux):
+                     agent_curieux, registre_autre_equipe_sur_la_pile):
         try:
             scenario()
         except Exception as e:                  # un scénario cassé n'arrête pas le banc

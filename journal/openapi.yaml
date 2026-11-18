@@ -47,7 +47,9 @@ paths:
       summary: Verification Du Journal
       description: 'Le journal est-il intact ? Réponse publique (réseau interne) : ni identifiant ni valeur, seulement
 
-        « OK » ou le numéro de la première ligne modifiée ou supprimée. Sert au badge « journal intègre » de l''usager.'
+        « OK » ou le numéro de la première ligne modifiée ou supprimée. Sert au badge « journal intègre » de l''usager.
+
+        Pas le nombre de lignes : il révélerait l''activité de la passerelle (et des autres usagers).'
       operationId: verification_du_journal_journal_verification_get
       responses:
         '200':

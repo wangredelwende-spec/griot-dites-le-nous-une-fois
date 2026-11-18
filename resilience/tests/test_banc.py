@@ -18,5 +18,6 @@ def test_banc_avec_les_citoyens_de_la_liste_seulement():
 
 def test_chaque_situation_de_l_epreuve_est_au_banc():
     for situation in ("Citoyen inconnu", "Registre lent", "Registre éteint", "non conforme", "hors catalogue",
-                      "Nouvelle URL", "journal modifiée", "majeur : oui", "CEFORE", "Certificat de nationalité"):
+                      "Nouvelle URL", "journal modifiée", "majeur : oui", "CEFORE", "Certificat de nationalité",
+                      "Registre d'une autre équipe"):
         assert situation in SOURCE, situation

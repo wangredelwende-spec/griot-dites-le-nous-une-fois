@@ -55,8 +55,9 @@ class FauxRegistre(BaseHTTPRequestHandler):
         pass                      # rien dans la console : l'adresse contient l'identifiant du citoyen
 
 
-def demarrer(port: int = 7000) -> ThreadingHTTPServer:
-    return ThreadingHTTPServer(("127.0.0.1", port), FauxRegistre)
+def demarrer(port: int = 7000, hote: str = "127.0.0.1") -> ThreadingHTTPServer:
+    """hote="0.0.0.0" : joignable depuis Docker (host.docker.internal), comme une autre machine du réseau."""
+    return ThreadingHTTPServer((hote, port), FauxRegistre)
 
 
 if __name__ == "__main__":

@@ -82,7 +82,7 @@ Citoyens prêts pour le passeport (téléphone de l'usager : https://usager.grio
 
 | Citoyen | Identifiant | Numéro USSD | PIN | Résultat attendu au guichet après « Confirmer » |
 |---|---|---|---|---|
-| Aminata Kaboré | `BF-0001` | `70000001` | `1234` | burkinabè : oui ; interdiction de sortie : non → **toutes les conditions sont vérifiées** |
+| Aminata Kaboré | `BF-0001` | `70000001` | `1234` | burkinabè : oui ; interdiction de sortie : non → **les 3 conditions vérifiées par Griot sont remplies** |
 | Salif Compaoré | `BF-0005` | `70000005` | `1234` | idem, **toutes vérifiées** : condamné pour vol mais sans interdiction ; l'ONI n'apprend rien du vol |
 | Karim Tiendrébéogo | `BF-0015` | `70000015` | `1234` | aperçu sans le casier ; interdiction : **refusé par le casier** (case vide = donnée insuffisante) → **résultat incomplet** |
 
@@ -93,14 +93,14 @@ Citoyens prêts pour le passeport (téléphone de l'usager : https://usager.grio
    interdiction de sortie du territoire = non. Rien d'autre. 1. Confirmer 2. Refuser ».
 4. `1` → « Confirmé. Reçu : xxxx xxxx xxxx xxxx » (à noter : il servira en scène 3).
 5. Guichet → **Actualiser** : burkinabè : oui, interdiction de sortie du territoire : non, chacun
-   signé par SON registre, signature vérifiée ; « Conclusion : toutes les conditions sont vérifiées ».
+   signé par SON registre, signature vérifiée ; « Conclusion : les 3 conditions vérifiées par Griot sont remplies ».
 6. À dire : l'ONI ne reçoit ni date de naissance (il la connaît déjà par la CNIB, l'état civil n'est même pas
    interrogé), ni filiation, ni le casier. Elle n'apprend même pas si le
    casier est vierge : seulement s'il existe une **interdiction de sortie du territoire** (peine complémentaire).
    Variante `BF-0005` (Salif, condamné pour vol, sans interdiction) : « interdiction : non ». Le vol ne regarde pas
    le service des passeports.
 7. Variantes :
-   - `BF-0008` → « interdiction de sortie du territoire : oui » ; « au moins une condition n'est pas remplie ».
+   - `BF-0008` → « interdiction de sortie du territoire : oui » ; « les 3 conditions vérifiées par Griot ne sont pas toutes remplies ».
    - Au téléphone, `2` (Refuser) → au guichet « refusé par l'usager : rien n'a été transmis ».
 
 ## Scène 1 bis : la preuve que rien ne fuit
@@ -128,12 +128,12 @@ apparaît dans l'historique de l'usager avec le texte cité.
    - « âge de 18 à 37 ans au 31/12/2026 : oui », signé par le registre d'état civil ;
    - « nationalité burkinabè : oui », signé par le registre de la nationalité ;
    - « casier judiciaire vierge : oui », signé par le casier judiciaire ;
-   - « **Conclusion : toutes les conditions sont vérifiées.** ». Chaque ligne affiche « Clé du registre : xxxx xxxx xxxx xxxx ».
+   - « **Conclusion : les 3 conditions vérifiées par Griot sont remplies.** ». Chaque ligne affiche « Clé du registre : xxxx xxxx xxxx xxxx ».
 4. À dire : le guichet n'a reçu ni date de naissance, ni fiche, ni détail du casier. Le registre a répondu
    `{"age_equal_or_over": {"18": true, "38": false}, "date_reference": "2026-12-31"}`, c'est-à-dire « au moins 18 ans,
    pas encore 38 ». Le guichet a revérifié lui-même chaque signature. Les clés se comparent avec :
    `docker compose logs registre-etat-civil registre-nationalite registre-casier | Select-String empreinte`
-5. Variantes : `BF-0008` → « casier judiciaire vierge : non » et « au moins une condition n'est pas remplie » ;
+5. Variantes : `BF-0008` → « casier judiciaire vierge : non » et « les 3 conditions vérifiées par Griot ne sont pas toutes remplies » ;
    `BF-0018` → « nationalité burkinabè : non » ; `BF-0003` (mineure) → « âge … : non ».
 6. **Vérifier la majorité** (au cas où un juré la demande), `BF-0001` → « majeur (18 ans accomplis) : oui ».
 

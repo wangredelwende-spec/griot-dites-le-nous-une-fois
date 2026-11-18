@@ -26,9 +26,9 @@ def demander(client: httpx.Client, csrf: str, sujet: str, demarche: str = "conco
 CAS = [
     # Concours direct : UNE demande, 3 registres, base légale
     ("concours-direct", "BF-0002", ["majeur (18 ans accomplis) : oui", "nationalité burkinabè : oui",
-                                    "casier judiciaire vierge : oui", "toutes les conditions sont vérifiées"]),
+                                    "casier judiciaire vierge : oui", "les 3 conditions vérifiées par Griot sont remplies"]),
     ("concours-direct", "BF-0003", ["majeur (18 ans accomplis) : non"]),                     # mineure
-    ("concours-direct", "BF-0004", ["casier judiciaire vierge : non", "au moins une condition n'est pas remplie"]),
+    ("concours-direct", "BF-0004", ["casier judiciaire vierge : non", "les 3 conditions vérifiées par Griot ne sont pas toutes remplies"]),
     ("concours-direct", "BF-0007", ["nationalité burkinabè : non"]),                         # non burkinabè
     ("concours-direct", "BF-0009", ["réponse impossible, s'adresser au registre d'état civil"]),   # décédée : rien de plus
     ("concours-direct", "BF-4242", ["citoyen inconnu"]),

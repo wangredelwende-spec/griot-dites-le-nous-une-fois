@@ -769,11 +769,12 @@ def charger_verifier():
 @app.get("/journal/verification", tags=[JOURNAL])
 def verification_du_journal():
     """Le journal est-il intact ? Réponse publique (réseau interne) : ni identifiant ni valeur, seulement
-    « OK » ou le numéro de la première ligne modifiée ou supprimée. Sert au badge « journal intègre » de l'usager."""
-    integre, message, lignes = charger_verifier().verifier(str(DONNEES / "mediateur.sqlite3"))
+    « OK » ou le numéro de la première ligne modifiée ou supprimée. Sert au badge « journal intègre » de l'usager.
+    Pas le nombre de lignes : il révélerait l'activité de la passerelle (et des autres usagers)."""
+    integre, message, _lignes = charger_verifier().verifier(str(DONNEES / "mediateur.sqlite3"))
     ligne = None if integre else int(re.search(r"Ligne (\d+)", message).group(1))
-    return {"statut": "OK" if integre else "ALTERE", "integre": integre, "lignes": len(lignes),
-            "premiere_ligne_modifiee": ligne, "message": message}
+    return {"statut": "OK" if integre else "ALTERE", "integre": integre,
+            "premiere_ligne_modifiee": ligne, "message": "Journal intègre" if integre else message}
 
 
 @app.get("/controle/verification", tags=[JOURNAL])

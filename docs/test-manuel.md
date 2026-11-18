@@ -315,7 +315,7 @@ besoin d'Internet (réseaux Docker internes, certificats locaux, aucune ressourc
 
 ## Scène 10 : les données du jury (format inconnu, configuration seulement)
 
-Procédure complète : `docs/JOUR_J_DONNEES_JURY.md`. À montrer : `inspecter_donnees.py … --proposer-yaml` sur un
+Procédure complète : `docs/JOUR_J_DONNEES_JURY.md, retiré le 18/11 : voir l'historique git`. À montrer : `inspecter_donnees.py … --proposer-yaml` sur un
 fichier du jury, puis `tester_adaptateur.py etat-civil <identifiant>` (réponse ou motif de refus, sans rien signer).
 Preuve déjà faite sur 3 jeux fictifs (Excel en français jj/mm/aaaa, JSON imbriqué, CSV Windows-1252) :
 `.venv\Scripts\python -m pytest registres\tests\test_formats.py -v`.

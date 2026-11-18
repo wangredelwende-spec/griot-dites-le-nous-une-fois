@@ -3,6 +3,7 @@ import asyncio
 from datetime import datetime, timezone
 import importlib.util
 import json
+import os
 import sqlite3
 import time
 
@@ -239,10 +240,11 @@ def test_verifier_recu_avec_ou_sans_espaces():
     recu = ligne["hash"][:16]
     for forme in (recu, " ".join(recu[i:i + 4] for i in range(0, 16, 4))):
         r = subprocess.run([sys.executable, str(RACINE / "journal/verifier.py"), str(CHEMIN_JOURNAL), "--recu", forme],
-                           capture_output=True, text=True, encoding="utf-8")
+                           capture_output=True, text=True, encoding="utf-8", env=os.environ | {"PYTHONIOENCODING": "utf-8"})
         assert f"Reçu retrouvé : ligne {ligne['n']}" in r.stdout, r.stdout + r.stderr
     trop_court = subprocess.run([sys.executable, str(RACINE / "journal/verifier.py"), str(CHEMIN_JOURNAL),
-                                 "--recu", recu[:8]], capture_output=True, text=True, encoding="utf-8")
+                                 "--recu", recu[:8]], capture_output=True, text=True, encoding="utf-8",
+                                env=os.environ | {"PYTHONIOENCODING": "utf-8"})
     assert trop_court.returncode != 0 and "16 caractères" in trop_court.stderr
 
 

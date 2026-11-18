@@ -73,6 +73,8 @@ service_long_cefore;Services;Le CEFORE;;;
 service_court_cefore;Services;CEFORE;;;
 service_long_tribunal;Services;Le tribunal;;;
 service_court_tribunal;Services;Tribunal;;;
+service_long_oni;Services;L'ONI;;;
+service_court_oni;Services;ONI;;;
 attribut_nationalite_bf;Attributs;nationalité burkinabè;;;
 attribut_casier_vierge;Attributs;casier judiciaire vierge;;;
 attribut_identite;Attributs;identité (nom et prénoms);;;

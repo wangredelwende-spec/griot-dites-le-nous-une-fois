@@ -47,6 +47,17 @@ def main():
             echecs += not ok
             print(f"{'OK ' if ok else 'ÉCHEC'} {demarche} {sujet} -> {' | '.join(attendus)}"
                   + ("" if ok else f"\n      page : {texte[-400:]}"))
+    # Carte nationale d'identité (ONI, base légale) : identité, naissance et filiation, nationalité ; rien du casier
+    with httpx.Client(verify=autorite_caddy(), follow_redirects=True, timeout=20) as client:
+        csrf = connecter(client, "agent.banc.oni")
+        print("OK  connexion de agent.banc.oni (mot de passe + TOTP)")
+        texte = demander(client, csrf, "BF-0002", "carte-identite-oni")
+        attendus = ["nom : OUEDRAOGO", "date naissance : 1998-07-02", "pere : Hamidou OUEDRAOGO",
+                    "nationalité burkinabè : oui", "les 3 conditions vérifiées par Griot sont remplies"]
+        ok = all(a in texte for a in attendus) and "casier" not in texte
+        echecs += not ok
+        print(f"{'OK ' if ok else 'ÉCHEC'} carte-identite-oni BF-0002 -> identité, naissance et filiation, nationalité"
+              + ("" if ok else f"\n      page : {texte[-500:]}"))
     verification = subprocess.run(["docker", "compose", "exec", "-T", "mediateur", "python", "/journal/verifier.py"],
                                   cwd=RACINE, capture_output=True, text=True)
     print(verification.stdout.strip())

@@ -1,8 +1,8 @@
 """Test de bout en bout du portail web usager (https://usager.griot.test/portail), contre la pile qui tourne.
 
-1. agent.banc.cefore (CEFORE) demande la « entreprise individuelle (CEFORE) » pour BF-0008 : en attente de l'usager.
+1. agent.banc.tribunal (tribunal) demande le « certificat de nationalité » pour BF-0008 : en attente de l'usager.
 2. L'usager se connecte au portail (70000008 + PIN), voit l'aperçu exact et confirme : il reçoit un reçu.
-3. Le guichet actualise : « casier judiciaire vierge : oui ».
+3. Le guichet actualise : la naissance et la filiation arrivent.
 4. La même confirmation est visible dans l'historique USSD (*226#), marquée « (web) », avec le même reçu.
 5. Le détail web montre finalité, base, « Fait depuis : le portail web » et le reçu ; verifier.py retrouve le reçu.
 6. Pages légères : aucun script, aucune ressource externe.
@@ -19,7 +19,7 @@ from e2e_jalon1 import RACINE, autorite_caddy, connecter
 from client_guichet import retirer_les_accords
 from e2e_ussd import Telephone, texte, verifier
 
-AGENT = "agent.banc.cefore"
+AGENT = "agent.banc.tribunal"
 GUICHET, PORTAIL = "https://guichet.griot.test", "https://usager.griot.test/portail"
 NUMERO, SUJET = "70000008", "BF-0008"
 
@@ -48,14 +48,14 @@ def main():
         for ancienne in re.findall(r'/portail/attente/([0-9a-f-]+)/refuser', web.get(f"{PORTAIL}/attente").text):
             web.post(f"{PORTAIL}/attente/{ancienne}/refuser", data={"csrf": csrf})
 
-        r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf_guichet, "demarche": "entreprise-individuelle-cefore", "sujet_ref": SUJET})
+        r = guichet.post(f"{GUICHET}/demandes", data={"csrf": csrf_guichet, "demarche": "certificat-nationalite", "sujet_ref": SUJET})
         adresse = str(r.url)
-        resultats.append(verifier("demande CEFORE en attente de l'usager", "En attente de l'usager" in texte(r.text),
+        resultats.append(verifier("demande de certificat de nationalité en attente de l'usager", "En attente de l'usager" in texte(r.text),
                                   texte(r.text)[-300:]))
 
         attente = web.get(f"{PORTAIL}/attente").text
         resultats.append(verifier("aperçu exact sur le portail",
-                                  "Le CEFORE recevra : identité" in texte(attente),
+                                  "Le tribunal recevra : naissance" in texte(attente),
                                   texte(attente)[-300:]))
         id_demande = re.search(r'/portail/attente/([0-9a-f-]+)/confirmer', attente)[1]
         confirmation = texte(web.post(f"{PORTAIL}/attente/{id_demande}/confirmer", data={"csrf": csrf}).text)
@@ -63,8 +63,8 @@ def main():
         resultats.append(verifier(f"confirmation web avec reçu ({recu[1] if recu else '?'})", bool(recu), confirmation))
 
         page = texte(guichet.get(adresse).text)
-        resultats.append(verifier("guichet : casier judiciaire vierge : oui (et l'identité), via la passerelle",
-                                  "casier judiciaire vierge : oui Fourni par le casier judiciaire via la passerelle"
+        resultats.append(verifier("guichet : naissance et filiation, via la passerelle",
+                                  "Fourni par le registre d'état civil via la passerelle"
                                   in page, page[-300:]))
 
         tel = Telephone(telephone, NUMERO)
@@ -82,7 +82,7 @@ def main():
                          r'<span class="etat confirmation">', liste)
         detail_web = texte(web.get(f"{PORTAIL}/historique/{lien[1]}").text) if lien else ""
         resultats.append(verifier("détail web : finalité, base, canal et le même reçu, sans la valeur",
-                                  "immatriculation d'une entreprise individuelle au CEFORE" in detail_web and "Avec votre accord" in detail_web
+                                  "délivrance d'un certificat de nationalité" in detail_web and "Avec votre accord" in detail_web
                                   and "le portail web" in detail_web and bool(recu) and recu[1] in detail_web
                                   and "= oui" not in detail_web, detail_web[-400:]))
 

@@ -20,7 +20,7 @@ RACINE = Path(__file__).resolve().parents[1]
 CATALOGUE = RACINE / "consentement-minimisation/catalogue"
 FINALITES = {code: d["finalite"] for code, d in
              yaml.safe_load((CATALOGUE / "demarches.yaml").read_text(encoding="utf-8"))["demarches"].items()}
-CLES = {"concours-direct": "cle-demo-concours", "entreprise-individuelle-cefore": "cle-demo-cefore",
+CLES = {"concours-direct": "cle-demo-concours", "carte-identite-oni": "cle-demo-oni",
         "certificat-nationalite": "cle-demo-tribunal"}       # clés de DÉMONSTRATION (annuaire.yaml)
 RESULTATS: list[bool] = []
 
@@ -102,30 +102,32 @@ resultat.update(r=r, journal=[l["evenement"] for l in journal(d)], historique=[l
           json.dumps(x, ensure_ascii=False))
 
 
-def cefore_avec_accord():
-    x = dans_la_passerelle(f'sans_accord("BF-0002")' + chr(10) + demande("entreprise-individuelle-cefore", "BF-0002") + """
-attente = r["corps"]["statut"]
-confirmation = confirmer(d, "BF-0002")
-remise = suivre(d, "cle-demo-cefore")
-d2, r2 = demander("entreprise-individuelle-cefore", "BF-0002", r["corps"].get("finalite") or %r, "cle-demo-cefore")
-resultat.update(attente=attente, remise=remise, seconde=r2["corps"]["statut"])
-""" % FINALITES["entreprise-individuelle-cefore"])
-    v = {w["attribut"]: w.get("valeur") for w in x["remise"].get("volets", [])}
-    ok = (x["attente"] == "en_attente" and x["remise"]["statut"] == "remise"
-          and v == {"identite": {"nom": "OUEDRAOGO", "prenoms": "Moussa"}, "casier_vierge": True} and x["seconde"] == "remise")
-    noter("2. CEFORE : attente de l'accord, confirmation, identité + casier ; accord valable -> 2e demande immédiate", ok,
-          f"{x['attente']} -> {x['remise']['statut']} {v} ; 2e demande : {x['seconde']}", json.dumps(x, ensure_ascii=False))
+def carte_identite_oni():
+    x = dans_la_passerelle(demande("carte-identite-oni", "BF-0002") + """
+resultat.update(r=r, journal=[l["evenement"] for l in journal(d)])
+""")
+    v = {w["attribut"]: w.get("valeur") for w in volets(x["r"]).values()}
+    ok = (x["r"]["code"] == 200 and x["r"]["corps"]["statut"] == "remise" and v["nationalite_bf"] is True
+          and v["identite"] == {"nom": "OUEDRAOGO", "prenoms": "Moussa"}
+          and v["naissance_filiation"] == {"date_naissance": "1998-07-02", "lieu_naissance": "Koudougou",
+                                           "pere": "Hamidou OUEDRAOGO", "mere": "Bintou OUEDRAOGO"}
+          and "casier" not in json.dumps(x["r"]) and "remise" in x["journal"])
+    noter("2. Carte nationale d'identité (ONI, base légale) : identité, naissance et filiation, nationalité ; pas de casier", ok,
+          f"{x['r']['corps']['statut']} {sorted(v)} ; journal {x['journal']}", json.dumps(x, ensure_ascii=False))
 
 
 def certificat_de_nationalite():
     x = dans_la_passerelle(f'sans_accord("BF-0003")' + chr(10) + demande("certificat-nationalite", "BF-0003") + """
 confirmer(d, "BF-0003")
-resultat.update(attente=r["corps"]["statut"], remise=suivre(d, "cle-demo-tribunal"))
-""")
+remise = suivre(d, "cle-demo-tribunal")
+d2, r2 = demander("certificat-nationalite", "BF-0003", r["corps"].get("finalite") or %r, "cle-demo-tribunal")
+resultat.update(attente=r["corps"]["statut"], remise=remise, seconde=r2["corps"]["statut"])
+""" % FINALITES["certificat-nationalite"])
     v = {w["attribut"]: w.get("valeur") for w in x["remise"].get("volets", [])}
-    ok = x["attente"] == "en_attente" and v == {"naissance_filiation": {
+    ok = x["attente"] == "en_attente" and x["seconde"] == "remise" and v == {"naissance_filiation": {
         "date_naissance": "2012-05-20", "lieu_naissance": "Bobo-Dioulasso", "pere": "Boukary SAWADOGO", "mere": "Awa SAWADOGO"}}
-    noter("3. Certificat de nationalité : naissance et filiation pour le tribunal, après accord", ok, f"{x['attente']} -> {v}",
+    noter("3. Certificat de nationalité : naissance et filiation pour le tribunal, après accord ; accord valable -> 2e demande immédiate",
+          ok, f"{x['attente']} -> {v} ; 2e demande : {x['seconde']}",
           json.dumps(x, ensure_ascii=False))
 
 
@@ -283,7 +285,7 @@ for sujet in ("BF-0004", "BF-0005", "BF-0006"):         # referme les demandes e
 
 def main():
     print("Banc de pannes contre la pile qui tourne (registres selon le contrat, clés API de démonstration)\n", flush=True)
-    for scenario in (concours_majeur_sans_la_date, cefore_avec_accord, certificat_de_nationalite, citoyen_inconnu,
+    for scenario in (concours_majeur_sans_la_date, carte_identite_oni, certificat_de_nationalite, citoyen_inconnu,
                      lambda: registre_en_panne("lent", "5. Registre lent -> délai dépassé (2 s + 1 réessai), « indisponible », rien deviné"),
                      lambda: registre_en_panne("eteint", "6. Registre éteint (503) -> « indisponible » pour lui seul"),
                      tous_eteints, non_conforme, hors_catalogue, nouvelle_url_par_configuration, journal_modifie,

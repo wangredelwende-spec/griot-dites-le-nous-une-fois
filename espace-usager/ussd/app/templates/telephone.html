@@ -4,10 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>*226# · Griot Secure, service usager</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/griot.css">
 </head>
 <body>
-<p style="margin:0;padding:6px 12px;background:#fff3cd;color:#5c4400;font-size:.85rem;text-align:center;border-bottom:1px solid #e0c36a" role="note">Registres simulés, données fictives</p>
+<p class="bandeau" role="note">Registres simulés, données fictives</p>
+<header>
+  <div class="barre">
+    <p class="marque"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/></svg><strong>Griot Secure</strong> <span>Service usager *226#</span></p>
+  </div>
+</header>
 <main>
   <p class="legende">Simulation d'un téléphone simple : service <strong>*226#</strong>
   « Dites-le-nous une fois ». Écrans de {{ limite }} caractères au plus.</p>
@@ -24,7 +29,7 @@
     {% else %}
     <p class="numero">{{ s.numero }}</p>
     <div class="ecran" role="status" aria-live="polite">{{ s.ecran }}</div>
-    <p class="compteur">{{ s.ecran | length }}/{{ limite }}</p>
+    <p class="ecran-compteur">{{ s.ecran | length }}/{{ limite }}</p>
     <form method="post" action="/" class="clavier">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <label for="reponse" class="masque">Réponse</label>
@@ -39,5 +44,6 @@
     {% endif %}
   </div>
 </main>
+<footer>Griot — logiciel libre (AGPL-3.0)</footer>
 </body>
 </html>

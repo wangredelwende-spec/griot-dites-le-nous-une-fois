@@ -7,7 +7,7 @@ Passerelle d'interopérabilité libre (AGPL-3.0) : les pièces circulent entre a
 
 ## Nos registres et leur contrat
 
-Il n'y a pas de contrat commun imposé : chaque équipe définit ses registres. Les nôtres (état civil, nationalité,
+Aucun contrat commun n'est imposé (confirmé oralement par les organisateurs le 17 novembre 2026). Chaque équipe définit ses registres. Les nôtres (état civil, nationalité,
 casier judiciaire) sont **simulés, avec des données fictives** :
 
 - contrat OpenAPI : `registres/contrat/contrat-registres.yaml` (une route par registre, 404 si le citoyen est inconnu) ;

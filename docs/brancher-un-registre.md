@@ -1,6 +1,6 @@
 # Brancher le registre d'une autre équipe
 
-Il n'y a pas de contrat commun imposé : chaque équipe définit ses registres. Le nôtre est
+Aucun contrat commun n'est imposé (confirmé oralement par les organisateurs le 17 novembre 2026). Chaque équipe définit ses registres. Le nôtre est
 `registres/contrat/contrat-registres.yaml`. Brancher le registre d'une **autre** équipe (autre adresse, autres routes,
 autres noms de champs) ne touche **aucun code** : deux fichiers de `consentement-minimisation/catalogue/` à modifier,
 plus le contrat OpenAPI publié par cette équipe, copié tel quel. La passerelle les relit **à chaud**, sans redémarrer.

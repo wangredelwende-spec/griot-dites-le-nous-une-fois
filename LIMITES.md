@@ -3,7 +3,7 @@
 ## Ce qui est simulé
 
 - **Registres** : `registres/`, registres simulés selon notre contrat (`registres/contrat/contrat-registres.yaml`),
-  données fictives (`registres/donnees/citoyens-fictifs.yaml`). Pas de contrat commun imposé entre les équipes.
+  données fictives (`registres/donnees/citoyens-fictifs.yaml`). Aucun contrat commun n'est imposé (confirmé oralement par les organisateurs le 17 novembre 2026).
 - **Connexion des usagers** : USSD simulé, numéro + PIN fictifs (`espace-usager/ussd/abonnes.yaml`), PIN de démo en clair, non hachés.
   En production : connexion par l'identifiant unique électronique.
 - **Textes de loi** des démarches : références à faire valider (voir `consentement-minimisation/catalogue/`).

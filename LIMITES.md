@@ -25,6 +25,11 @@
   identifiant que le nôtre, et une **date de naissance AAAA-MM-JJ**. Une valeur de nationalité absente des
   `correspondances` de `attributs.yaml` donne un refus. Un registre qui renvoie déjà un oui/non (ex. « majeur : true »),
   une fiche imbriquée, un POST ou un autre format de date demande du code.
+- **Certificat de nationalité** : le tribunal reçoit la naissance et la filiation (noms des parents), mais **pas la
+  nationalité des parents** : notre contrat ne donne que leurs noms, sans leur identifiant, donc la passerelle ne peut
+  pas interroger le registre de la nationalité pour eux (ni deviner une personne d'après un nom). Le tribunal doit
+  encore établir la nationalité des parents par ses propres moyens. Pour la fournir : un identifiant de chaque parent
+  dans la fiche d'état civil (changement de contrat), puis un attribut par configuration.
 - **Pseudonymisation** : le citoyen est pseudonymisé dans le journal (HMAC de son identifiant), mais **la clé est sur le
   même serveur** que le journal : l'administrateur du serveur peut ré-identifier. En production : clé dans un coffre
   séparé, accès journalisé.

@@ -17,8 +17,8 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 5. Sur le téléphone de démo, installer **FreeOTP** ou **Aegis** (applications libres) pour le code TOTP.
 6. Ouvrir trois onglets : https://guichet.griot.test (agent), une fenêtre privée sur https://guichet.griot.test
    (second agent), https://usager.griot.test (téléphone de l'usager).
-7. Enrôler une fois le TOTP des comptes de démo (QR code à la première connexion) : `moussa.kone` (passeport),
-   `issa.sawadogo`, `awa.ouedraogo`, `agent.curieux`, `controle.cil`.
+7. Enrôler une fois le TOTP des comptes de démo (QR code à la première connexion) : `issa.sawadogo`,
+   `aicha.ilboudo`, `moussa.kone`, `controle.cil`.
 
 8. Sauvegarde hors ligne des images (après chaque reconstruction, tant qu'on a le réseau) :
    `python resilience\sauvegarder_hors_ligne.py` → `hors_ligne\griot-images-<date>.tar` (environ 560 Mo, 8 images
@@ -47,15 +47,14 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 
 | Compte (guichet) | Mot de passe | Service | Démarches proposées (catalogue) |
 |---|---|---|---|
-| `moussa.kone` | `Agent-Demo-2026!` | Service des passeports – ONI (ministère de la Sécurité) | **Passeport ordinaire** (nationalité + interdiction de sortie du territoire, pas d'âge, **avec l'accord de l'usager**) : scène 1 |
-| `issa.sawadogo` | `Agent-Demo-2026!` | Direction des concours – ministère des Serviteurs du peuple | **Concours direct adjoints administratifs** (âge 18–37 ans au 31/12/2026 + nationalité + casier, base légale), Vérifier la majorité |
-| `awa.ouedraogo` | `Agent-Demo-2026!` | Service des bourses | **Bourse nationale** (nationalité, **avec l'accord de l'usager**), Vérifier la majorité |
-| `mariam.kabore` | `Agent-Demo-2026!` | Mairie | Vérifier la majorité (base légale : loi n°012-2025/ALT) |
-| `agent.curieux` | `Agent-Demo-2026!` | Service des bourses | Vérifier la majorité : **démo de la limite de débit** (scène 2 bis) |
+| `issa.sawadogo` | `Agent-Demo-2026!` | Direction des concours | **Concours direct** (majeur, nationalité, casier vierge ; base légale) : c'est la démarche de la vidéo |
+| `aicha.ilboudo` | `Agent-Demo-2026!` | ONI | **Carte nationale d'identité** (identité, naissance et filiation, nationalité ; mission de l'ONI, pas de casier) |
+| `moussa.kone` | `Agent-Demo-2026!` | Tribunal | **Certificat de nationalité** (naissance et filiation, **avec l'accord de l'usager**, 24 h) |
+| `awa.ouedraogo`, `agent.curieux` | `Agent-Demo-2026!` | CEFORE | aucune démarche active depuis le 18/11 (réservés aux tests de l'accord et de la limite de débit) |
 | `controle.cil` | `Controle-Demo-2026!` | Contrôle (lecture seule, rôle `controleur`) | Aucune démarche : page **Contrôle** (scène 2 ter) |
 
 À la **première connexion**, Keycloak montre un QR code : le scanner avec FreeOTP/Aegis, taper le code à
-6 chiffres. Ensuite, chaque connexion demande mot de passe + code. (`agent.banc` et `agent.banc.cefore` sont
+6 chiffres. Ensuite, chaque connexion demande mot de passe + code. (`agent.banc`, `agent.banc.oni`, `agent.banc.tribunal` et `agent.banc.cefore` sont
 réservés aux tests automatiques : ne pas les utiliser en démo.)
 
 | Téléphone (USSD) | PIN | Usager | Intérêt |
@@ -82,7 +81,7 @@ Citoyens prêts pour le passeport (téléphone de l'usager : https://usager.grio
 
 | Citoyen | Identifiant | Numéro USSD | PIN | Résultat attendu au guichet après « Confirmer » |
 |---|---|---|---|---|
-| Aminata Kaboré | `BF-0001` | `70000001` | `1234` | burkinabè : oui ; interdiction de sortie : non → **toutes les conditions sont vérifiées** |
+| Aminata Kaboré | `BF-0001` | `70000001` | `1234` | burkinabè : oui ; interdiction de sortie : non → **les 3 conditions vérifiées par Griot sont remplies** |
 | Salif Compaoré | `BF-0005` | `70000005` | `1234` | idem, **toutes vérifiées** : condamné pour vol mais sans interdiction ; l'ONI n'apprend rien du vol |
 | Karim Tiendrébéogo | `BF-0015` | `70000015` | `1234` | aperçu sans le casier ; interdiction : **refusé par le casier** (case vide = donnée insuffisante) → **résultat incomplet** |
 
@@ -93,14 +92,14 @@ Citoyens prêts pour le passeport (téléphone de l'usager : https://usager.grio
    interdiction de sortie du territoire = non. Rien d'autre. 1. Confirmer 2. Refuser ».
 4. `1` → « Confirmé. Reçu : xxxx xxxx xxxx xxxx » (à noter : il servira en scène 3).
 5. Guichet → **Actualiser** : burkinabè : oui, interdiction de sortie du territoire : non, chacun
-   signé par SON registre, signature vérifiée ; « Conclusion : toutes les conditions sont vérifiées ».
+   signé par SON registre, signature vérifiée ; « Conclusion : les 3 conditions vérifiées par Griot sont remplies ».
 6. À dire : l'ONI ne reçoit ni date de naissance (il la connaît déjà par la CNIB, l'état civil n'est même pas
    interrogé), ni filiation, ni le casier. Elle n'apprend même pas si le
    casier est vierge : seulement s'il existe une **interdiction de sortie du territoire** (peine complémentaire).
    Variante `BF-0005` (Salif, condamné pour vol, sans interdiction) : « interdiction : non ». Le vol ne regarde pas
    le service des passeports.
 7. Variantes :
-   - `BF-0008` → « interdiction de sortie du territoire : oui » ; « au moins une condition n'est pas remplie ».
+   - `BF-0008` → « interdiction de sortie du territoire : oui » ; « les 3 conditions vérifiées par Griot ne sont pas toutes remplies ».
    - Au téléphone, `2` (Refuser) → au guichet « refusé par l'usager : rien n'a été transmis ».
 
 ## Scène 1 bis : la preuve que rien ne fuit
@@ -128,12 +127,12 @@ apparaît dans l'historique de l'usager avec le texte cité.
    - « âge de 18 à 37 ans au 31/12/2026 : oui », signé par le registre d'état civil ;
    - « nationalité burkinabè : oui », signé par le registre de la nationalité ;
    - « casier judiciaire vierge : oui », signé par le casier judiciaire ;
-   - « **Conclusion : toutes les conditions sont vérifiées.** ». Chaque ligne affiche « Clé du registre : xxxx xxxx xxxx xxxx ».
+   - « **Conclusion : les 3 conditions vérifiées par Griot sont remplies.** ». Chaque ligne affiche « Clé du registre : xxxx xxxx xxxx xxxx ».
 4. À dire : le guichet n'a reçu ni date de naissance, ni fiche, ni détail du casier. Le registre a répondu
    `{"age_equal_or_over": {"18": true, "38": false}, "date_reference": "2026-12-31"}`, c'est-à-dire « au moins 18 ans,
    pas encore 38 ». Le guichet a revérifié lui-même chaque signature. Les clés se comparent avec :
    `docker compose logs registre-etat-civil registre-nationalite registre-casier | Select-String empreinte`
-5. Variantes : `BF-0008` → « casier judiciaire vierge : non » et « au moins une condition n'est pas remplie » ;
+5. Variantes : `BF-0008` → « casier judiciaire vierge : non » et « les 3 conditions vérifiées par Griot ne sont pas toutes remplies » ;
    `BF-0018` → « nationalité burkinabè : non » ; `BF-0003` (mineure) → « âge … : non ».
 6. **Vérifier la majorité** (au cas où un juré la demande), `BF-0001` → « majeur (18 ans accomplis) : oui ».
 
@@ -272,7 +271,7 @@ Faire une demande **Concours direct** au guichet (`issa.sawadogo`, `BF-0001`) ap
 | `python resilience/panne.py etat-civil normal` | « oui », même empreinte de clé qu'avant |
 
 Pendant la panne, **la nationalité et le casier s'affichent quand même** (signés, vérifiés), et la conclusion dit
-« **résultat incomplet, aucune conclusion** » : jamais de « oui » global sur un résultat partiel.
+« **démarche en attente, résultat incomplet, aucune conclusion** » : jamais de « oui » global sur un résultat partiel.
 `python resilience/panne.py` affiche l'état des trois registres. **Toujours finir par `normal`.**
 
 ## Scène 7 : demander plus que prévu
@@ -315,7 +314,7 @@ besoin d'Internet (réseaux Docker internes, certificats locaux, aucune ressourc
 
 ## Scène 10 : les données du jury (format inconnu, configuration seulement)
 
-Procédure complète : `docs/JOUR_J_DONNEES_JURY.md`. À montrer : `inspecter_donnees.py … --proposer-yaml` sur un
+Procédure complète : `docs/JOUR_J_DONNEES_JURY.md, retiré le 18/11 : voir l'historique git`. À montrer : `inspecter_donnees.py … --proposer-yaml` sur un
 fichier du jury, puis `tester_adaptateur.py etat-civil <identifiant>` (réponse ou motif de refus, sans rien signer).
 Preuve déjà faite sur 3 jeux fictifs (Excel en français jj/mm/aaaa, JSON imbriqué, CSV Windows-1252) :
 `.venv\Scripts\python -m pytest registres\tests\test_formats.py -v`.

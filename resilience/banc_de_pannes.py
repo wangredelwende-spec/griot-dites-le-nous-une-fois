@@ -20,7 +20,7 @@ RACINE = Path(__file__).resolve().parents[1]
 CATALOGUE = RACINE / "consentement-minimisation/catalogue"
 FINALITES = {code: d["finalite"] for code, d in
              yaml.safe_load((CATALOGUE / "demarches.yaml").read_text(encoding="utf-8"))["demarches"].items()}
-CLES = {"concours-direct": "cle-demo-concours", "entreprise-individuelle-cefore": "cle-demo-cefore",
+CLES = {"concours-direct": "cle-demo-concours", "carte-identite-oni": "cle-demo-oni",
         "certificat-nationalite": "cle-demo-tribunal"}       # clés de DÉMONSTRATION (annuaire.yaml)
 RESULTATS: list[bool] = []
 
@@ -102,30 +102,32 @@ resultat.update(r=r, journal=[l["evenement"] for l in journal(d)], historique=[l
           json.dumps(x, ensure_ascii=False))
 
 
-def cefore_avec_accord():
-    x = dans_la_passerelle(f'sans_accord("BF-0002")' + chr(10) + demande("entreprise-individuelle-cefore", "BF-0002") + """
-attente = r["corps"]["statut"]
-confirmation = confirmer(d, "BF-0002")
-remise = suivre(d, "cle-demo-cefore")
-d2, r2 = demander("entreprise-individuelle-cefore", "BF-0002", r["corps"].get("finalite") or %r, "cle-demo-cefore")
-resultat.update(attente=attente, remise=remise, seconde=r2["corps"]["statut"])
-""" % FINALITES["entreprise-individuelle-cefore"])
-    v = {w["attribut"]: w.get("valeur") for w in x["remise"].get("volets", [])}
-    ok = (x["attente"] == "en_attente" and x["remise"]["statut"] == "remise"
-          and v == {"identite": {"nom": "OUEDRAOGO", "prenoms": "Moussa"}, "casier_vierge": True} and x["seconde"] == "remise")
-    noter("2. CEFORE : attente de l'accord, confirmation, identité + casier ; accord valable -> 2e demande immédiate", ok,
-          f"{x['attente']} -> {x['remise']['statut']} {v} ; 2e demande : {x['seconde']}", json.dumps(x, ensure_ascii=False))
+def carte_identite_oni():
+    x = dans_la_passerelle(demande("carte-identite-oni", "BF-0002") + """
+resultat.update(r=r, journal=[l["evenement"] for l in journal(d)])
+""")
+    v = {w["attribut"]: w.get("valeur") for w in volets(x["r"]).values()}
+    ok = (x["r"]["code"] == 200 and x["r"]["corps"]["statut"] == "remise" and v["nationalite_bf"] is True
+          and v["identite"] == {"nom": "OUEDRAOGO", "prenoms": "Moussa"}
+          and v["naissance_filiation"] == {"date_naissance": "1998-07-02", "lieu_naissance": "Koudougou",
+                                           "pere": "Hamidou OUEDRAOGO", "mere": "Bintou OUEDRAOGO"}
+          and "casier" not in json.dumps(x["r"]) and "remise" in x["journal"])
+    noter("2. Carte nationale d'identité (ONI, base légale) : identité, naissance et filiation, nationalité ; pas de casier", ok,
+          f"{x['r']['corps']['statut']} {sorted(v)} ; journal {x['journal']}", json.dumps(x, ensure_ascii=False))
 
 
 def certificat_de_nationalite():
     x = dans_la_passerelle(f'sans_accord("BF-0003")' + chr(10) + demande("certificat-nationalite", "BF-0003") + """
 confirmer(d, "BF-0003")
-resultat.update(attente=r["corps"]["statut"], remise=suivre(d, "cle-demo-tribunal"))
-""")
+remise = suivre(d, "cle-demo-tribunal")
+d2, r2 = demander("certificat-nationalite", "BF-0003", r["corps"].get("finalite") or %r, "cle-demo-tribunal")
+resultat.update(attente=r["corps"]["statut"], remise=remise, seconde=r2["corps"]["statut"])
+""" % FINALITES["certificat-nationalite"])
     v = {w["attribut"]: w.get("valeur") for w in x["remise"].get("volets", [])}
-    ok = x["attente"] == "en_attente" and v == {"naissance_filiation": {
+    ok = x["attente"] == "en_attente" and x["seconde"] == "remise" and v == {"naissance_filiation": {
         "date_naissance": "2012-05-20", "lieu_naissance": "Bobo-Dioulasso", "pere": "Boukary SAWADOGO", "mere": "Awa SAWADOGO"}}
-    noter("3. Certificat de nationalité : naissance et filiation pour le tribunal, après accord", ok, f"{x['attente']} -> {v}",
+    noter("3. Certificat de nationalité : naissance et filiation pour le tribunal, après accord ; accord valable -> 2e demande immédiate",
+          ok, f"{x['attente']} -> {v} ; 2e demande : {x['seconde']}",
           json.dumps(x, ensure_ascii=False))
 
 
@@ -207,6 +209,48 @@ def nouvelle_url_par_configuration():
           json.dumps([absente, autre], ensure_ascii=False))
 
 
+def registre_autre_equipe_sur_la_pile():
+    """Le registre d'état civil d'une AUTRE équipe, sur une autre « machine » (ici l'hôte, vu depuis Docker), branché sur
+    la passerelle qui tourne par configuration seule : son contrat copié dans contrats/, annuaire.yaml et
+    correspondance.yaml (mêmes blocs que docs/brancher-un-registre.md). La passerelle le joint par « sortie-registres ».
+    Les fichiers sont toujours rétablis."""
+    import threading
+    sys.path.insert(0, str(RACINE / "scripts"))
+    sys.path.insert(0, str(RACINE / "scripts/autre_equipe"))
+    import essai_a_blanc_autre_equipe as essai
+    import faux_registre
+    serveur = faux_registre.demarrer(0, "0.0.0.0")
+    port = serveur.server_address[1]
+    threading.Thread(target=serveur.serve_forever, daemon=True).start()
+    fichiers = {CATALOGUE / "annuaire.yaml": None, CATALOGUE / "correspondance.yaml": None}
+    for f in fichiers:
+        fichiers[f] = f.read_bytes()
+    contrat = CATALOGUE / "contrats/autre-equipe.yaml"
+    contrat_existait = contrat.exists()
+    try:
+        contrat.parent.mkdir(exist_ok=True)
+        contrat.write_bytes((RACINE / "scripts/autre_equipe/contrat-autre-equipe.yaml").read_bytes())
+        essai.remplacer(CATALOGUE / "annuaire.yaml", essai.ANNUAIRE_AVANT,
+                        essai.ANNUAIRE_APRES.format(port=port).replace("127.0.0.1", "host.docker.internal"))
+        essai.remplacer(CATALOGUE / "correspondance.yaml", essai.CORRESPONDANCE_AVANT, essai.CORRESPONDANCE_APRES)
+        time.sleep(2)                         # la passerelle relit ses fichiers au plus une fois par seconde
+        appels = faux_registre.FauxRegistre.appels
+        r = dans_la_passerelle(demande("concours-direct", "BF-0004") + "resultat.update(r=r)\n")["r"]
+        appels = faux_registre.FauxRegistre.appels - appels
+    finally:
+        for f, contenu in fichiers.items():
+            f.write_bytes(contenu)
+        if not contrat_existait:
+            contrat.unlink(missing_ok=True)
+        serveur.shutdown()
+        time.sleep(2)
+    v = volets(r)
+    ok = r["code"] == 200 and appels >= 1 and v["majeur"].get("valeur") is True and "date" not in json.dumps(v["majeur"])
+    noter("13. Registre d'une autre équipe (autre machine du réseau) branché par configuration sur la pile", ok,
+          f"http://host.docker.internal:{port}/api/v2/personnes/… appelé {appels} fois ; majeur = {v['majeur'].get('valeur')}",
+          json.dumps(r, ensure_ascii=False))
+
+
 def journal_modifie():
     r = subprocess.run([sys.executable, str(RACINE / "resilience/falsifier_journal.py"), "3"], cwd=RACINE,
                        capture_output=True, text=True, encoding="utf-8")
@@ -241,11 +285,11 @@ for sujet in ("BF-0004", "BF-0005", "BF-0006"):         # referme les demandes e
 
 def main():
     print("Banc de pannes contre la pile qui tourne (registres selon le contrat, clés API de démonstration)\n", flush=True)
-    for scenario in (concours_majeur_sans_la_date, cefore_avec_accord, certificat_de_nationalite, citoyen_inconnu,
+    for scenario in (concours_majeur_sans_la_date, carte_identite_oni, certificat_de_nationalite, citoyen_inconnu,
                      lambda: registre_en_panne("lent", "5. Registre lent -> délai dépassé (2 s + 1 réessai), « indisponible », rien deviné"),
                      lambda: registre_en_panne("eteint", "6. Registre éteint (503) -> « indisponible » pour lui seul"),
                      tous_eteints, non_conforme, hors_catalogue, nouvelle_url_par_configuration, journal_modifie,
-                     agent_curieux):
+                     agent_curieux, registre_autre_equipe_sur_la_pile):
         try:
             scenario()
         except Exception as e:                  # un scénario cassé n'arrête pas le banc

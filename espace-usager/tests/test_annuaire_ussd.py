@@ -4,6 +4,7 @@ Vérifié avec l'identifiant simple (nip) ET avec une clé composée (pas d'iden
 dans l'annuaire est retrouvé par le registre, sinon le téléphone ne verrait pas les demandes de l'usager.
 """
 import csv
+import os
 import subprocess
 import sys
 
@@ -18,7 +19,7 @@ def lancer(tmp_path, adaptateur=None):
                 "--sortie", str(tmp_path), "--pin", "4321"]
     if adaptateur:
         commande += ["--yaml", str(adaptateur)]
-    r = subprocess.run(commande, capture_output=True, text=True, encoding="utf-8")
+    r = subprocess.run(commande, capture_output=True, text=True, encoding="utf-8", env=os.environ | {"PYTHONIOENCODING": "utf-8"})
     assert r.returncode == 0, r.stderr
     abonnes = yaml.safe_load((tmp_path / "abonnes.yaml").read_text(encoding="utf-8"))
     with open(tmp_path / "annuaire_ussd.csv", encoding="utf-8-sig") as f:

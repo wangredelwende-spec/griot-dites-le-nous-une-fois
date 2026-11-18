@@ -62,13 +62,14 @@
 {% if lignes|length > 1 %}
 <div class="bloc {{ 'succes' if conclusion == 'oui' else 'attente' }}" role="status">
   <p class="resultat"><strong>Conclusion :
-  {% if conclusion == "oui" %}toutes les conditions sont vérifiées.
-  {% elif conclusion == "non" %}au moins une condition n'est pas remplie{% for l in lignes if l.si_non and l.resultat.valeur is sameas false %} ({{ l.si_non }}){% endfor %}.
-  {% else %}résultat incomplet, aucune conclusion. Rien n'a été deviné : refaire la demande plus tard.{% endif %}
+  {% if conclusion == "oui" %}les {{ lignes|length }} conditions vérifiées par Griot sont remplies.
+  {% elif conclusion == "non" %}les {{ lignes|length }} conditions vérifiées par Griot ne sont pas toutes remplies{% for l in lignes if l.si_non and l.resultat.valeur is sameas false %} ({{ l.si_non }}){% endfor %}.
+  {% else %}démarche en attente, résultat incomplet, aucune conclusion. Rien n'a été deviné et aucune pièce n'est
+  demandée à l'usager : refaire la demande plus tard.{% endif %}
   </strong></p>
 </div>
 {% endif %}
-<p class="aide">Le guichet n'a reçu que ces réponses : aucune date de naissance, aucune fiche, aucun détail.</p>
+<p class="aide">Les autres conditions de la démarche restent vérifiées par votre service. Le guichet n'a reçu que ces réponses : aucune date de naissance, aucune fiche, aucun détail.</p>
 {% endif %}
 
 <p class="aide">Aucune pièce demandée au citoyen. Seule l'information utile a été transmise.</p>

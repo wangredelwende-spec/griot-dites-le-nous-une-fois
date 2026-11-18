@@ -1,6 +1,8 @@
 # Outils de test (en plus des dépendances du médiateur et du registre)
-pytest==9.2.0
+pytest==8.4.2                # < 9 : exigé par schemathesis 3.39.16
 respx==0.23.1
 pyotp==2.12.0
 openpyxl==3.1.5
 pdfplumber==0.11.10
+schemathesis==3.39.16       # tests générés depuis le contrat (MIT)
+playwright==1.58.0          # scripts/video_demo.py, clics de la vidéo avec Edge installé (Apache-2.0)

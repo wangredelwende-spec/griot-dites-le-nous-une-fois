@@ -2,7 +2,7 @@
 
 Formats : csv, xlsx, json, sqlite, sql (dump), pdf (PDF TEXTE : tableaux lus avec pdfplumber),
 api (API HTTP du jury, interrogée à chaque demande). Un PDF SCANNÉ (images) est refusé ici : il est converti
-UNE fois en CSV à l'import par le conteneur OCR (profil docker « ocr », voir docs/JOUR_J_DONNEES_JURY.md).
+UNE fois en CSV à l'import par le conteneur OCR (profil docker « ocr », voir docs/JOUR_J_DONNEES_JURY.md, retiré le 18/11 : voir l'historique git).
 
 Toutes les valeurs deviennent du texte nettoyé (espaces retirés, vide si absent) : le reste du code ne voit
 que des lignes {colonne: texte}. Une cellule vide reste VIDE : on ne devine jamais une valeur.
@@ -150,7 +150,7 @@ def lire_pdf(source: dict) -> list[dict]:
     with pdfplumber.open(source["chemin"]) as pdf:
         if not any((page.extract_text() or "").strip() for page in pdf.pages):
             raise ValueError("PDF sans texte (PDF scanné) : le convertir d'abord avec le conteneur OCR "
-                             "(docs/JOUR_J_DONNEES_JURY.md)")
+                             "(docs/JOUR_J_DONNEES_JURY.md, retiré le 18/11 : voir l'historique git)")
         for page in pdf.pages:
             for tableau in page.extract_tables():
                 for ligne in tableau:

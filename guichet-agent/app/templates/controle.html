@@ -23,7 +23,7 @@ aucune réponse ni aucun identifiant de citoyen n'y apparaît.</p>
   <input type="hidden" name="verifier" value="1">
   <p><button class="bouton">Vérifier le journal</button>
     <span class="aide">Même vérification que <code>journal/verifier.py --registres</code> : chaîne des empreintes,
-    puis comparaison avec la trace signée de chaque registre.</span></p>
+    puis comparaison avec la trace signée des registres (désactivée avec la signature, voir LIMITES.md).</span></p>
 </form>
 {% if verification %}
   {% if verification.integre and not verification.ecarts %}

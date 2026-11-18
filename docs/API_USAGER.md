@@ -79,7 +79,7 @@ composer l'écran dans une autre langue (mooré).
   "demarche": "Concours direct adjoints administratifs",
   "finalite": "vérification des conditions d'inscription au concours direct des adjoints administratifs",
   "finalites": {},
-  "base": "base_legale", "texte_base": "Loi n°081-2015/CNT …",
+  "base": "base_legale", "texte_base": "Conditions d'accès au concours direct …",
   "attributs": [{"code": "age_entre", "libelle": "âge de 18 à 37 ans au 31/12/2026"},
                 {"code": "nationalite_bf", "libelle": "nationalité burkinabè"},
                 {"code": "casier_vierge", "libelle": "casier judiciaire vierge"}],

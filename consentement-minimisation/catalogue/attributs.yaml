@@ -15,13 +15,22 @@ attributs:
     champ: date_naissance
     services:
       direction-concours:
-        - {min: 18, date_reference: aujourd'hui}             # majorité civile (loi n°012-2025/ALT)
+        - {min: 18, date_reference: aujourd'hui}             # seuil configurable (18 ans par défaut) : le changer ici ET dans demarches.yaml
   nationalite_bf:
     registre: nationalite
-    regle: egal                 # égal à « valeur » -> oui ; autre valeur -> non ; vide -> refus
+    regle: egal                 # valeur dans « oui » -> oui ; dans « non » -> non ; INCONNUE ou vide -> refus
     champ: nationalite
+    # Écritures reconnues (sans accents ni majuscules : « Burkinabè » = « burkinabe »). Une valeur absente des deux listes
+    # (ex. un code que personne n'a écrit ici) donne un REFUS, jamais un « non » : en cas de doute, on refuse.
+    # Brancher le registre d'une autre équipe : ajouter ici ses écritures si elles diffèrent.
+    correspondances:
+      oui: [burkinabe, burkinabè, BF, BFA, Burkina Faso, Burkina]
+      non: [malienne, ML, MLI, Mali, ivoirienne, CI, CIV, Côte d'Ivoire, ghaneenne, ghanéenne, GH, GHA, Ghana,
+            nigerienne, nigérienne, NE, NER, Niger, nigeriane, nigériane, NG, NGA, Nigeria, togolaise, TG, TGO, Togo,
+            beninoise, béninoise, BJ, BEN, Bénin, senegalaise, sénégalaise, SN, SEN, Sénégal, guineenne, guinéenne, GN,
+            GIN, Guinée, francaise, française, FR, FRA, France, etrangere, étrangère]
     valeur: burkinabe
-    services: [direction-concours]
+    services: [direction-concours, oni]
   casier_vierge:
     registre: casier
     regle: nombre_nul           # « 0 » -> oui ; « 2 » -> non ; vide ou illisible -> refus
@@ -31,9 +40,9 @@ attributs:
     registre: etat-civil
     regle: champs               # nom et prénoms SEULEMENT (ni date de naissance, ni filiation)
     champs: [nom, prenoms]
-    services: [cefore]
+    services: [cefore, oni]
   naissance_filiation:
     registre: etat-civil
     regle: champs
     champs: [date_naissance, lieu_naissance, pere, mere]     # date complète exigée (« né vers 1990 » : refus)
-    services: [tribunal]
+    services: [tribunal, oni]

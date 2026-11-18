@@ -70,7 +70,7 @@ from app.agents import agent_connecte  # noqa: E402
 DEMARCHES_DE_TEST = {
     "test-majorite": {"libelle": "Vérifier la majorité (test)", "services": ["direction-concours"],
                       "finalite": "vérification de la majorité civile", "base": "base_legale",
-                      "texte": "Code des personnes et de la famille, loi n°012-2025/ALT (majorité civile à 18 ans accomplis)",
+                      "texte": "Base légale de test (aucun texte cité)",
                       "attributs": [{"attribut": "majeur", "parametres": {"min": 18, "date_reference": "aujourd'hui"},
                                      "libelle": "majeur (18 ans accomplis)"}]},
     "test-nationalite": {"libelle": "Nationalité (test, consentement)", "services": ["cefore"],
@@ -191,6 +191,7 @@ AGENTS = {
     "issa.sawadogo": ["Direction des concours – ministère des Serviteurs du peuple"],
     "agent.curieux": ["CEFORE – guichet des entreprises"],
     "moussa.kone": ["Tribunal – certificats de nationalité"],
+    "aicha.ilboudo": ["ONI – carte nationale d'identité"],
 }
 
 

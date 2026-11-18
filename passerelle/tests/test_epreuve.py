@@ -166,18 +166,25 @@ def test_pannes_des_vrais_registres_eteint_non_conforme_puis_retour_normal(clien
 
 @respx.mock
 def test_cle_api_par_administration():
-    """Sans jeton Keycloak : la clé API identifie l'administration (CEFORE), jamais le corps de la demande."""
+    """Sans jeton Keycloak : la clé API identifie l'administration (tribunal, ONI), jamais le corps de la demande."""
     brancher_les_registres_reels()
     mediateur.app.dependency_overrides.clear()
     with TestClient(mediateur.app) as c:
-        d = demande(demarche="entreprise-individuelle-cefore", sujet="BF-0001")
-        r = c.post("/demandes", json=d, headers={"X-Cle-Api": "cle-demo-cefore"})
+        d = demande(demarche="certificat-nationalite", sujet="BF-0001")
+        r = c.post("/demandes", json=d, headers={"X-Cle-Api": "cle-demo-tribunal"})
         assert r.status_code == 200 and r.json()["statut"] == "en_attente"      # consentement : l'usager voit l'aperçu
         ligne = lignes_de(d)[0]
-        assert ligne["agent"] == "api-cefore" and ligne["demandeur"] == "cefore"
+        assert ligne["agent"] == "api-tribunal" and ligne["demandeur"] == "tribunal"
         c.post(f"/demandes/{d['id_demande']}/refuser", json={"sujet_ref": "BF-0001"}, headers=CANAL)   # referme l'attente
+        # ONI : mission légale, remise immédiate de l'identité, de la naissance et filiation, de la nationalité
+        d = demande(demarche="carte-identite-oni", sujet="BF-0001")
+        r = c.post("/demandes", json=d, headers={"X-Cle-Api": "cle-demo-oni"})
+        volets = {v["attribut"]: v.get("valeur") for v in r.json()["volets"]}
+        assert r.status_code == 200 and r.json()["statut"] == "remise" and lignes_de(d)[0]["agent"] == "api-oni"
+        assert volets["nationalite_bf"] is True and volets["identite"] == {"nom": "KABORE", "prenoms": "Aminata"}
+        assert set(volets["naissance_filiation"]) == {"date_naissance", "lieu_naissance", "pere", "mere"}
         # La clé d'une AUTRE administration ne donne pas accès à cette démarche
-        r = c.post("/demandes", json=demande(demarche="entreprise-individuelle-cefore"), headers={"X-Cle-Api": "cle-demo-concours"})
+        r = c.post("/demandes", json=demande(demarche="carte-identite-oni"), headers={"X-Cle-Api": "cle-demo-concours"})
         assert r.status_code == 403
         assert c.post("/demandes", json=demande(), headers={"X-Cle-Api": "mauvaise"}).status_code == 401
 
@@ -195,3 +202,19 @@ def test_essai_a_blanc_registre_d_une_autre_equipe():
                        timeout=120, cwd=RACINE)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "8/8 vérifications" in r.stdout
+
+
+@respx.mock
+def test_reponse_au_mauvais_type_ne_laisse_pas_sa_valeur_au_journal(client):
+    """Protection des données : quand un registre renvoie une valeur au mauvais type, le motif écrit au journal (en ajout
+    seul) dit le CHAMP et le TYPE d'erreur, jamais la valeur reçue (jsonschema la recopie dans son message)."""
+    fiche = {"id": "BF-0001", "nom": "KABORE", "prenoms": "Aminata", "date_naissance": 19980702,
+             "lieu_naissance": "Ouagadougou", "pere": "Issaka KABORE", "mere": "Salimata KABORE", "date_deces": None,
+             "nationalite": 4242, "nombre_condamnations": "2 (vol, 2019)"}
+    respx.get(url__regex=URL_REGISTRE).mock(return_value=httpx.Response(200, json=fiche))
+    d = demande()
+    r = client.post("/demandes", json=d)
+    tout = json.dumps(lignes_de(d), ensure_ascii=False) + json.dumps(r.json(), ensure_ascii=False)
+    assert "non conforme au contrat" in tout and ": type" in tout          # le champ et le type d'erreur
+    for valeur in ("19980702", "4242", "2 (vol, 2019)", "vol, 2019"):
+        assert valeur not in tout, valeur

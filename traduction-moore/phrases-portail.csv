@@ -19,7 +19,7 @@ menu_historique;Menu;Qui a consulté mes données;;;
 menu_accords;Menu;Mes accords (retirer);;;
 n_attente;Menu;{n} en attente;;;
 attente_titre;Demandes en attente;Accords à donner;;;
-aucune_demande;Demandes en attente;Aucune demande en attente.;;;
+aucune_demande;Accords à donner;Aucun accord à donner.;;;
 demarche;Demandes en attente;Démarche;;;
 finalite;Demandes en attente;Pour;;;
 valable;Demandes en attente;À confirmer avant {heure}, sinon rien ne partira.;;;

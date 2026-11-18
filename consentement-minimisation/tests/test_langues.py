@@ -51,7 +51,7 @@ def test_finalite_mos_vide_ou_pas_un_texte_refusee(monkeypatch, tmp_path, valeur
     (dossier / "attributs.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/attributs.yaml").read_bytes())
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
-    ancre = "    finalite: immatriculation d'une entreprise individuelle au CEFORE\n"
+    ancre = "    finalite: établissement de la carte nationale d'identité burkinabè\n"
     assert ancre in texte
     brut = texte.replace(ancre, ancre + f"    finalite_mos: {'null' if valeur is None else repr(valeur)}\n")
     with pytest.raises(catalogue.CatalogueInvalide, match="« finalite_mos » doit être un texte non vide"):
@@ -65,6 +65,6 @@ def test_finalite_mos_remplie_acceptee(monkeypatch, tmp_path):
     (dossier / "attributs.yaml").write_bytes((RACINE / "consentement-minimisation/catalogue/attributs.yaml").read_bytes())
     monkeypatch.setattr(catalogue, "CATALOGUE", dossier)
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
-    ancre = "    finalite: immatriculation d'une entreprise individuelle au CEFORE\n"
+    ancre = "    finalite: établissement de la carte nationale d'identité burkinabè\n"
     brut = texte.replace(ancre, ancre + "    finalite_mos: \"[mos] entreprise\"\n")
-    assert catalogue.charger(brut.encode("utf-8"))["demarches"]["entreprise-individuelle-cefore"]["finalite_mos"] == "[mos] entreprise"
+    assert catalogue.charger(brut.encode("utf-8"))["demarches"]["carte-identite-oni"]["finalite_mos"] == "[mos] entreprise"

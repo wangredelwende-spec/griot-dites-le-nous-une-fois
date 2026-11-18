@@ -105,7 +105,8 @@ def main():
     if not archive.startswith("OK  Journal intègre") or not neuf.startswith("OK  Journal intègre"):
         raise SystemExit("ATTENTION : chaîne rompue (voir ci-dessus).")
     print(f"\nDonnées de démonstration remises à zéro. Archive {date} conservée et vérifiable.")
-    env = [l.strip() for l in (RACINE / ".env").read_text(encoding="utf-8").splitlines()]
+    fichier_env = RACINE / ".env"          # absent sur un clone neuf : valeurs par défaut, OUTILS_TEST=0
+    env = [l.strip() for l in fichier_env.read_text(encoding="utf-8").splitlines()] if fichier_env.exists() else []
     if "OUTILS_TEST=1" in env:
         print("ATTENTION : OUTILS_TEST=1 (comptes de test actifs). Avant la démonstration : OUTILS_TEST=0 dans .env, "
               "puis python scripts/outils_test.py")

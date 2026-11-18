@@ -3,10 +3,36 @@
 ## Ce qui est simulé
 
 - **Registres** : `registres/`, registres simulés selon notre contrat (`registres/contrat/contrat-registres.yaml`),
-  données fictives (`registres/donnees/citoyens-fictifs.yaml`). Pas de contrat commun imposé entre les équipes.
+  données fictives (`registres/donnees/citoyens-fictifs.yaml`). Aucun contrat commun n'est imposé (confirmé oralement par les organisateurs le 17 novembre 2026).
 - **Connexion des usagers** : USSD simulé, numéro + PIN fictifs (`espace-usager/ussd/abonnes.yaml`), PIN de démo en clair, non hachés.
   En production : connexion par l'identifiant unique électronique.
-- **Textes de loi** des démarches : références à faire valider (voir `consentement-minimisation/catalogue/`).
+- **Textes de loi** des démarches : aucun texte non vérifié n'est cité ; la base légale du concours est décrite sans
+  numéro de loi, à confirmer par l'administration du concours. Seuil d'âge : seuil configurable (18 ans par défaut).
+
+## Limites reconnues (audit du 18/11)
+
+- **Journal** : toute modification ou suppression d'une ligne est détectée (chaînage SHA-256, `verifier.py`,
+  `/journal/verification`). En revanche, **une réécriture complète de la chaîne** (toutes les empreintes recalculées par
+  quelqu'un qui a accès au fichier SQLite) **n'est pas détectée** sans ancrage externe (publication régulière de la
+  dernière empreinte hors du serveur). Les reçus remis aux usagers et la double trace des registres (désactivée) ne
+  couvrent qu'une partie des cas.
+- **Lecture avant l'accord** : pour le certificat de nationalité (seule démarche active à consentement), la passerelle **lit les registres avant
+  l'accord** de l'usager, pour lui montrer l'aperçu exact ; la réponse minimisée attend dans la base du médiateur, puis
+  est effacée à la remise, au refus ou à l'expiration. **L'accord porte sur la TRANSMISSION**, pas sur la lecture. La
+  lecture figure dans l'historique de l'usager, même s'il refuse.
+- **Registre externe** : pour être branché par configuration seule, le registre d'une autre équipe doit renvoyer une
+  fiche **JSON à plat** (un champ = une valeur), en **GET**, avec **l'identifiant du citoyen dans l'adresse**, le même
+  identifiant que le nôtre, et une **date de naissance AAAA-MM-JJ**. Une valeur de nationalité absente des
+  `correspondances` de `attributs.yaml` donne un refus. Un registre qui renvoie déjà un oui/non (ex. « majeur : true »),
+  une fiche imbriquée, un POST ou un autre format de date demande du code.
+- **Certificat de nationalité** : le tribunal reçoit la naissance et la filiation (noms des parents), mais **pas la
+  nationalité des parents** : notre contrat ne donne que leurs noms, sans leur identifiant, donc la passerelle ne peut
+  pas interroger le registre de la nationalité pour eux (ni deviner une personne d'après un nom). Le tribunal doit
+  encore établir la nationalité des parents par ses propres moyens. Pour la fournir : un identifiant de chaque parent
+  dans la fiche d'état civil (changement de contrat), puis un attribut par configuration.
+- **Pseudonymisation** : le citoyen est pseudonymisé dans le journal (HMAC de son identifiant), mais **la clé est sur le
+  même serveur** que le journal : l'administrateur du serveur peut ré-identifier. En production : clé dans un coffre
+  séparé, accès journalisé.
 
 - **Portail web usager** (`/portail`) : même connexion que l'USSD (numéro + PIN de démo). Le compteur de PIN faux
   est tenu par chaque écran, en mémoire : 3 essais sur l'USSD et 3 sur le portail par période de 5 minutes, remis
@@ -62,15 +88,21 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
   La passerelle garde ses propres contrôles : service autorisé par attribut (`attributs.yaml`), finalité, base, accord.
 - Le « casier vierge » d'un citoyen absent du casier n'existe plus : un 404 du casier est un refus « citoyen inconnu ».
 - Panne par variable d'environnement `PANNE` (normal, lent, eteint, non_conforme) ; `resilience/panne.py`.
-- Le banc de pannes, `tests/e2e/` et les scripts de `scripts/` parlent encore des anciens registres signés : à reprendre
-  avant de les relancer. Tests de l'ancien code des registres conservés (`registres/tests/`, via `ancien_main`).
+- Le banc de pannes (`resilience/banc_de_pannes.py`, 13 situations) et `tests/e2e/` suivent les registres selon le
+  contrat (18/11). Ancien banc signé : `resilience/ancien/`, non utilisé. Tests de l'ancien code des registres conservés
+  (`registres/tests/`, via `ancien_main`).
+- `/journal/verification` (public) ne donne ni le nombre de lignes ni aucune donnée : seulement intègre / première
+  ligne modifiée.
 
 ## Catalogue du cadre, accords et minimisation (17/11)
 
-- Trois démarches actives : concours direct (base légale : majeur, nationalité, casier vierge), entreprise individuelle au
-  CEFORE (consentement 7 jours : identité, casier vierge), certificat de nationalité (consentement 24 h : naissance et
-  filiation, pour le tribunal). **Les durées (168 h et 24 h) sont des choix de l'équipe, à confirmer.** Le concours est en
-  base légale : pas d'accord à donner, la consultation figure dans l'historique avec son texte.
+- Trois démarches actives : concours direct (base légale : majeur, nationalité, casier vierge), carte nationale d'identité
+  à l'ONI (base légale, mission de l'ONI : identité, naissance et filiation, nationalité ; pas de casier), certificat de
+  nationalité (consentement 24 h : naissance et filiation, pour le tribunal). **La durée de 24 h est un choix de l'équipe,
+  à confirmer.** En base légale : pas d'accord à donner, la consultation figure dans l'historique avec son texte.
+- **CEFORE retiré le 18/11** (`demarches-inactives.yaml`, conservé) : l'identité transmise ne suffisait pas à
+  l'immatriculation et « casier vierge » allait au-delà du besoin. Le service `cefore` reste déclaré (annuaire, groupe
+  Keycloak, agents) sans démarche active : les tests de l'accord s'en servent encore.
 - Accord par démarche : donné quand l'usager confirme, enregistré (table `accords`, sans valeur), valable
   `duree_accord_heures`, retirable. Accord valide : la même démarche pour le même service est remise immédiatement
   (ligne `accord-valide` au journal). Retrait, expiration : l'usager est de nouveau consulté.
@@ -79,12 +111,14 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
 - `catalogue/correspondance.yaml` : seul fichier où les noms de champs des registres sont écrits.
   `regles_attributs/minimisation.py` calcule majeur, nationalité, casier, identité, naissance et filiation depuis la
   fiche brute, dans la passerelle.
-- Keycloak : `realm-griot.json` décrit les nouveaux groupes et comptes (CEFORE, tribunal), mais une pile **déjà
-  installée** ne les a pas : à ajouter dans la console Keycloak (ou réimporter le realm) avant de tester le guichet.
+- Keycloak : `realm-griot.json` décrit les groupes et comptes (concours, ONI, tribunal, CEFORE), mais une pile **déjà
+  installée** ne les a pas : `scripts/keycloak_groupes_cadre.py` les ajoute sans réimporter le realm (TOTP conservés).
+- Le **guichet lit l'annuaire au démarrage** : après l'ajout d'une administration (`annuaire.yaml`), redémarrer le guichet
+  (`docker compose restart guichet`). La passerelle, elle, relit le catalogue à chaud.
 - Textes mooré : `phrases-ussd.csv` a reçu des lignes françaises pour les nouveaux services et attributs ; les colonnes
   mooré restent vides (rien n'est inventé). Les anciennes lignes (bourses, passeport…) sont conservées.
-- Le banc de pannes, les scripts de bout en bout (`tests/e2e`) et `scripts/` parlent encore des anciennes démarches :
-  à reprendre avant la prochaine reconstruction de la pile.
+- Le banc de pannes joue les 3 démarches par clé API ; `tests/e2e` joue le concours et la carte d'identité (ONI) au guichet
+  (mot de passe + TOTP), et le certificat de nationalité avec l'accord de l'usager, au portail et à l'USSD.
 
 ## Appels aux registres et clés API (17/11)
 
@@ -106,7 +140,7 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
   pour le réactiver (refus + alerte dans l'historique du citoyen).
 - Limite « trop de citoyens différents par agent et par heure » (`LIMITE_SUJETS`) : **désactivée** (0). Le banc de pannes
   l'active (5) seulement pour le scénario « agent curieux », en écrivant `/donnees/limite_sujets`, puis la retire.
-- Les comptes des tests de bout en bout (`agent.banc`, `agent.banc.cefore`) en sont exemptés (`LIMITE_EXEMPTES` dans
+- Les comptes des tests de bout en bout (`agent.banc`, `agent.banc.oni`, `agent.banc.tribunal`, `agent.banc.cefore`) en sont exemptés (`LIMITE_EXEMPTES` dans
   `docker-compose.yml`) **seulement si `OUTILS_TEST=1`** (mode test) : ils interrogent des dizaines de fois les mêmes
   citoyens fictifs. Avec `OUTILS_TEST=0` (démonstration), ils suivent les limites comme tout le monde.
   **En production : aucune exemption.**
@@ -156,5 +190,4 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
 
 - **Le consentement d'un mineur par son représentant légal n'est pas traité.** Dans la démo, l'usager mineur
   confirme lui-même sur son téléphone. Le passeport ne demande pas l'âge (l'ONI le connaît déjà par
-  l'enrôlement de la CNIB) : l'autorisation parentale d'un mineur reste traitée hors du système. La loi n°001-2021
-  confie ce consentement au représentant légal : voir `FEUILLE_DE_ROUTE.md`.
+  l'enrôlement de la CNIB) : l'autorisation parentale d'un mineur reste traitée hors du système. La loi sur la protection des données personnelles (texte à vérifier) confie ce consentement au représentant légal : voir `FEUILLE_DE_ROUTE.md`.

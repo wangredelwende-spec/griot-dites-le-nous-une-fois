@@ -19,7 +19,7 @@ from outils_test import RACINE, kcadm, lire_env  # noqa: E402
 def main():
     env = lire_env()
     kcadm("config", "credentials", "--server", "http://localhost:8080", "--realm", "master", "--user", "admin",
-          "--password", env["KEYCLOAK_ADMIN_PASSWORD"])
+          "--password", env.get("KEYCLOAK_ADMIN_PASSWORD", "demo-admin-keycloak-a-changer"))   # défaut de docker-compose.yml (sans .env)
     annuaire = yaml.safe_load((RACINE / "consentement-minimisation/catalogue/annuaire.yaml").read_text(encoding="utf-8"))
     realm = json.loads((RACINE / "socle/keycloak/realm-griot.json").read_text(encoding="utf-8"))
     groupes = {g["name"]: g["id"] for g in json.loads(kcadm("get", "groups", "-r", "griot"))}

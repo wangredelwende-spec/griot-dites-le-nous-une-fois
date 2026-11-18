@@ -26,9 +26,9 @@ def demander(client: httpx.Client, csrf: str, sujet: str, demarche: str = "conco
 CAS = [
     # Concours direct : UNE demande, 3 registres, base légale
     ("concours-direct", "BF-0002", ["majeur (18 ans accomplis) : oui", "nationalité burkinabè : oui",
-                                    "casier judiciaire vierge : oui", "toutes les conditions sont vérifiées"]),
+                                    "casier judiciaire vierge : oui", "les 3 conditions vérifiées par Griot sont remplies"]),
     ("concours-direct", "BF-0003", ["majeur (18 ans accomplis) : non"]),                     # mineure
-    ("concours-direct", "BF-0004", ["casier judiciaire vierge : non", "au moins une condition n'est pas remplie"]),
+    ("concours-direct", "BF-0004", ["casier judiciaire vierge : non", "les 3 conditions vérifiées par Griot ne sont pas toutes remplies"]),
     ("concours-direct", "BF-0007", ["nationalité burkinabè : non"]),                         # non burkinabè
     ("concours-direct", "BF-0009", ["réponse impossible, s'adresser au registre d'état civil"]),   # décédée : rien de plus
     ("concours-direct", "BF-4242", ["citoyen inconnu"]),
@@ -47,6 +47,17 @@ def main():
             echecs += not ok
             print(f"{'OK ' if ok else 'ÉCHEC'} {demarche} {sujet} -> {' | '.join(attendus)}"
                   + ("" if ok else f"\n      page : {texte[-400:]}"))
+    # Carte nationale d'identité (ONI, base légale) : identité, naissance et filiation, nationalité ; rien du casier
+    with httpx.Client(verify=autorite_caddy(), follow_redirects=True, timeout=20) as client:
+        csrf = connecter(client, "agent.banc.oni")
+        print("OK  connexion de agent.banc.oni (mot de passe + TOTP)")
+        texte = demander(client, csrf, "BF-0002", "carte-identite-oni")
+        attendus = ["nom : OUEDRAOGO", "date naissance : 1998-07-02", "pere : Hamidou OUEDRAOGO",
+                    "nationalité burkinabè : oui", "les 3 conditions vérifiées par Griot sont remplies"]
+        ok = all(a in texte for a in attendus) and "casier" not in texte
+        echecs += not ok
+        print(f"{'OK ' if ok else 'ÉCHEC'} carte-identite-oni BF-0002 -> identité, naissance et filiation, nationalité"
+              + ("" if ok else f"\n      page : {texte[-500:]}"))
     verification = subprocess.run(["docker", "compose", "exec", "-T", "mediateur", "python", "/journal/verifier.py"],
                                   cwd=RACINE, capture_output=True, text=True)
     print(verification.stdout.strip())

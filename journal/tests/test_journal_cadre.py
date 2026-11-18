@@ -51,8 +51,8 @@ def test_verification_ok_puis_premiere_ligne_modifiee(tmp_path, monkeypatch, cli
 
     r = client.get("/journal/verification")          # sans jeton : ni identifiant ni valeur dans la réponse
     assert r.status_code == 200
-    assert r.json() | {"message": ""} == {"statut": "OK", "integre": True, "lignes": 4,
-                                          "premiere_ligne_modifiee": None, "message": ""}
+    # ni le nombre de lignes (il révélerait l'activité des autres usagers)
+    assert r.json() == {"statut": "OK", "integre": True, "premiere_ligne_modifiee": None, "message": "Journal intègre"}
 
     base.execute("DROP TRIGGER journal_sans_modification")
     base.execute("UPDATE journal SET agent = 'intrus' WHERE n = 3")

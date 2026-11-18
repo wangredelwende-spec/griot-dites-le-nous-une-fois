@@ -13,15 +13,17 @@ def charger_le_catalogue():
 
 def test_catalogue_actif_trois_demarches_du_cadre():
     chat = charger_le_catalogue()
-    assert set(chat["demarches"]) == {"concours-direct", "entreprise-individuelle-cefore", "certificat-nationalite"}
+    assert set(chat["demarches"]) == {"concours-direct", "carte-identite-oni", "certificat-nationalite"}
     attributs = {code: [a["attribut"] for a in d["attributs"]] for code, d in chat["demarches"].items()}
     assert attributs == {"concours-direct": ["majeur", "nationalite_bf", "casier_vierge"],
-                         "entreprise-individuelle-cefore": ["identite", "casier_vierge"],
+                         "carte-identite-oni": ["identite", "naissance_filiation", "nationalite_bf"],
                          "certificat-nationalite": ["naissance_filiation"]}
     services = {code: d["services"] for code, d in chat["demarches"].items()}
-    assert services == {"concours-direct": ["direction-concours"], "entreprise-individuelle-cefore": ["cefore"],
+    assert services == {"concours-direct": ["direction-concours"], "carte-identite-oni": ["oni"],
                         "certificat-nationalite": ["tribunal"]}
-    assert set(chat["services"]) == {"direction-concours", "cefore", "tribunal"}
+    assert chat["demarches"]["carte-identite-oni"]["base"] == "base_legale"      # mission légale, pas d'accord
+    # « cefore » reste déclaré (démarche retirée le 18/11, service conservé), sans démarche active
+    assert set(chat["services"]) == {"direction-concours", "cefore", "oni", "tribunal"}
 
 
 def test_duree_de_l_accord_pour_chaque_demarche_a_consentement():
@@ -35,15 +37,16 @@ def test_duree_de_l_accord_pour_chaque_demarche_a_consentement():
 def test_demarches_retirees_pas_dans_le_catalogue_actif_mais_conservees():
     chat = charger_le_catalogue()
     inactives = (RACINE / "consentement-minimisation/catalogue/demarches-inactives.yaml").read_text(encoding="utf-8")
-    for code in ("passeport-ordinaire", "bourse-nationale", "verifier-majorite"):
+    for code in ("passeport-ordinaire", "bourse-nationale", "verifier-majorite", "entreprise-individuelle-cefore"):
         assert code not in chat["demarches"] and f"  {code}:" in inactives
 
 
 def test_consentement_sans_duree_refuse(monkeypatch, tmp_path):
     texte = (RACINE / "consentement-minimisation/catalogue/demarches.yaml").read_text(encoding="utf-8")
-    assert "    duree_accord_heures: 168" in texte
+    ligne = "    duree_accord_heures: 24           # une demande ponctuelle\n"
+    assert ligne in texte
     with pytest.raises(catalogue.CatalogueInvalide, match="duree_accord_heures"):
-        catalogue.charger(texte.replace("    duree_accord_heures: 168          # 7 jours : le temps de constituer le dossier\n", "").encode())
+        catalogue.charger(texte.replace(ligne, "").encode())
 
 
 def test_apercus_tiennent_dans_un_ecran_ussd(monkeypatch):
@@ -52,8 +55,6 @@ def test_apercus_tiennent_dans_un_ecran_ussd(monkeypatch):
     monkeypatch.setattr(mediateur, "CAT", chat)
     exemples = {
         "concours-direct": ("direction-concours", [("majeur", 1), ("nationalite_bf", 1), ("casier_vierge", 1)]),
-        "entreprise-individuelle-cefore": ("cefore", [("identite", '{"nom": "KABORE", "prenoms": "Aminata"}'),
-                                                      ("casier_vierge", 1)]),
         "certificat-nationalite": ("tribunal", [("naissance_filiation", '{"date_naissance": "2001-03-14", '
                                                  '"lieu_naissance": "Ouagadougou", "pere": "Issaka KABORE", '
                                                  '"mere": "Salimata KABORE"}')]),
@@ -184,7 +185,7 @@ DEMARCHE_VALIDE = """
     services: [direction-concours]
     finalite: vérification de la majorité civile
     base: base_legale
-    texte: Code des personnes et de la famille, loi n°012-2025/ALT (majorité civile à 18 ans accomplis)
+    texte: Base légale de test (aucun texte cité)
     attributs:
       - {attribut: majeur, parametres: {min: 18, date_reference: aujourd'hui}, libelle: majeur}
 """
@@ -219,15 +220,15 @@ def test_nouvelle_administration_par_configuration_seule(tmp_path, monkeypatch):
         assert avant in texte
         chemin.write_text(texte.replace(avant, apres, 1), encoding="utf-8")
 
-    ajouter("annuaire.yaml", "  cefore:\n", "  mairie:\n    groupe: Mairie\n    nom: La mairie\n    nom_court: la mairie\n"
-            "    cle_api_sha256: " + "0" * 64 + "\n  cefore:\n")
-    ajouter("demarches.yaml", "  entreprise-individuelle-cefore:\n",
+    ajouter("annuaire.yaml", "  tribunal:\n", "  mairie:\n    groupe: Mairie\n    nom: La mairie\n    nom_court: la mairie\n"
+            "    cle_api_sha256: " + "0" * 64 + "\n  tribunal:\n")
+    ajouter("demarches.yaml", "  carte-identite-oni:\n",
             "  attestation-mairie:\n    libelle: Attestation de nationalité (mairie)\n    services: [mairie]\n"
             "    finalite: attestation de nationalité à la mairie\n    base: consentement\n    duree_accord_heures: 24\n"
             "    attributs:\n      - attribut: nationalite_bf\n        libelle: nationalité burkinabè\n\n"
-            "  entreprise-individuelle-cefore:\n")
+            "  carte-identite-oni:\n")
     with pytest.raises(catalogue.CatalogueInvalide, match="n'autorise pas mairie"):
         catalogue.charger()                                   # démarche déclarée, mais attributs.yaml ne l'autorise pas
-    ajouter("attributs.yaml", "    valeur: burkinabe\n    services: [direction-concours]",
-            "    valeur: burkinabe\n    services: [direction-concours, mairie]")
+    ajouter("attributs.yaml", "    valeur: burkinabe\n    services: [direction-concours, oni]",
+            "    valeur: burkinabe\n    services: [direction-concours, oni, mairie]")
     assert "attestation-mairie" in catalogue.charger()["demarches"]

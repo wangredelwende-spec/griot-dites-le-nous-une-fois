@@ -195,3 +195,19 @@ def test_essai_a_blanc_registre_d_une_autre_equipe():
                        timeout=120, cwd=RACINE)
     assert r.returncode == 0, r.stdout + r.stderr
     assert "8/8 vérifications" in r.stdout
+
+
+@respx.mock
+def test_reponse_au_mauvais_type_ne_laisse_pas_sa_valeur_au_journal(client):
+    """Protection des données : quand un registre renvoie une valeur au mauvais type, le motif écrit au journal (en ajout
+    seul) dit le CHAMP et le TYPE d'erreur, jamais la valeur reçue (jsonschema la recopie dans son message)."""
+    fiche = {"id": "BF-0001", "nom": "KABORE", "prenoms": "Aminata", "date_naissance": 19980702,
+             "lieu_naissance": "Ouagadougou", "pere": "Issaka KABORE", "mere": "Salimata KABORE", "date_deces": None,
+             "nationalite": 4242, "nombre_condamnations": "2 (vol, 2019)"}
+    respx.get(url__regex=URL_REGISTRE).mock(return_value=httpx.Response(200, json=fiche))
+    d = demande()
+    r = client.post("/demandes", json=d)
+    tout = json.dumps(lignes_de(d), ensure_ascii=False) + json.dumps(r.json(), ensure_ascii=False)
+    assert "non conforme au contrat" in tout and ": type" in tout          # le champ et le type d'erreur
+    for valeur in ("19980702", "4242", "2 (vol, 2019)", "vol, 2019"):
+        assert valeur not in tout, valeur

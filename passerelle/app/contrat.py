@@ -53,5 +53,7 @@ def erreurs_de_conformite(contrat: dict, route: str, corps) -> list[str]:
     except (KeyError, TypeError):
         return [f"route « {route} » ou sa réponse 200 absente du contrat"]
     racine = dict(schema) | {"components": contrat.get("components", {})}      # les « $ref » locaux se résolvent ici
-    return [f"{'/'.join(map(str, e.absolute_path)) or 'réponse'} : {e.message[:120]}"
-            for e in Draft202012Validator(racine).iter_errors(corps)]
+    # Seulement le champ et le TYPE d'erreur (type, required, additionalProperties…), jamais e.message : il recopie la
+    # valeur reçue (« '1998-07-02' is not of type 'integer' »), qui finirait dans le journal, en ajout seul.
+    return sorted({f"{'/'.join(map(str, e.absolute_path)) or 'réponse'} : {e.validator}"
+                   for e in Draft202012Validator(racine).iter_errors(corps)})

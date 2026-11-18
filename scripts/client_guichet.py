@@ -1,7 +1,7 @@
 """Client du guichet pour les scripts et les tests de bout en bout : se connecte comme un vrai agent
 (Keycloak : mot de passe + TOTP) et envoie une demande, contre la pile qui tourne.
 
-Comptes de test : agent.banc (Direction des concours) et agent.banc.cefore (Service des bourses).
+Comptes de test : agent.banc (Direction des concours) et agent.banc.cefore (CEFORE).
 Leur secret TOTP est créé au premier passage et gardé dans tests/.secrets/ (ignoré par git).
 Ne pas utiliser ces comptes en démonstration manuelle.
 """
@@ -89,7 +89,8 @@ def texte(page: str) -> str:
 
 
 def reponses_signees(page: str) -> dict[str, dict]:
-    """Contenu décodé des réponses signées que le guichet a reçues et vérifiées ({attribut: claims})."""
+    """Contenu détaillé reçu par le guichet ({attribut: claims}). Vide avec les registres selon le contrat : la
+    signature des registres est désactivée (LIMITES.md), le guichet ne reçoit que le résultat minimisé."""
     return {code: json.loads(html.unescape(contenu))
             for code, contenu in re.findall(r'<pre id="jeton-([^"]+)">(.*?)</pre>', page, re.S)}
 

@@ -23,7 +23,7 @@ def contenu(page: str) -> str:
     """Texte visible de la partie principale de la page (sans l'en-tête)."""
     principal = re.search(r"<main>(.*?)</main>", page, re.S)
     principal = principal.group(1) if principal else page
-    # Sans le contenu décodé des réponses signées (visible au guichet, dans « réponse signée reçue »)
+    # Sans le bloc dépliable de l'ancien registre signé (désactivé), s'il apparaît
     return texte(re.sub(r"<details.*?</details>", " ", principal, flags=re.S))
 
 

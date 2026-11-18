@@ -4,9 +4,9 @@
    du casier…) : ce qu'un registre bavard aurait pu laisser fuir.
 2. Fait une vraie demande de bout en bout (agent.banc, connexion mot de passe + TOTP, guichet, médiateur, registres).
 3. Cherche chaque témoin PARTOUT hors des registres : base SQLite du médiateur (journal, demandes en attente),
-   logs du médiateur, du guichet, de l'USSD et de Caddy, page du guichet, réponses signées reçues par le guichet,
+   logs du médiateur, du guichet, de l'USSD et de Caddy, page du guichet, contenu détaillé reçu par le guichet,
    historique de l'usager.
-4. Affiche « introuvable ✅ » ou « TROUVÉ ❌ » pour chaque endroit, puis les réponses signées décodées.
+4. Affiche « introuvable ✅ » ou « TROUVÉ ❌ » pour chaque endroit, puis ce que le guichet a reçu.
 
 Utilisation :
     python scripts/preuve_minimisation.py BF-0001
@@ -132,7 +132,7 @@ def main():
         "base SQLite du médiateur (journal + demandes)": base_du_mediateur(),
         "historique de l'usager (API usager)": historique_usager(args.usager),
         "page du guichet (ce que voit l'agent)": texte(page).encode("utf-8"),
-        "réponses signées reçues par le guichet": json.dumps(signees, ensure_ascii=False).encode("utf-8"),
+        "contenu détaillé reçu par le guichet": json.dumps(signees, ensure_ascii=False).encode("utf-8"),
     }
     for service in ("mediateur", "guichet", "ussd_sim", "portail", "caddy"):
         endroits[f"logs du conteneur {service}"] = compose("logs", "--no-color", service).stdout.encode("utf-8")
@@ -143,11 +143,11 @@ def main():
         print(f"   {endroit:48} " + (f"TROUVÉ ❌ {', '.join(trouves)}" if trouves else "introuvable ✅"))
 
     # 4. Ce que le guichet a réellement reçu
-    print("\n4. Réponses signées reçues par le guichet (contenu complet, décodé) :")
+    print("\n4. Contenu détaillé reçu par le guichet (en plus du résultat affiché) :")
     for attribut, claims in signees.items():
         print(f"   {attribut} : {json.dumps(claims, ensure_ascii=False)}")
     if not signees:
-        print("   (aucune : registre indisponible ou demande refusée avant les registres)")
+        print("   (rien : le guichet ne reçoit que le résultat minimisé affiché à l'étape 2)")
     print("\n" + ("Aucune donnée témoin hors des registres ✅" if not fuites else f"{fuites} endroit(s) avec une fuite ❌"))
     sys.exit(1 if fuites else 0)
 

@@ -46,7 +46,7 @@ COUCHES = {
                       "sous /portail. Formulaires HTML ; ils n'utilisent que l'API de la couche consentement et "
                       "minimisation et l'historique du journal."),
     "guichet": ("guichet-agent/openapi.yaml", "Guichet agent",
-                "Écran de l'agent (Keycloak : mot de passe + TOTP) : choix de la démarche, envoi, résultat signé "
+                "Écran de l'agent (Keycloak : mot de passe + TOTP) : choix de la démarche, envoi, résultat minimisé "
                 "et revérifié ; page /controle en lecture seule pour le rôle controleur. Formulaires HTML."),
 }
 # Étiquettes des routes de la passerelle (passerelle/app/main.py et consentement/usager.py)

@@ -62,8 +62,11 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
   La passerelle garde ses propres contrôles : service autorisé par attribut (`attributs.yaml`), finalité, base, accord.
 - Le « casier vierge » d'un citoyen absent du casier n'existe plus : un 404 du casier est un refus « citoyen inconnu ».
 - Panne par variable d'environnement `PANNE` (normal, lent, eteint, non_conforme) ; `resilience/panne.py`.
-- Le banc de pannes, `tests/e2e/` et les scripts de `scripts/` parlent encore des anciens registres signés : à reprendre
-  avant de les relancer. Tests de l'ancien code des registres conservés (`registres/tests/`, via `ancien_main`).
+- Le banc de pannes (`resilience/banc_de_pannes.py`, 13 situations) et `tests/e2e/` suivent les registres selon le
+  contrat (18/11). Ancien banc signé : `resilience/ancien/`, non utilisé. Tests de l'ancien code des registres conservés
+  (`registres/tests/`, via `ancien_main`).
+- `/journal/verification` (public) ne donne ni le nombre de lignes ni aucune donnée : seulement intègre / première
+  ligne modifiée.
 
 ## Catalogue du cadre, accords et minimisation (17/11)
 
@@ -83,8 +86,8 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
   installée** ne les a pas : à ajouter dans la console Keycloak (ou réimporter le realm) avant de tester le guichet.
 - Textes mooré : `phrases-ussd.csv` a reçu des lignes françaises pour les nouveaux services et attributs ; les colonnes
   mooré restent vides (rien n'est inventé). Les anciennes lignes (bourses, passeport…) sont conservées.
-- Le banc de pannes, les scripts de bout en bout (`tests/e2e`) et `scripts/` parlent encore des anciennes démarches :
-  à reprendre avant la prochaine reconstruction de la pile.
+- Le banc de pannes joue les 3 démarches par clé API ; `tests/e2e` joue le concours au guichet (mot de passe + TOTP) et
+  CEFORE au portail et à l'USSD. Le certificat de nationalité n'a pas de compte de test au guichet : il est joué par le banc.
 
 ## Appels aux registres et clés API (17/11)
 

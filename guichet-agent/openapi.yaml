@@ -3,7 +3,7 @@
 openapi: 3.1.0
 info:
   title: 'Griot : Guichet agent'
-  description: 'Écran de l''agent (Keycloak : mot de passe + TOTP) : choix de la démarche, envoi, résultat signé et revérifié
+  description: 'Écran de l''agent (Keycloak : mot de passe + TOTP) : choix de la démarche, envoi, résultat minimisé et revérifié
     ; page /controle en lecture seule pour le rôle controleur. Formulaires HTML.'
   version: '1.0'
 paths:

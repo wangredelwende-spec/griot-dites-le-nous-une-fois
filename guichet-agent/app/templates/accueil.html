@@ -3,7 +3,7 @@
 {% block contenu %}
 <h1>Nouvelle demande</h1>
 <p class="aide">Service demandeur : <strong>{{ service }}</strong> (déterminé par votre compte, pas par ce formulaire).
-L'usager n'apporte aucune pièce : chaque registre répond seulement aux questions prévues par la démarche (catalogue).</p>
+L'usager n'apporte aucune pièce : le catalogue fixe ce que chaque registre peut répondre.</p>
 
 {% if refus %}
 <div class="erreur" role="alert"><p><strong>Nouvelle version du catalogue REFUSÉE</strong> ({{ refus.date }},
@@ -12,20 +12,16 @@ L'usager n'apporte aucune pièce : chaque registre répond seulement aux questio
 {% endif %}
 {% if erreur %}<div class="erreur" role="alert"><p>{{ erreur }}</p></div>{% endif %}
 
-<form method="post" action="/demandes" class="bloc">
+<form method="post" action="/demandes" class="bloc formulaire">
   <input type="hidden" name="csrf" value="{{ csrf }}">
-  <fieldset>
-    <legend>Démarche</legend>
+  <label for="demarche">Démarche</label>
+  <select id="demarche" name="demarche" required>
     {% for code, d in demarches.items() %}
-    <p><label><input type="radio" name="demarche" value="{{ code }}" required {% if loop.first %}checked{% endif %}>
-      <strong>{{ d.libelle }}</strong>
-      ({% if d.base == "consentement" %}avec l'accord de l'usager{% else %}base légale{% endif %})</label><br>
-      <span class="aide">Vérifie seulement : {% for a in d.attributs %}{{ a.libelle }}{{ " ; " if not loop.last }}{% endfor %}.
-      Finalité : {{ d.finalite }}.</span></p>
+    <option value="{{ code }}">{{ d.libelle }}{% if d.base == "consentement" %} — avec l'accord de l'usager{% else %} — base légale{% endif %}</option>
     {% endfor %}
-  </fieldset>
-  <p><label for="sujet_ref">Identifiant de l'usager</label><br>
-     <input id="sujet_ref" name="sujet_ref" value="" required maxlength="200" placeholder="exemple : {{ identifiant.exemple }}" autocomplete="off"></p>
-  <p><button>Envoyer la demande</button></p>
+  </select>
+  <label for="sujet_ref">Identifiant de l'usager</label>
+  <input id="sujet_ref" name="sujet_ref" value="" required maxlength="200" placeholder="exemple : {{ identifiant.exemple }}" autocomplete="off">
+  <p><button>Vérifier</button></p>
 </form>
 {% endblock %}

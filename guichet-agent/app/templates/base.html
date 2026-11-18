@@ -4,22 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titre %}Agents{% endblock %} · Griot Secure, guichet</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/griot.css">
 </head>
 <body>
-  <p style="margin:0;padding:6px 12px;background:#fff3cd;color:#5c4400;font-size:.85rem;text-align:center;border-bottom:1px solid #e0c36a" role="note">Registres simulés, données fictives</p>
-  <header class="entete">
-    <div class="entete-haut">
-      <p class="marque"><strong>Griot Secure</strong> <span>Guichet des agents</span></p>
+  <p class="bandeau" role="note">Registres simulés, données fictives</p>
+  <header>
+    <div class="barre">
+      <p class="marque"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/></svg><strong>Griot Secure</strong> <span>Guichet des agents</span></p>
       {% if agent %}
-      <form method="post" action="/deconnexion" class="deconnexion">
-        <input type="hidden" name="csrf" value="{{ csrf }}">
-        <span class="connecte">{{ agent }} · {{ service }}</span>
-        <button>Se déconnecter</button>
-      </form>
+      <div class="identite">
+        <p class="connecte"><strong>{{ agent }}</strong><br>{{ service }}</p>
+        <form method="post" action="/deconnexion" class="deconnexion">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button>Se déconnecter</button>
+        </form>
+      </div>
       {% endif %}
     </div>
   </header>
   <main>{% block contenu %}{% endblock %}</main>
+  <footer>Griot — logiciel libre (AGPL-3.0)</footer>
 </body>
 </html>

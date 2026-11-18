@@ -6,7 +6,7 @@ body{margin:0;font:1rem/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:
 .bandeau{margin:0;padding:.4rem .75rem;background:#fff3cd;color:#5c4400;font-size:.85rem;text-align:center;border-bottom:1px solid #e0c36a}
 header{background:var(--v);color:#fff}
 .barre{max-width:72rem;margin:auto;padding:.7rem 1rem;display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:center;justify-content:space-between}
-.marque{display:flex;align-items:center;gap:.5rem;color:#fff;text-decoration:none;font-weight:700;font-size:1.1rem}
+.marque{display:flex;align-items:center;gap:.5rem;margin:0;color:#fff;text-decoration:none;font-weight:700;font-size:1.1rem}
 .marque svg{width:1.4rem;height:1.4rem;fill:none;stroke:currentColor;stroke-width:2}
 .marque span{font-weight:400;font-size:.9rem;opacity:.85}
 .deconnexion{display:flex;align-items:center;gap:.6rem;margin:0;font-size:.9rem}
@@ -54,6 +54,13 @@ th{font-size:.8rem;text-transform:uppercase;letter-spacing:.03em;color:var(--d);
 .resume li{background:var(--s);border:1px solid var(--b);border-radius:6px;padding:.5rem .9rem}
 .resume .nombre{font-size:1.4rem;font-weight:700;font-variant-numeric:tabular-nums}
 .resultat{font-size:1.3rem;margin:0 0 .5rem}.sous-titre{margin-top:1.5rem}
+.identite{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.connecte{text-align:right;line-height:1.25;font-size:.9rem;margin:0}
+.formulaire{max-width:36rem}
+.verdict-ligne{font-size:1.25rem;margin:.25rem 0 .5rem;line-height:1.5}
+.verdict-ligne .etat{font-size:1rem;padding:.15rem .7rem;white-space:normal}
+.etat.non{background:#e9eaec;color:#3d434a;border-color:#c4c8cd}
+.bloc.indisponible{border-left:6px solid #8a94a0}
 .telephone{background:#2b2f33;border-radius:2rem;padding:1.5rem 1.25rem 2rem;max-width:26rem;margin:auto}
 .numero{color:#c9d1d9;text-align:center;margin:0 0 .5rem;font-size:.9rem}
 .ecran{background:#c7d3b5;color:#13200c;border-radius:.5rem;padding:.9rem;min-height:11rem;font:1.05rem/1.4 ui-monospace,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}

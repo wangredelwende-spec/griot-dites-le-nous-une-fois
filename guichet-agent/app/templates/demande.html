@@ -20,16 +20,18 @@
 {% for l in lignes %}
 {% set r = l.resultat %}
 {% if r.valeur is defined %}
-<div class="bloc {{ 'succes' if (r.valeur is mapping or r.valeur == l.attendu) else 'attente' }}" role="status">
-  {# « non » n'est pas un refus : c'est une réponse signée ; le catalogue peut dire quoi faire (si_non) #}
+<div class="bloc verdict {{ 'succes' if (r.valeur is mapping or r.valeur == l.attendu) else 'attente' }}" role="status">
   {% if r.valeur is mapping %}
   <p class="resultat"><strong>{{ l.libelle }}</strong></p>
   <ul>{% for nom, texte in r.valeur.items() %}<li>{{ nom | replace("_", " ") }} : {{ texte }}</li>{% endfor %}</ul>
   {% else %}
-  <p class="resultat"><strong>{% if not r.valeur and l.si_non %}{{ l.si_non }}{% else %}{{ l.libelle }} : {{ "oui" if r.valeur else "non" }}{% endif %}</strong></p>
+  <p class="verdict-ligne"><strong>{{ l.libelle }}</strong> :
+    {% if not r.valeur and l.si_non %}<span class="etat alerte">{{ l.si_non }}</span>
+    {% else %}<span class="etat {{ 'ok' if r.valeur else 'non' }}">{{ "oui" if r.valeur else "non" }}</span>{% endif %}
+  </p>
   {% endif %}
-  <p>Fourni par le {{ r.registre }} via la passerelle, validé selon le contrat des registres.
-  <span class="aide">Seul ce résultat vous est transmis, jamais la fiche du citoyen.</span></p>
+  <p class="aide">Fourni par le {{ r.registre }} via la passerelle, validé selon le contrat des registres.
+  Seul ce résultat vous est transmis, jamais la fiche du citoyen.</p>
 </div>
 {% elif r.refus %}
 <div class="erreur" role="alert">
@@ -37,8 +39,10 @@
   <p>Réponse de la passerelle, validée selon le contrat des registres.</p>
 </div>
 {% elif r.indisponible %}
-<div class="erreur" role="alert">
-  <p><strong>{{ l.libelle }} : indisponible.</strong> {{ r.indisponible }}.</p>
+<div class="bloc indisponible" role="status">
+  <p class="verdict-ligne"><strong>{{ l.libelle }} :</strong>
+    <span class="etat indisponible">Indisponible — rien n'a été deviné</span></p>
+  <p class="aide">{{ r.indisponible }}.</p>
 </div>
 {% elif r.echec %}
 <div class="erreur" role="alert">
@@ -57,7 +61,7 @@
 {% if etat.statut == "remise" or (etat.volets and etat.statut in ("refuse", "indisponible")) %}
 {% if lignes|length > 1 %}
 <div class="bloc {{ 'succes' if conclusion == 'oui' else 'attente' }}" role="status">
-  <p><strong>Conclusion :
+  <p class="resultat"><strong>Conclusion :
   {% if conclusion == "oui" %}toutes les conditions sont vérifiées.
   {% elif conclusion == "non" %}au moins une condition n'est pas remplie{% for l in lignes if l.si_non and l.resultat.valeur is sameas false %} ({{ l.si_non }}){% endfor %}.
   {% else %}résultat incomplet, aucune conclusion. Rien n'a été deviné : refaire la demande plus tard.{% endif %}
@@ -67,5 +71,6 @@
 <p class="aide">Le guichet n'a reçu que ces réponses : aucune date de naissance, aucune fiche, aucun détail.</p>
 {% endif %}
 
+<p class="aide">Aucune pièce demandée au citoyen. Seule l'information utile a été transmise.</p>
 <p><a href="/">Nouvelle demande</a></p>
 {% endblock %}

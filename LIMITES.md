@@ -6,7 +6,28 @@
   données fictives (`registres/donnees/citoyens-fictifs.yaml`). Aucun contrat commun n'est imposé (confirmé oralement par les organisateurs le 17 novembre 2026).
 - **Connexion des usagers** : USSD simulé, numéro + PIN fictifs (`espace-usager/ussd/abonnes.yaml`), PIN de démo en clair, non hachés.
   En production : connexion par l'identifiant unique électronique.
-- **Textes de loi** des démarches : références à faire valider (voir `consentement-minimisation/catalogue/`).
+- **Textes de loi** des démarches : aucun texte non vérifié n'est cité ; la base légale du concours est décrite sans
+  numéro de loi, à confirmer par l'administration du concours. Seuil d'âge : seuil configurable (18 ans par défaut).
+
+## Limites reconnues (audit du 18/11)
+
+- **Journal** : toute modification ou suppression d'une ligne est détectée (chaînage SHA-256, `verifier.py`,
+  `/journal/verification`). En revanche, **une réécriture complète de la chaîne** (toutes les empreintes recalculées par
+  quelqu'un qui a accès au fichier SQLite) **n'est pas détectée** sans ancrage externe (publication régulière de la
+  dernière empreinte hors du serveur). Les reçus remis aux usagers et la double trace des registres (désactivée) ne
+  couvrent qu'une partie des cas.
+- **Lecture avant l'accord** : pour le CEFORE et le certificat de nationalité, la passerelle **lit les registres avant
+  l'accord** de l'usager, pour lui montrer l'aperçu exact ; la réponse minimisée attend dans la base du médiateur, puis
+  est effacée à la remise, au refus ou à l'expiration. **L'accord porte sur la TRANSMISSION**, pas sur la lecture. La
+  lecture figure dans l'historique de l'usager, même s'il refuse.
+- **Registre externe** : pour être branché par configuration seule, le registre d'une autre équipe doit renvoyer une
+  fiche **JSON à plat** (un champ = une valeur), en **GET**, avec **l'identifiant du citoyen dans l'adresse**, le même
+  identifiant que le nôtre, et une **date de naissance AAAA-MM-JJ**. Une valeur de nationalité absente des
+  `correspondances` de `attributs.yaml` donne un refus. Un registre qui renvoie déjà un oui/non (ex. « majeur : true »),
+  une fiche imbriquée, un POST ou un autre format de date demande du code.
+- **Pseudonymisation** : le citoyen est pseudonymisé dans le journal (HMAC de son identifiant), mais **la clé est sur le
+  même serveur** que le journal : l'administrateur du serveur peut ré-identifier. En production : clé dans un coffre
+  séparé, accès journalisé.
 
 - **Portail web usager** (`/portail`) : même connexion que l'USSD (numéro + PIN de démo). Le compteur de PIN faux
   est tenu par chaque écran, en mémoire : 3 essais sur l'USSD et 3 sur le portail par période de 5 minutes, remis

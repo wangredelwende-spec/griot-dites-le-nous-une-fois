@@ -30,7 +30,7 @@ attributs:
             beninoise, béninoise, BJ, BEN, Bénin, senegalaise, sénégalaise, SN, SEN, Sénégal, guineenne, guinéenne, GN,
             GIN, Guinée, francaise, française, FR, FRA, France, etrangere, étrangère]
     valeur: burkinabe
-    services: [direction-concours]
+    services: [direction-concours, oni]
   casier_vierge:
     registre: casier
     regle: nombre_nul           # « 0 » -> oui ; « 2 » -> non ; vide ou illisible -> refus
@@ -40,9 +40,9 @@ attributs:
     registre: etat-civil
     regle: champs               # nom et prénoms SEULEMENT (ni date de naissance, ni filiation)
     champs: [nom, prenoms]
-    services: [cefore]
+    services: [cefore, oni]
   naissance_filiation:
     registre: etat-civil
     regle: champs
     champs: [date_naissance, lieu_naissance, pere, mere]     # date complète exigée (« né vers 1990 » : refus)
-    services: [tribunal]
+    services: [tribunal, oni]

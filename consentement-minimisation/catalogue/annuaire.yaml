@@ -19,10 +19,15 @@ services:
     nom: La Direction des concours – ministère des Serviteurs du peuple
     nom_court: La direction des concours   # dans l'aperçu « … recevra : … » (écran USSD de 160 caractères)
     cle_api_sha256: dc1720cf6ccf4d3177bc8dfb85849c19a9d99afeea21674cf6489419ab89516a   # clé de DÉMO « cle-demo-concours » ; en production : une clé tirée au hasard
-  cefore:
+  cefore:                            # aucune démarche active depuis le 18/11 (demarches-inactives.yaml)
     groupe: CEFORE – guichet des entreprises
     nom: Le CEFORE
     cle_api_sha256: 4d4a6469316462e44b92897c594fca3266386e7c388a54bcc263494d8f565d75   # clé de DÉMO « cle-demo-cefore »
+  oni:
+    groupe: ONI – carte nationale d'identité
+    nom: L'Office national d'identification (ONI)
+    nom_court: L'ONI
+    cle_api_sha256: 52f22714fda0d12bce4a5d99126f296ca9c887aca62c7de04b0b6905e0ef8f55   # clé de DÉMO « cle-demo-oni »
   tribunal:
     groupe: Tribunal – certificats de nationalité
     nom: Le tribunal

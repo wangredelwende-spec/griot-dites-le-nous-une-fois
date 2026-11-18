@@ -72,6 +72,14 @@
           "tribunal"
         ]
       }
+    },
+    {
+      "name": "ONI – carte nationale d'identité",
+      "attributes": {
+        "code": [
+          "oni"
+        ]
+      }
     }
   ],
   "browserFlow": "navigateur-otp-obligatoire",
@@ -388,6 +396,87 @@
       ],
       "realmRoles": [
         "controleur"
+      ]
+    },
+    {
+      "username": "aicha.ilboudo",
+      "enabled": true,
+      "firstName": "Aïcha",
+      "lastName": "Ilboudo",
+      "attributes": {
+        "fonction": [
+          "Agente de l'ONI (carte nationale d'identité)"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026!",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "agent-guichet"
+      ],
+      "groups": [
+        "/ONI – carte nationale d'identité"
+      ]
+    },
+    {
+      "username": "agent.banc.oni",
+      "enabled": true,
+      "firstName": "Banc",
+      "lastName": "Automatique ONI",
+      "attributes": {
+        "fonction": [
+          "Compte des tests automatiques (banc de pannes)"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026!",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "agent-guichet"
+      ],
+      "groups": [
+        "/ONI – carte nationale d'identité"
+      ]
+    },
+    {
+      "username": "agent.banc.tribunal",
+      "enabled": true,
+      "firstName": "Banc",
+      "lastName": "Automatique Tribunal",
+      "attributes": {
+        "fonction": [
+          "Compte des tests automatiques (banc de pannes)"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Agent-Demo-2026!",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "agent-guichet"
+      ],
+      "groups": [
+        "/Tribunal – certificats de nationalité"
       ]
     }
   ],

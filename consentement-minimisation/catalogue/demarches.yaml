@@ -3,7 +3,7 @@
 # redémarrage (voir docs/AJOUTER_UNE_DEMARCHE.md). Elle VALIDE chaque nouvelle version : finalité, base, texte
 # (base légale), durée de l'accord (consentement), attributs déclarés par un registre, double clé.
 # Version invalide : REFUSÉE, l'ancienne reste en vigueur ; chaque chargement ou refus est écrit au journal chaîné.
-# Les démarches retirées (passeport, bourse, majorité) sont dans demarches-inactives.yaml (non chargé).
+# Les démarches retirées (passeport, bourse, majorité, CEFORE) sont dans demarches-inactives.yaml (non chargé).
 #
 # Pour chaque démarche :
 #   libelle   : nom montré à l'agent et à l'usager
@@ -37,17 +37,21 @@ demarches:
       - attribut: casier_vierge
         libelle: casier judiciaire vierge
 
-  entreprise-individuelle-cefore:
-    libelle: Création d'une entreprise individuelle (CEFORE)
-    services: [cefore]
-    finalite: immatriculation d'une entreprise individuelle au CEFORE
-    base: consentement
-    duree_accord_heures: 168          # 7 jours : le temps de constituer le dossier
+  carte-identite-oni:
+    libelle: Établissement de la carte nationale d'identité (ONI)
+    services: [oni]
+    finalite: établissement de la carte nationale d'identité burkinabè
+    base: base_legale
+    # Ce qui remplace les pièces demandées aujourd'hui : l'acte de naissance (né au Burkina) ou le certificat de
+    # nationalité (né à l'étranger). Aucun texte de loi n'est cité tant qu'il n'est pas vérifié.
+    texte: "Mission légale de l'Office national d'identification (ONI) : établissement de la carte nationale d'identité (texte de référence à confirmer par l'ONI)"
     attributs:
       - attribut: identite
         libelle: identité (nom et prénoms)
-      - attribut: casier_vierge
-        libelle: casier judiciaire vierge
+      - attribut: naissance_filiation
+        libelle: naissance (date et lieu) et filiation
+      - attribut: nationalite_bf
+        libelle: nationalité burkinabè
 
   certificat-nationalite:
     libelle: Certificat de nationalité

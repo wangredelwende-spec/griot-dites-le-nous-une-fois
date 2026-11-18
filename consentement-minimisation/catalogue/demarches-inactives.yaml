@@ -1,4 +1,5 @@
-# DÉMARCHES INACTIVES (retirées du catalogue actif le 17/11 : passeport, bourse, majorité).
+# DÉMARCHES INACTIVES (retirées du catalogue actif le 17/11 : passeport, bourse, majorité ; le 18/11 : CEFORE,
+# remplacée par la carte nationale d'identité (ONI)). Le service « cefore » reste déclaré dans annuaire.yaml.
 # Ce fichier n'est PAS chargé par la passerelle : il est conservé pour mémoire (voir LIMITES.md). Pour en réactiver une :
 # recopier son bloc dans demarches.yaml, ré-ajouter son service dans annuaire.yaml et son attribut dans les registres.
 # (Les codes d'attributs ont été renommés depuis : age_entre -> majeur, nationalite_burkinabe -> nationalite_bf,
@@ -87,3 +88,16 @@ demarches:
       - attribut: age_entre
         parametres: {min: 18, date_reference: aujourd'hui}
         libelle: majeur (18 ans accomplis)
+
+  # Retirée le 18/11 (audit) : identité incomplète pour l'immatriculation, « casier vierge » plus large que le besoin.
+  entreprise-individuelle-cefore:
+    libelle: Création d'une entreprise individuelle (CEFORE)
+    services: [cefore]
+    finalite: immatriculation d'une entreprise individuelle au CEFORE
+    base: consentement
+    duree_accord_heures: 168          # 7 jours : le temps de constituer le dossier
+    attributs:
+      - attribut: identite
+        libelle: identité (nom et prénoms)
+      - attribut: casier_vierge
+        libelle: casier judiciaire vierge

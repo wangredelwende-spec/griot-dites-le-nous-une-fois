@@ -191,6 +191,7 @@ AGENTS = {
     "issa.sawadogo": ["Direction des concours – ministère des Serviteurs du peuple"],
     "agent.curieux": ["CEFORE – guichet des entreprises"],
     "moussa.kone": ["Tribunal – certificats de nationalité"],
+    "aicha.ilboudo": ["ONI – carte nationale d'identité"],
 }
 
 

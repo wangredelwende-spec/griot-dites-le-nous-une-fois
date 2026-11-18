@@ -184,7 +184,7 @@ DEMARCHE_VALIDE = """
     services: [direction-concours]
     finalite: vérification de la majorité civile
     base: base_legale
-    texte: Code des personnes et de la famille, loi n°012-2025/ALT (majorité civile à 18 ans accomplis)
+    texte: Base légale de test (aucun texte cité)
     attributs:
       - {attribut: majeur, parametres: {min: 18, date_reference: aujourd'hui}, libelle: majeur}
 """

@@ -25,7 +25,9 @@ demarches:
     services: [direction-concours]
     finalite: vérification des conditions d'inscription au concours direct de la fonction publique
     base: base_legale
-    texte: Cadre général - loi n°081-2015/CNT portant statut général de la fonction publique d'État ; majorité civile - loi n°012-2025/ALT (18 ans accomplis)
+    # Aucun texte de loi n'est cité tant qu'il n'est pas vérifié. Seuil d'âge : « min » ci-dessous (seuil configurable,
+    # 18 ans par défaut), à autoriser aussi pour ce service dans attributs.yaml.
+    texte: Conditions d'accès au concours direct fixées par l'administration du concours (texte de référence à confirmer par elle)
     attributs:
       - attribut: majeur
         parametres: {min: 18, date_reference: aujourd'hui}

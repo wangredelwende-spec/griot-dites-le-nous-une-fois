@@ -81,8 +81,8 @@ demarches:
     services: [direction-concours, service-bourses, mairie]
     finalite: vérification de la majorité civile
     base: base_legale
-    # Majorité civile abaissée de 20 à 18 ans. Le seuil reste un paramètre : changer « min » suffit.
-    texte: Code des personnes et de la famille, loi n°012-2025/ALT (majorité civile à 18 ans accomplis)
+    # Seuil configurable : changer « min » (et l'autoriser dans attributs.yaml). Aucun texte de loi non vérifié n'est cité.
+    texte: Vérification de la majorité (texte de référence à confirmer)
     attributs:
       - attribut: age_entre
         parametres: {min: 18, date_reference: aujourd'hui}

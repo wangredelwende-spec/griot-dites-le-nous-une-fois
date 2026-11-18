@@ -12,7 +12,7 @@ Démonstration pas à pas : `docs/test-manuel.md`.
 5. **Ligne du journal supprimée ?** → Reçus des usagers + double trace des registres.
 6. **Médiateur piraté ?** → Le registre vérifie lui-même le jeton signé de l'agent ; tout est aussi tracé chez le registre.
 7. **Seuils multiples pour retrouver la date ?** → Seuils déclarés par service, refus des autres ; limite 5/24 h par service et par personne + alerte.
-8. **Majeur = 18 ou 20 ans ?** → 18 depuis la loi n°012-2025/ALT ; paramètre.
+8. **Majeur = 18 ou 20 ans ?** → seuil configurable (18 ans par défaut) ; nous ne citons aucun texte non vérifié.
 9. **Absent du casier = vierge ?** → Réglable ; vierge seulement si identité confirmée.
 10. **Registre en panne pendant une démarche à 3 registres ?** → Résultat partiel signé, jamais de « oui » global, « rien n'a été deviné ».
 11. **Pourquoi pas de base centrale ?** → Elle permettrait de tout croiser ; chaque registre garde ses données.

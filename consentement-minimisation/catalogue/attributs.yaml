@@ -15,7 +15,7 @@ attributs:
     champ: date_naissance
     services:
       direction-concours:
-        - {min: 18, date_reference: aujourd'hui}             # majorité civile (loi n°012-2025/ALT)
+        - {min: 18, date_reference: aujourd'hui}             # seuil configurable (18 ans par défaut) : le changer ici ET dans demarches.yaml
   nationalite_bf:
     registre: nationalite
     regle: egal                 # valeur dans « oui » -> oui ; dans « non » -> non ; INCONNUE ou vide -> refus

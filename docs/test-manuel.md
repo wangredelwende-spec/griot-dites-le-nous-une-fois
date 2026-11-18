@@ -50,7 +50,7 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 | `moussa.kone` | `Agent-Demo-2026!` | Service des passeports – ONI (ministère de la Sécurité) | **Passeport ordinaire** (nationalité + interdiction de sortie du territoire, pas d'âge, **avec l'accord de l'usager**) : scène 1 |
 | `issa.sawadogo` | `Agent-Demo-2026!` | Direction des concours – ministère des Serviteurs du peuple | **Concours direct adjoints administratifs** (âge 18–37 ans au 31/12/2026 + nationalité + casier, base légale), Vérifier la majorité |
 | `awa.ouedraogo` | `Agent-Demo-2026!` | Service des bourses | **Bourse nationale** (nationalité, **avec l'accord de l'usager**), Vérifier la majorité |
-| `mariam.kabore` | `Agent-Demo-2026!` | Mairie | Vérifier la majorité (base légale : loi n°012-2025/ALT) |
+| `mariam.kabore` | `Agent-Demo-2026!` | Mairie | Vérifier la majorité (base légale ; seuil configurable) |
 | `agent.curieux` | `Agent-Demo-2026!` | Service des bourses | Vérifier la majorité : **démo de la limite de débit** (scène 2 bis) |
 | `controle.cil` | `Controle-Demo-2026!` | Contrôle (lecture seule, rôle `controleur`) | Aucune démarche : page **Contrôle** (scène 2 ter) |
 

@@ -98,7 +98,7 @@ de `nationalite_bf` dans `attributs.yaml`, puis la démarche dans `demarches.yam
 
 `consentement-minimisation/tests/test_catalogue.py::test_nouvelle_administration_par_configuration_seule`).
 
-Pour `majeur`, les seuils sont aussi autorisés par service : sans cela, un service pourrait poser « 25 ans ? 26 ans ?
+Pour `majeur`, le seuil d'âge est un **seuil configurable** (18 ans par défaut, `parametres: {min: …}` dans `demarches.yaml`) ; aucun texte de loi non vérifié n'est cité. Les seuils sont aussi autorisés par service : sans cela, un service pourrait poser « 25 ans ? 26 ans ?
 
 27 ans ?… » et reconstituer la date de naissance.
 

@@ -208,7 +208,7 @@ def test_historique_sans_la_valeur(client):
     historique = client.get("/usagers/BF-0018/historique", headers=CANAL).json()
     assert [l["evenement"] for l in historique] == ["remise", "reponse-registre", "demande"]
     assert historique[0]["service"] == "La Direction des concours – ministère des Serviteurs du peuple"
-    assert "012-2025" in historique[0]["texte_base"]
+    assert historique[0]["texte_base"] == "Base légale de test (aucun texte cité)"
     assert historique[0]["attributs"] == [{"code": "majeur", "libelle": "majeur (18 ans accomplis)",
                                            "parametres": {"min": 18, "date_reference": "aujourd'hui"}}]
     texte = json.dumps(historique, ensure_ascii=False)

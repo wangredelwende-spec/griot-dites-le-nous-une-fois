@@ -29,7 +29,8 @@ COMPTES = {
 
 
 def lire_env() -> dict:
-    lignes = (RACINE / ".env").read_text(encoding="utf-8").splitlines()
+    fichier = RACINE / ".env"              # absent sur un clone neuf : OUTILS_TEST=0 par défaut
+    lignes = fichier.read_text(encoding="utf-8").splitlines() if fichier.exists() else []
     return dict(l.split("=", 1) for l in lignes if "=" in l and not l.lstrip().startswith("#"))
 
 

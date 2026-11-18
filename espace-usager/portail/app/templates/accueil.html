@@ -24,6 +24,7 @@
 </p>
 
 <h2>{{ t.accords_titre }}</h2>
+<div class="grille">
 {% for a in accords %}
 <section class="carte">
   <p><strong>{{ a.service }}</strong> · {{ a.demarche }}<br>
@@ -37,8 +38,10 @@
 {% else %}
 <p>{{ t.aucun_accord }}</p>
 {% endfor %}
+</div>
 
 <h2>{{ t.attente_titre }}{% if demandes %} <span class="pastille">{{ demandes | length }}</span>{% endif %}</h2>
+<div class="grille">
 {% for d in demandes %}
 <section class="carte">
   <p class="apercu">{{ d.apercu }}</p>
@@ -56,4 +59,5 @@
 {% else %}
 <p>{{ t.aucune_demande }}</p>
 {% endfor %}
+</div>
 {% endblock %}

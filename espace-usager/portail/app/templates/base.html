@@ -4,22 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block titre %}{{ t.titre_site }}{% endblock %}</title>
-<link rel="stylesheet" href="{{ racine }}/static/portail.css">
+<link rel="stylesheet" href="{{ racine }}/static/griot.css">
 </head>
 <body>
 <p class="bandeau" role="note">{{ t.bandeau }}</p>
 <header>
-  <a href="{{ racine }}" class="marque">{{ t.titre_site }}</a>
-  {% if connecte %}
-  <form method="post" action="{{ racine }}/deconnexion">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <button class="lien">{{ t.deconnexion }}</button>
-  </form>
-  {% endif %}
+  <div class="barre">
+    <a href="{{ racine }}" class="marque"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5 3.4 9.4 8 11 4.6-1.6 8-6 8-11V5z"/></svg>{{ t.titre_site }}</a>
+    {% if connecte %}
+    <form method="post" action="{{ racine }}/deconnexion" class="deconnexion">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="lien">{{ t.deconnexion }}</button>
+    </form>
+    {% endif %}
+  </div>
 </header>
 <main>
 {% block contenu %}{% endblock %}
 {% if connecte and not accueil %}<p class="pied"><a href="{{ racine }}">{{ t.retour_menu }}</a></p>{% endif %}
 </main>
+<footer>Griot — logiciel libre (AGPL-3.0)</footer>
 </body>
 </html>

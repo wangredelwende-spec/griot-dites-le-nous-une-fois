@@ -125,6 +125,8 @@ def charger(brut: bytes | None = None) -> dict:
             continue
         attributs[code] = {"registre": a["registre"], "regle": a["regle"], "champ": a.get("champ"),
                            "valeur": a.get("valeur"), "services": a.get("services", []),
+                           # règle « egal » : valeurs reconnues {oui: [...], non: [...]} ; toute autre valeur -> refus
+                           "correspondances": a.get("correspondances"),
                            "champs": a.get("champs") or []}      # règle « champs » : cases renvoyées, rien d'autre
     # Chaque registre de l'annuaire doit avoir sa route DANS SON CONTRAT : le nôtre (GRIOT_CONTRAT) ou, pour le
     # registre d'une autre équipe, le sien (« contrat: contrats/<fichier>.yaml », relatif au catalogue)

@@ -81,3 +81,24 @@ def test_correspondance_du_depot_couvre_le_contrat_et_les_attributs():
         for nom in a.get("champs") or [a["champ"]]:
             champ = (corr["registres"].get(a["registre"]) or {}).get(nom)
             assert champ in proprietes, f"{code} : « {nom} » -> « {champ} » absent du contrat"
+
+
+def test_nationalite_valeur_inconnue_refusee_jamais_non():
+    """Règle « en cas de doute, refuser » : avec les correspondances du dépôt, « BF » ou « Burkina Faso » donne oui,
+    « malienne » donne non, et une valeur que personne n'a écrite (« XK », « apatride ») donne un REFUS, pas « non »."""
+    nat = dict(yaml.safe_load((RACINE / "consentement-minimisation/catalogue/attributs.yaml").read_text(
+        encoding="utf-8"))["attributs"]["nationalite_bf"])
+    assert nat["correspondances"]
+    for oui in ("burkinabe", "Burkinabè", "BF", "BFA", "Burkina Faso", "malienne ; burkinabe"):
+        assert minimiser(nat, "nationalite", {"nat": oui}, CORRESPONDANCE) is True, oui
+    for non in ("malienne", "ML", "Côte d'Ivoire"):
+        assert minimiser(nat, "nationalite", {"nat": non}, CORRESPONDANCE) is False, non
+    for inconnue in ("XK", "apatride", "burkina-faso!"):
+        with pytest.raises(Refus):
+            minimiser(nat, "nationalite", {"nat": inconnue}, CORRESPONDANCE)
+
+
+def test_le_catalogue_transmet_les_correspondances_de_nationalite():
+    """La passerelle charge bien « correspondances » (sinon la règle retomberait sur oui/non)."""
+    from conftest import mediateur
+    assert mediateur.CAT["attributs"]["nationalite_bf"]["correspondances"]["oui"]

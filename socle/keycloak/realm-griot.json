@@ -27,8 +27,7 @@
   "ssoSessionMaxLifespan": 36000,
   "internationalizationEnabled": true,
   "supportedLocales": [
-    "fr",
-    "mos"
+    "fr"
   ],
   "defaultLocale": "fr",
   "loginTheme": "griot",

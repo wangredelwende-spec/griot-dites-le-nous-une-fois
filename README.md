@@ -17,8 +17,8 @@ casier judiciaire) sont **simulés, avec des données fictives** :
 Les réponses des registres sont **validées contre le contrat** : une réponse non conforme est rejetée et écrite au
 journal. Les noms de champs ne sont écrits qu'une fois, dans `consentement-minimisation/catalogue/correspondance.yaml`.
 
-Les trois démarches du catalogue actif (concours direct de la fonction publique, entreprise individuelle au CEFORE,
-certificat de nationalité) sont choisies selon ce que ces registres savent répondre. Changer de démarche ne touche
+Les trois démarches du catalogue actif (concours direct de la fonction publique, établissement de la carte nationale
+d'identité à l'ONI, certificat de nationalité) sont choisies selon ce que ces registres savent répondre. Changer de démarche ne touche
 pas au code : `consentement-minimisation/catalogue/demarches.yaml` (et `attributs.yaml` pour un nouvel attribut).
 Le catalogue est relu à chaud et **validé** : une version invalide est refusée, l'ancienne reste en vigueur.
 Démarches retirées : `demarches-inactives.yaml`. Limites et fonctions désactivées : `LIMITES.md`.

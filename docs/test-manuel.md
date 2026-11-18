@@ -17,8 +17,8 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 5. Sur le téléphone de démo, installer **FreeOTP** ou **Aegis** (applications libres) pour le code TOTP.
 6. Ouvrir trois onglets : https://guichet.griot.test (agent), une fenêtre privée sur https://guichet.griot.test
    (second agent), https://usager.griot.test (téléphone de l'usager).
-7. Enrôler une fois le TOTP des comptes de démo (QR code à la première connexion) : `moussa.kone` (passeport),
-   `issa.sawadogo`, `awa.ouedraogo`, `agent.curieux`, `controle.cil`.
+7. Enrôler une fois le TOTP des comptes de démo (QR code à la première connexion) : `issa.sawadogo`,
+   `aicha.ilboudo`, `moussa.kone`, `controle.cil`.
 
 8. Sauvegarde hors ligne des images (après chaque reconstruction, tant qu'on a le réseau) :
    `python resilience\sauvegarder_hors_ligne.py` → `hors_ligne\griot-images-<date>.tar` (environ 560 Mo, 8 images
@@ -47,15 +47,14 @@ PowerShell, dans le dossier du dépôt. Toutes les données et tous les comptes 
 
 | Compte (guichet) | Mot de passe | Service | Démarches proposées (catalogue) |
 |---|---|---|---|
-| `moussa.kone` | `Agent-Demo-2026!` | Service des passeports – ONI (ministère de la Sécurité) | **Passeport ordinaire** (nationalité + interdiction de sortie du territoire, pas d'âge, **avec l'accord de l'usager**) : scène 1 |
-| `issa.sawadogo` | `Agent-Demo-2026!` | Direction des concours – ministère des Serviteurs du peuple | **Concours direct adjoints administratifs** (âge 18–37 ans au 31/12/2026 + nationalité + casier, base légale), Vérifier la majorité |
-| `awa.ouedraogo` | `Agent-Demo-2026!` | Service des bourses | **Bourse nationale** (nationalité, **avec l'accord de l'usager**), Vérifier la majorité |
-| `mariam.kabore` | `Agent-Demo-2026!` | Mairie | Vérifier la majorité (base légale ; seuil configurable) |
-| `agent.curieux` | `Agent-Demo-2026!` | Service des bourses | Vérifier la majorité : **démo de la limite de débit** (scène 2 bis) |
+| `issa.sawadogo` | `Agent-Demo-2026!` | Direction des concours | **Concours direct** (majeur, nationalité, casier vierge ; base légale) : c'est la démarche de la vidéo |
+| `aicha.ilboudo` | `Agent-Demo-2026!` | ONI | **Carte nationale d'identité** (identité, naissance et filiation, nationalité ; mission de l'ONI, pas de casier) |
+| `moussa.kone` | `Agent-Demo-2026!` | Tribunal | **Certificat de nationalité** (naissance et filiation, **avec l'accord de l'usager**, 24 h) |
+| `awa.ouedraogo`, `agent.curieux` | `Agent-Demo-2026!` | CEFORE | aucune démarche active depuis le 18/11 (réservés aux tests de l'accord et de la limite de débit) |
 | `controle.cil` | `Controle-Demo-2026!` | Contrôle (lecture seule, rôle `controleur`) | Aucune démarche : page **Contrôle** (scène 2 ter) |
 
 À la **première connexion**, Keycloak montre un QR code : le scanner avec FreeOTP/Aegis, taper le code à
-6 chiffres. Ensuite, chaque connexion demande mot de passe + code. (`agent.banc` et `agent.banc.cefore` sont
+6 chiffres. Ensuite, chaque connexion demande mot de passe + code. (`agent.banc`, `agent.banc.oni`, `agent.banc.tribunal` et `agent.banc.cefore` sont
 réservés aux tests automatiques : ne pas les utiliser en démo.)
 
 | Téléphone (USSD) | PIN | Usager | Intérêt |

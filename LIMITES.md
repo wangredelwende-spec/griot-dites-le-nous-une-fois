@@ -16,7 +16,7 @@
   quelqu'un qui a accès au fichier SQLite) **n'est pas détectée** sans ancrage externe (publication régulière de la
   dernière empreinte hors du serveur). Les reçus remis aux usagers et la double trace des registres (désactivée) ne
   couvrent qu'une partie des cas.
-- **Lecture avant l'accord** : pour le CEFORE et le certificat de nationalité, la passerelle **lit les registres avant
+- **Lecture avant l'accord** : pour le certificat de nationalité (seule démarche active à consentement), la passerelle **lit les registres avant
   l'accord** de l'usager, pour lui montrer l'aperçu exact ; la réponse minimisée attend dans la base du médiateur, puis
   est effacée à la remise, au refus ou à l'expiration. **L'accord porte sur la TRANSMISSION**, pas sur la lecture. La
   lecture figure dans l'historique de l'usager, même s'il refuse.
@@ -96,10 +96,13 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
 
 ## Catalogue du cadre, accords et minimisation (17/11)
 
-- Trois démarches actives : concours direct (base légale : majeur, nationalité, casier vierge), entreprise individuelle au
-  CEFORE (consentement 7 jours : identité, casier vierge), certificat de nationalité (consentement 24 h : naissance et
-  filiation, pour le tribunal). **Les durées (168 h et 24 h) sont des choix de l'équipe, à confirmer.** Le concours est en
-  base légale : pas d'accord à donner, la consultation figure dans l'historique avec son texte.
+- Trois démarches actives : concours direct (base légale : majeur, nationalité, casier vierge), carte nationale d'identité
+  à l'ONI (base légale, mission de l'ONI : identité, naissance et filiation, nationalité ; pas de casier), certificat de
+  nationalité (consentement 24 h : naissance et filiation, pour le tribunal). **La durée de 24 h est un choix de l'équipe,
+  à confirmer.** En base légale : pas d'accord à donner, la consultation figure dans l'historique avec son texte.
+- **CEFORE retiré le 18/11** (`demarches-inactives.yaml`, conservé) : l'identité transmise ne suffisait pas à
+  l'immatriculation et « casier vierge » allait au-delà du besoin. Le service `cefore` reste déclaré (annuaire, groupe
+  Keycloak, agents) sans démarche active : les tests de l'accord s'en servent encore.
 - Accord par démarche : donné quand l'usager confirme, enregistré (table `accords`, sans valeur), valable
   `duree_accord_heures`, retirable. Accord valide : la même démarche pour le même service est remise immédiatement
   (ligne `accord-valide` au journal). Retrait, expiration : l'usager est de nouveau consulté.
@@ -108,12 +111,14 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
 - `catalogue/correspondance.yaml` : seul fichier où les noms de champs des registres sont écrits.
   `regles_attributs/minimisation.py` calcule majeur, nationalité, casier, identité, naissance et filiation depuis la
   fiche brute, dans la passerelle.
-- Keycloak : `realm-griot.json` décrit les nouveaux groupes et comptes (CEFORE, tribunal), mais une pile **déjà
-  installée** ne les a pas : à ajouter dans la console Keycloak (ou réimporter le realm) avant de tester le guichet.
+- Keycloak : `realm-griot.json` décrit les groupes et comptes (concours, ONI, tribunal, CEFORE), mais une pile **déjà
+  installée** ne les a pas : `scripts/keycloak_groupes_cadre.py` les ajoute sans réimporter le realm (TOTP conservés).
+- Le **guichet lit l'annuaire au démarrage** : après l'ajout d'une administration (`annuaire.yaml`), redémarrer le guichet
+  (`docker compose restart guichet`). La passerelle, elle, relit le catalogue à chaud.
 - Textes mooré : `phrases-ussd.csv` a reçu des lignes françaises pour les nouveaux services et attributs ; les colonnes
   mooré restent vides (rien n'est inventé). Les anciennes lignes (bourses, passeport…) sont conservées.
-- Le banc de pannes joue les 3 démarches par clé API ; `tests/e2e` joue le concours au guichet (mot de passe + TOTP) et
-  CEFORE au portail et à l'USSD. Le certificat de nationalité n'a pas de compte de test au guichet : il est joué par le banc.
+- Le banc de pannes joue les 3 démarches par clé API ; `tests/e2e` joue le concours et la carte d'identité (ONI) au guichet
+  (mot de passe + TOTP), et le certificat de nationalité avec l'accord de l'usager, au portail et à l'USSD.
 
 ## Appels aux registres et clés API (17/11)
 
@@ -135,7 +140,7 @@ Décision du 17/11 : la remise suit le cadre de la finale ; ce qui suit existe e
   pour le réactiver (refus + alerte dans l'historique du citoyen).
 - Limite « trop de citoyens différents par agent et par heure » (`LIMITE_SUJETS`) : **désactivée** (0). Le banc de pannes
   l'active (5) seulement pour le scénario « agent curieux », en écrivant `/donnees/limite_sujets`, puis la retire.
-- Les comptes des tests de bout en bout (`agent.banc`, `agent.banc.cefore`) en sont exemptés (`LIMITE_EXEMPTES` dans
+- Les comptes des tests de bout en bout (`agent.banc`, `agent.banc.oni`, `agent.banc.tribunal`, `agent.banc.cefore`) en sont exemptés (`LIMITE_EXEMPTES` dans
   `docker-compose.yml`) **seulement si `OUTILS_TEST=1`** (mode test) : ils interrogent des dizaines de fois les mêmes
   citoyens fictifs. Avec `OUTILS_TEST=0` (démonstration), ils suivent les limites comme tout le monde.
   **En production : aucune exemption.**

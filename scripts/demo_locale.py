@@ -8,8 +8,8 @@ Puis ouvrir dans le navigateur :
     http://127.0.0.1:8000/journal/verification   le badge « journal intègre » en JSON
 
 Pour voir quelque chose, le script prépare 3 consultations fictives de « Aminata Kaboré » (BF-0001) avec des
-registres simulés RÉELS, branchés en mémoire selon notre contrat des registres (données fictives) : un concours (base légale), une création d'entreprise
-au CEFORE (confirmée, accord valable 7 jours) et une demande de certificat de nationalité EN ATTENTE, à confirmer ou
+registres simulés RÉELS, branchés en mémoire selon notre contrat des registres (données fictives) : un concours (base légale), une carte nationale
+d'identité à l'ONI (base légale, réponse immédiate) et une demande de certificat de nationalité EN ATTENTE, à confirmer ou
 refuser vous-même. Tout est jeté à l'arrêt (Ctrl+C). Ce n'est PAS la pile Docker : les données ne sont pas conservées.
 """
 import os
@@ -45,12 +45,9 @@ def preparer_les_consultations():
         brancher_les_registres_reels()          # le vrai code des registres simulés, sans réseau
         # 1. Concours direct : base légale, réponse immédiate, l'usager le voit dans son historique
         client.post("/demandes", json=demande("concours-direct", sujet=SUJET))
-        # 2. CEFORE : l'usager confirme (comme sur son téléphone), l'agent récupère la réponse
-        agent["nom"] = "awa.ouedraogo"
-        d = demande("entreprise-individuelle-cefore", sujet=SUJET)
-        client.post("/demandes", json=d)
-        client.post(f"/demandes/{d['id_demande']}/confirmer", json={"sujet_ref": SUJET}, headers=CANAL)
-        client.get(f"/demandes/{d['id_demande']}")
+        # 2. Carte nationale d'identité (ONI) : base légale, réponse immédiate, visible dans l'historique
+        agent["nom"] = "aicha.ilboudo"
+        client.post("/demandes", json=demande("carte-identite-oni", sujet=SUJET))
         # 3. Certificat de nationalité : laissé EN ATTENTE, à vous de confirmer ou refuser
         agent["nom"] = "moussa.kone"
         client.post("/demandes", json=demande("certificat-nationalite", sujet=SUJET))
